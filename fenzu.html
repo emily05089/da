@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0">
+    <title>分组工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f0f4f8;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 980px;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 40px rgba(0, 20, 40, 0.1);
+            padding: 28px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #0a2a40;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #e8eef4;
+            padding-bottom: 16px;
+        }
+        h1 .icon {
+            background: linear-gradient(135deg, #c62828, #b71c1c);
+            color: white;
+            font-size: 1.3rem;
+            padding: 4px 16px;
+            border-radius: 30px;
+        }
+        .input-area { display: flex; flex-direction: column; gap: 10px; }
+        label { font-weight: 600; color: #1a3a52; font-size: 0.95rem; }
+        textarea {
+            width: 100%;
+            height: 220px;
+            border: 2px solid #dce3ec;
+            border-radius: 16px;
+            padding: 14px 16px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            background: #fafbfd;
+            resize: vertical;
+            transition: 0.2s;
+            color: #152b3c;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #1565c0;
+            box-shadow: 0 0 0 4px rgba(21, 101, 192, 0.12);
+            background: white;
+        }
+        .hint {
+            font-size: 0.82rem;
+            color: #5d6f82;
+            background: #f0f4fa;
+            padding: 8px 14px;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+        }
+        .hint code {
+            background: #dfe6f0;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            padding: 11px 26px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            background: #eef2f7;
+            color: #1e3b5a;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary {
+            background: #0b2b44;
+            color: white;
+            box-shadow: 0 4px 12px rgba(11, 43, 68, 0.25);
+        }
+        .btn-primary:hover { background: #123c5a; }
+        .btn:hover { background: #dfe6f0; }
+        .results { display: flex; flex-direction: column; gap: 16px; margin-top: 4px; }
+        .total-box {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            border-radius: 16px;
+            padding: 16px 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2e7d32;
+        }
+        .group-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 16px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+        .group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .group-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #0b2b44;
+            background: #eef3fa;
+            padding: 5px 16px;
+            border-radius: 24px;
+        }
+        .badge {
+            background: #c62828;
+            color: white;
+            border-radius: 16px;
+            padding: 2px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .copy-btn {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #1e405b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: 0.2s;
+        }
+        .copy-btn:hover { background: #e8eef6; border-color: #94a3b8; }
+        .copy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .copy-btn.copied { background: #dcfce7; border-color: #86efac; color: #166534; }
+        .combo-list {
+            background: #f8fafd;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.88rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #1a3244;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ebf0f7;
+            line-height: 1.7;
+            min-height: 36px;
+        }
+        .empty { color: #8899aa; font-style: italic; }
+        .error-box {
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #c62828;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: #7f1d1d;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error-box summary {
+            cursor: pointer;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #991b1b;
+        }
+        .error-item {
+            background: #fef2f2;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            border-left: 3px solid #ef4444;
+        }
+        .error-line { font-weight: 700; color: #b91c1c; }
+        .error-reason { color: #7f1d1d; margin-left: 6px; }
+        @media (max-width: 600px) {
+            .container { padding: 16px; }
+            .btn { padding: 10px 18px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>
+        🎯 分组工具
+        <span class="icon">前区·后区</span>
+    </h1>
+
+    <div class="input-area">
+        <label>📋 输入组合（支持复式、胆拖）</label>
+        <textarea id="comboInput" placeholder="单式：1,2,3,4,5-1,2
+复式：1,2,3,4,5,6,7,8-1,2,3
+胆拖：前区胆：1，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9
+..."></textarea>
+        <div class="hint">
+            <span>✅ 前区号码范围 1-35，后区号码范围 1-12</span>
+            <span>✅ 中文逗号、英文逗号均可</span>
+            <span>✅ 数字 1-9 或 01-09 均可识别</span>
+            <span>📊 自动拆分并统计单式注数</span>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn btn-primary" id="groupBtn">📊 确定并分组</button>
+        <button class="btn" id="clearBtn">🗑️ 清空</button>
+        <button class="btn" id="demoBtn">✨ 加载示例</button>
+    </div>
+
+    <div id="resultsContainer" class="results"></div>
+</div>
+
+<script>
+    (function() {
+        // 分组定义：标准按前区数量 5-14 单独分组 + 15及以上，胆拖按前区胆数量 0-4
+        const GROUP_DEFS = [
+            // 标准复式：前区数字数量分组
+            { id: 'g5',  label: '前区5个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 5 },
+            { id: 'g6',  label: '前区6个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 6 },
+            { id: 'g7',  label: '前区7个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 7 },
+            { id: 'g8',  label: '前区8个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 8 },
+            { id: 'g9',  label: '前区9个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 9 },
+            { id: 'g10', label: '前区10个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 10 },
+            { id: 'g11', label: '前区11个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 11 },
+            { id: 'g12', label: '前区12个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 12 },
+            { id: 'g13', label: '前区13个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 13 },
+            { id: 'g14', label: '前区14个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 14 },
+            { id: 'g15', label: '前区15个数字及以上的组合', test: (item) => item.type === 'standard' && item.qianCount >= 15 },
+            // 胆拖形式：按前区胆数量分组
+            { id: 'd0', label: '前区0个胆（全拖）',   test: (item) => item.type === 'dantuo' && item.qianDanCount === 0 },
+            { id: 'd1', label: '前区1个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 1 },
+            { id: 'd2', label: '前区2个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 2 },
+            { id: 'd3', label: '前区3个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 3 },
+            { id: 'd4', label: '前区4个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 4 }
+        ];
+
+        // 从字符串中提取指定范围内的整数，允许前导零，支持中文逗号/英文逗号混合
+        function extractNumsInRange(str, min, max) {
+            if (!str) return { nums: [], invalidNums: [] };
+            // 替换中文逗号为英文逗号，同时处理全角空格等
+            let cleaned = str.replace(/，/g, ',').replace(/\s+/g, ',');
+            // 将连续的逗号合并，避免空元素
+            cleaned = cleaned.replace(/,+/g, ',');
+            const parts = cleaned.split(',');
+            const nums = [];
+            const invalidNums = [];
+            for (let p of parts) {
+                const v = p.trim();
+                if (!v) continue;
+                // 允许前导零，如 01 -> 1
+                const n = Number(v);
+                if (!isNaN(n) && Number.isInteger(n) && n >= min && n <= max) {
+                    nums.push(n);
+                } else if (!isNaN(n) && Number.isInteger(n)) {
+                    invalidNums.push(n);
+                } else {
+                    invalidNums.push(v); // 非数字
+                }
+            }
+            return { nums, invalidNums };
+        }
+
+        // 判断字符串是否为“无”或空
+        function isNoneOrEmpty(s) {
+            return !s || /^无\s*$/i.test(s.trim());
+        }
+
+        // 解析标准复式行，格式：前区号码-后区号码
+        function parseStandardLine(trimmed, raw) {
+            const lastDash = trimmed.lastIndexOf('-');
+            if (lastDash === -1) {
+                return { type: 'invalid', raw, reason: '缺少分隔符“-”来区分前区和后区' };
+            }
+            const qianPart = trimmed.substring(0, lastDash).trim();
+            const houPart = trimmed.substring(lastDash + 1).trim();
+            if (!qianPart || !houPart) {
+                return { type: 'invalid', raw, reason: '前区或后区为空' };
+            }
+            const qianResult = extractNumsInRange(qianPart, 1, 35);
+            const houResult = extractNumsInRange(houPart, 1, 12);
+
+            if (qianResult.invalidNums.length > 0) {
+                return { type: 'invalid', raw, reason: `前区号码超出1-35或非法：[${qianResult.invalidNums.join(',')}]` };
+            }
+            if (houResult.invalidNums.length > 0) {
+                return { type: 'invalid', raw, reason: `后区号码超出1-12或非法：[${houResult.invalidNums.join(',')}]` };
+            }
+
+            const qianNums = qianResult.nums.sort((a, b) => a - b);
+            const houNums = houResult.nums.sort((a, b) => a - b);
+
+            if (qianNums.length < 5) {
+                return { type: 'invalid', raw, reason: `前区只有${qianNums.length}个号码，至少需要5个` };
+            }
+            if (houNums.length < 2) {
+                return { type: 'invalid', raw, reason: `后区只有${houNums.length}个号码，至少需要2个` };
+            }
+            if (new Set(qianNums).size !== qianNums.length) {
+                return { type: 'invalid', raw, reason: `前区号码重复：[${qianNums.join(',')}]` };
+            }
+            if (new Set(houNums).size !== houNums.length) {
+                return { type: 'invalid', raw, reason: `后区号码重复：[${houNums.join(',')}]` };
+            }
+
+            return {
+                type: 'standard',
+                raw,
+                qianCount: qianNums.length,
+                houCount: houNums.length,
+                qianNums,
+                houNums
+            };
+        }
+
+        // 解析胆拖格式行，支持：前区胆：... 前区拖：... 后区胆：... 后区拖：...
+        function parseDantuoLine(trimmed, raw) {
+            // 使用正则提取各部分
+            const qianDanMatch = trimmed.match(/前区胆\s*[:：]\s*([^前区拖后区胆后区拖]*?)(?=前区拖|后区胆|后区拖|$)/i);
+            const qianTuoMatch = trimmed.match(/前区拖\s*[:：]\s*([^后区胆后区拖]*?)(?=后区胆|后区拖|$)/i);
+            const houDanMatch = trimmed.match(/后区胆\s*[:：]\s*([^后区拖]*?)(?=后区拖|$)/i);
+            const houTuoMatch = trimmed.match(/后区拖\s*[:：]\s*([\s\S]*?)$/i);
+
+            const qianDanStr = qianDanMatch ? qianDanMatch[1].trim() : '';
+            const qianTuoStr = qianTuoMatch ? qianTuoMatch[1].trim() : '';
+            const houDanStr = houDanMatch ? houDanMatch[1].trim() : '';
+            const houTuoStr = houTuoMatch ? houTuoMatch[1].trim() : '';
+
+            // 检查必要关键字是否存在
+            if (!/前区胆\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“前区胆”' };
+            if (!/前区拖\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“前区拖”' };
+            if (!/后区胆\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“后区胆”' };
+            if (!/后区拖\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“后区拖”' };
+
+            // 处理“无”表示空
+            let qianDanNums = [];
+            let qianTuoNums = [];
+            let houDanNums = [];
+            let houTuoNums = [];
+
+            if (!isNoneOrEmpty(qianDanStr)) {
+                const r = extractNumsInRange(qianDanStr, 1, 35);
+                qianDanNums = r.nums;
+                if (r.invalidNums.length > 0) return { type: 'invalid', raw, reason: `前区胆码超出1-35或非法：[${r.invalidNums.join(',')}]` };
+            }
+            if (!isNoneOrEmpty(qianTuoStr)) {
+                const r = extractNumsInRange(qianTuoStr, 1, 35);
+                qianTuoNums = r.nums;
+                if (r.invalidNums.length > 0) return { type: 'invalid', raw, reason: `前区拖码超出1-35或非法：[${r.invalidNums.join(',')}]` };
+            }
+            if (!isNoneOrEmpty(houDanStr)) {
+                const r = extractNumsInRange(houDanStr, 1, 12);
+                houDanNums = r.nums;
+                if (r.invalidNums.length > 0) return { type: 'invalid', raw, reason: `后区胆码超出1-12或非法：[${r.invalidNums.join(',')}]` };
+            }
+            if (!isNoneOrEmpty(houTuoStr)) {
+                const r = extractNumsInRange(houTuoStr, 1, 12);
+                houTuoNums = r.nums;
+                if (r.invalidNums.length > 0) return { type: 'invalid', raw, reason: `后区拖码超出1-12或非法：[${r.invalidNums.join(',')}]` };
+            }
+
+            // 排序
+            qianDanNums.sort((a,b)=>a-b);
+            qianTuoNums.sort((a,b)=>a-b);
+            houDanNums.sort((a,b)=>a-b);
+            houTuoNums.sort((a,b)=>a-b);
+
+            const qianDanCount = qianDanNums.length;
+            const qianTuoCount = qianTuoNums.length;
+            const houDanCount = houDanNums.length;
+            const houTuoCount = houTuoNums.length;
+
+            // 验证数量
+            if (qianDanCount > 4) return { type: 'invalid', raw, reason: `前区胆码最多4个，当前${qianDanCount}个` };
+            if (qianDanCount + qianTuoCount < 5) return { type: 'invalid', raw, reason: `前区胆+拖总数不足5个` };
+            if (houDanCount > 2) return { type: 'invalid', raw, reason: `后区胆码最多2个，当前${houDanCount}个` };
+            if (houDanCount + houTuoCount < 2) return { type: 'invalid', raw, reason: `后区胆+拖总数不足2个` };
+
+            // 检查重复
+            if (new Set(qianDanNums).size !== qianDanNums.length) return { type: 'invalid', raw, reason: `前区胆码重复：[${qianDanNums.join(',')}]` };
+            if (new Set(qianTuoNums).size !== qianTuoNums.length) return { type: 'invalid', raw, reason: `前区拖码重复：[${qianTuoNums.join(',')}]` };
+            if (new Set(houDanNums).size !== houDanNums.length) return { type: 'invalid', raw, reason: `后区胆码重复：[${houDanNums.join(',')}]` };
+            if (new Set(houTuoNums).size !== houTuoNums.length) return { type: 'invalid', raw, reason: `后区拖码重复：[${houTuoNums.join(',')}]` };
+
+            // 胆码与拖码不能重复
+            for (let n of qianDanNums) if (qianTuoNums.includes(n)) return { type: 'invalid', raw, reason: `数字${n}在前区胆与拖中重复` };
+            for (let n of houDanNums) if (houTuoNums.includes(n)) return { type: 'invalid', raw, reason: `数字${n}在后区胆与拖中重复` };
+
+            return {
+                type: 'dantuo',
+                raw,
+                qianDanCount,
+                qianTuoCount,
+                houDanCount,
+                houTuoCount,
+                qianDanNums,
+                qianTuoNums,
+                houDanNums,
+                houTuoNums
+            };
+        }
+
+        // 主解析函数
+        function parseLine(line) {
+            const trimmed = line.trim();
+            if (!trimmed) return null;
+            // 判断是否为胆拖格式
+            if (/前区胆\s*[:：]|前区拖\s*[:：]|后区胆\s*[:：]|后区拖\s*[:：]/i.test(trimmed)) {
+                return parseDantuoLine(trimmed, trimmed);
+            } else {
+                return parseStandardLine(trimmed, trimmed);
+            }
+        }
+
+        // 组合数计算
+        function combinationsCount(n, k) {
+            if (k < 0 || n < k) return 0;
+            if (k === 0 || n === k) return 1;
+            let result = 1;
+            for (let i = 1; i <= k; i++) {
+                result = result * (n - k + i) / i;
+            }
+            return Math.round(result);
+        }
+
+        // 计算某个项展开后的单式注数
+        function countExpanded(item) {
+            if (item.type === 'standard') {
+                const qianComb = combinationsCount(item.qianCount, 5);
+                const houComb = combinationsCount(item.houCount, 2);
+                return qianComb * houComb;
+            } else if (item.type === 'dantuo') {
+                const qianNeed = 5 - item.qianDanCount;
+                const houNeed = 2 - item.houDanCount;
+                const qianComb = combinationsCount(item.qianTuoCount, qianNeed);
+                const houComb = combinationsCount(item.houTuoCount, houNeed);
+                return qianComb * houComb;
+            }
+            return 0;
+        }
+
+        // 处理并渲染
+        function process() {
+            const textarea = document.getElementById('comboInput');
+            const rawLines = textarea.value.split(/\r?\n/);
+            const groups = GROUP_DEFS.map(g => ({ ...g, items: [] }));
+            const errors = [];
+            let totalCount = 0;
+
+            for (let i = 0; i < rawLines.length; i++) {
+                const line = rawLines[i];
+                if (!line.trim()) continue;
+                const parsed = parseLine(line);
+                if (parsed.type === 'invalid') {
+                    errors.push({ lineNum: i + 1, reason: parsed.reason, raw: parsed.raw });
+                    continue;
+                }
+
+                totalCount += countExpanded(parsed);
+
+                let anyMatched = false;
+                for (let g of groups) {
+                    if (g.test(parsed)) {
+                        g.items.push(parsed.raw);
+                        anyMatched = true;
+                    }
+                }
+                if (!anyMatched) errors.push({ lineNum: i + 1, reason: '无法匹配任何分组', raw: parsed.raw });
+            }
+
+            render(groups, errors, totalCount);
+        }
+
+        function render(groups, errors, totalCount) {
+            const container = document.getElementById('resultsContainer');
+            let html = '';
+
+            if (errors.length) {
+                html += `<details class="error-box" open><summary>⚠️ ${errors.length} 行错误，已跳过（点击折叠）</summary>`;
+                for (let err of errors) {
+                    html += `<div class="error-item"><span class="error-line">第${err.lineNum}行</span> <span class="error-reason">【${err.reason}】</span><br><span style="color:#991b1b;font-family:monospace;">原文：${escHtml(err.raw)}</span></div>`;
+                }
+                html += `</details>`;
+            }
+
+            html += `<div class="total-box">📊 一共生成了 <strong>${totalCount}</strong> 注单式组合</div>`;
+
+            const groupsData = {};
+            for (let g of groups) groupsData[g.id] = g.items.join('\n');
+            for (let g of groups) {
+                const content = groupsData[g.id];
+                const isEmpty = g.items.length === 0;
+                html += `<div class="group-card"><div class="group-header"><span class="group-title">📌 ${escHtml(g.label)} <span class="badge">${g.items.length} 组</span></span><button class="copy-btn" data-group-id="${g.id}" ${isEmpty ? 'disabled' : ''}>📋 复制本组</button></div><div class="combo-list ${isEmpty ? 'empty' : ''}">${isEmpty ? '（暂无）' : escHtml(content)}</div></div>`;
+            }
+            container.innerHTML = html;
+
+            container.querySelectorAll('.copy-btn[data-group-id]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const content = groupsData[this.getAttribute('data-group-id')] || '';
+                    if (!content || this.disabled) return;
+                    copyContent(content, this);
+                });
+            });
+        }
+
+        function copyContent(text, btn) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => showCopied(btn)).catch(() => fallbackCopy(text, btn));
+            } else {
+                fallbackCopy(text, btn);
+            }
+        }
+        function fallbackCopy(text, btn) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try { document.execCommand('copy'); showCopied(btn); } catch (err) { alert('复制失败，请手动复制'); }
+            document.body.removeChild(textarea);
+        }
+        function showCopied(btn) {
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '✅ 已复制';
+            btn.classList.add('copied');
+            btn.disabled = true;
+            setTimeout(() => { btn.innerHTML = origHTML; btn.classList.remove('copied'); btn.disabled = false; }, 1500);
+        }
+        function escHtml(s) {
+            if (!s) return '';
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function loadDemo() {
+            const demo = [
+                '1,2,3,4,5-1,2',
+                '4,5,6,7,8,9-2,3,4',
+                '前区胆：1，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9',
+                '前区胆：1，2，前区拖：10，12，13，15，21，22，后区胆：无，后区拖：5，6，7，8',
+                '前区胆：无，前区拖：01,02,03,04,05,06，后区胆：无，后区拖：01,02,03',
+                '前区胆：1，2，3，4，5，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9'
+            ];
+            document.getElementById('comboInput').value = demo.join('\n');
+            process();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('groupBtn').addEventListener('click', process);
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                document.getElementById('comboInput').value = '';
+                document.getElementById('resultsContainer').innerHTML = '<div style="color:#8899aa;text-align:center;padding:20px;">请输入组合后点击确定</div>';
+            });
+            document.getElementById('demoBtn').addEventListener('click', loadDemo);
+        });
+    })();
+</script>
+</body>
+</html>
