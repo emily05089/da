@@ -47,7 +47,7 @@
         label { font-weight: 600; color: #1a3a52; font-size: 0.95rem; }
         textarea {
             width: 100%;
-            height: 220px;
+            height: 240px;
             border: 2px solid #dce3ec;
             border-radius: 16px;
             padding: 14px 16px;
@@ -172,7 +172,7 @@
             white-space: pre-wrap;
             word-break: break-word;
             color: #1a3244;
-            max-height: 200px;
+            max-height: 220px;
             overflow-y: auto;
             border: 1px solid #ebf0f7;
             line-height: 1.7;
@@ -220,15 +220,17 @@
     </h1>
 
     <div class="input-area">
-        <label>📋 输入组合（支持复式、胆拖）</label>
+        <label>📋 输入组合（支持复式、胆拖，胆码可写“无”）</label>
         <textarea id="comboInput" placeholder="单式：1,2,3,4,5-1,2
 复式：1,2,3,4,5,6,7,8-1,2,3
 胆拖：前区胆：1，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9
+前区胆：无，前区拖：01,02,03,04,05,06，后区胆：无，后区拖：01,02,03
 ..."></textarea>
         <div class="hint">
             <span>✅ 前区号码范围 1-35，后区号码范围 1-12</span>
             <span>✅ 中文逗号、英文逗号均可</span>
             <span>✅ 数字 1-9 或 01-09 均可识别</span>
+            <span>✅ 胆拖中“无”表示该区没有胆码</span>
             <span>📊 自动拆分并统计单式注数</span>
         </div>
     </div>
@@ -246,7 +248,6 @@
     (function() {
         // 分组定义：标准按前区数量 5-14 单独分组 + 15及以上，胆拖按前区胆数量 0-4
         const GROUP_DEFS = [
-            // 标准复式：前区数字数量分组
             { id: 'g5',  label: '前区5个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 5 },
             { id: 'g6',  label: '前区6个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 6 },
             { id: 'g7',  label: '前区7个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 7 },
@@ -258,7 +259,6 @@
             { id: 'g13', label: '前区13个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 13 },
             { id: 'g14', label: '前区14个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 14 },
             { id: 'g15', label: '前区15个数字及以上的组合', test: (item) => item.type === 'standard' && item.qianCount >= 15 },
-            // 胆拖形式：按前区胆数量分组
             { id: 'd0', label: '前区0个胆（全拖）',   test: (item) => item.type === 'dantuo' && item.qianDanCount === 0 },
             { id: 'd1', label: '前区1个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 1 },
             { id: 'd2', label: '前区2个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 2 },
@@ -269,9 +269,7 @@
         // 从字符串中提取指定范围内的整数，允许前导零，支持中文逗号/英文逗号混合
         function extractNumsInRange(str, min, max) {
             if (!str) return { nums: [], invalidNums: [] };
-            // 替换中文逗号为英文逗号，同时处理全角空格等
             let cleaned = str.replace(/，/g, ',').replace(/\s+/g, ',');
-            // 将连续的逗号合并，避免空元素
             cleaned = cleaned.replace(/,+/g, ',');
             const parts = cleaned.split(',');
             const nums = [];
@@ -279,14 +277,13 @@
             for (let p of parts) {
                 const v = p.trim();
                 if (!v) continue;
-                // 允许前导零，如 01 -> 1
                 const n = Number(v);
                 if (!isNaN(n) && Number.isInteger(n) && n >= min && n <= max) {
                     nums.push(n);
                 } else if (!isNaN(n) && Number.isInteger(n)) {
                     invalidNums.push(n);
                 } else {
-                    invalidNums.push(v); // 非数字
+                    invalidNums.push(v);
                 }
             }
             return { nums, invalidNums };
@@ -345,11 +342,12 @@
         }
 
         // 解析胆拖格式行，支持：前区胆：... 前区拖：... 后区胆：... 后区拖：...
+        // 胆码部分可以写“无”表示没有胆码
         function parseDantuoLine(trimmed, raw) {
-            // 使用正则提取各部分
-            const qianDanMatch = trimmed.match(/前区胆\s*[:：]\s*([^前区拖后区胆后区拖]*?)(?=前区拖|后区胆|后区拖|$)/i);
-            const qianTuoMatch = trimmed.match(/前区拖\s*[:：]\s*([^后区胆后区拖]*?)(?=后区胆|后区拖|$)/i);
-            const houDanMatch = trimmed.match(/后区胆\s*[:：]\s*([^后区拖]*?)(?=后区拖|$)/i);
+            // 使用更稳健的正则：[\s\S]*? 配合前瞻，确保提取内容不包含后面的关键字
+            const qianDanMatch = trimmed.match(/前区胆\s*[:：]\s*([\s\S]*?)(?=前区拖|后区胆|后区拖|$)/i);
+            const qianTuoMatch = trimmed.match(/前区拖\s*[:：]\s*([\s\S]*?)(?=后区胆|后区拖|$)/i);
+            const houDanMatch = trimmed.match(/后区胆\s*[:：]\s*([\s\S]*?)(?=后区拖|$)/i);
             const houTuoMatch = trimmed.match(/后区拖\s*[:：]\s*([\s\S]*?)$/i);
 
             const qianDanStr = qianDanMatch ? qianDanMatch[1].trim() : '';
@@ -363,7 +361,6 @@
             if (!/后区胆\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“后区胆”' };
             if (!/后区拖\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“后区拖”' };
 
-            // 处理“无”表示空
             let qianDanNums = [];
             let qianTuoNums = [];
             let houDanNums = [];
@@ -390,7 +387,6 @@
                 if (r.invalidNums.length > 0) return { type: 'invalid', raw, reason: `后区拖码超出1-12或非法：[${r.invalidNums.join(',')}]` };
             }
 
-            // 排序
             qianDanNums.sort((a,b)=>a-b);
             qianTuoNums.sort((a,b)=>a-b);
             houDanNums.sort((a,b)=>a-b);
@@ -435,7 +431,6 @@
         function parseLine(line) {
             const trimmed = line.trim();
             if (!trimmed) return null;
-            // 判断是否为胆拖格式
             if (/前区胆\s*[:：]|前区拖\s*[:：]|后区胆\s*[:：]|后区拖\s*[:：]/i.test(trimmed)) {
                 return parseDantuoLine(trimmed, trimmed);
             } else {
@@ -571,7 +566,7 @@
                 '前区胆：1，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9',
                 '前区胆：1，2，前区拖：10，12，13，15，21，22，后区胆：无，后区拖：5，6，7，8',
                 '前区胆：无，前区拖：01,02,03,04,05,06，后区胆：无，后区拖：01,02,03',
-                '前区胆：1，2，3，4，5，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9'
+                '前区胆：15,21,25，前区拖：01,02,03,04,05,06,07,08,09,10,11,12,13,14,16,17,18,19,20,22,23,24,26,27,28,29,30,31,32,33,34,35，后区胆：无，后区拖：05,08'
             ];
             document.getElementById('comboInput').value = demo.join('\n');
             process();
