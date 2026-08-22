@@ -52,6 +52,11 @@
         .btn-xor-seq-gap { background: #9b59b6; color: #fff; }
         .btn-head { background: #e67e22; color: #fff; }
         .btn-tail { background: #2980b9; color: #fff; }
+        .btn-head.selected, .btn-tail.selected { 
+            background: #2ecc71 !important; 
+            color: #fff !important; 
+            border: 2px solid #27ae60; 
+        }
         .number-grid { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
         .zone-row { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
         .n-cell { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; cursor: pointer; background: #fff; transition: 0.1s; color: #333; }
@@ -109,7 +114,7 @@
         .select-all-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; }
     </style>
 </head>
-<body>
+    <body>
 <div class="container">
     <div style="text-align:center;">
         <h2 style="font-size:18px;margin:0;">前区筛选工具</h2>
@@ -198,7 +203,7 @@
             <button class="btn btn-danger btn-sm" id="btn5Gap">5隔号</button>
         </div>
         <div class="flex-row" style="margin-top:6px;">
-            <button class="btn btn-danger btn-sm" id="btnTail2">同尾数≥2个</button>
+            <button class="btn btn-danger btn-sm" id="btnTail2">同尾数≥3个</button>
             <button class="btn btn-danger btn-sm" id="btnTail2Group">同尾数组数≥2组</button>
             <button class="btn btn-danger btn-sm" id="btnRatio500">5:0:0型</button>
             <button class="btn btn-danger btn-sm" id="btnRatio410">4:1:0型</button>
@@ -236,7 +241,7 @@
         <div class="zone-exclude-row"><span class="zone-name">第三区 25-35</span><button class="btn btn-danger btn-sm zone-btn" data-zone="3" data-count="0">排除0个</button><button class="btn btn-danger btn-sm zone-btn" data-zone="3" data-count="1">排除1个</button><button class="btn btn-danger btn-sm zone-btn" data-zone="3" data-count="2">排除2个</button><button class="btn btn-danger btn-sm zone-btn" data-zone="3" data-count="3">排除3个</button><button class="btn btn-danger btn-sm zone-btn" data-zone="3" data-count="4">排除4个</button></div>
         <div class="note-box">※ 以上功能累积生效，点击后从当前剩余组合中删除符合条件的组合。</div>
     </div>
-        <div class="card">
+    <div class="card">
         <b>📌 固定奖金基准与导出 / 显示内容</b>
         <div class="flex-row" style="margin-top:6px;">
             <button class="btn btn-fixed btn-sm" id="btnFixHistory">📌 固定当前历史</button>
@@ -381,11 +386,11 @@
         </div>
     </div>
 
-    <!-- 保留开头号码个数模态框 -->
+    <!-- 保留开头号码个数模态框（多选） -->
     <div class="modal-overlay" id="keepHeadCountModalOverlay">
         <div class="modal-box">
-            <div class="modal-title">🔢 保留开头号码个数</div>
-            <div class="note-box" style="margin-bottom:10px;">选择要保留的不同开头数字种类个数（1-4）。例如选择3，表示组合中恰好有3种不同的开头数字（0开头、1开头、2开头、3开头中的3种）。</div>
+            <div class="modal-title">🔢 保留开头号码个数（可多选）</div>
+            <div class="note-box" style="margin-bottom:10px;">点击选择需要保留的开头种类数量，可多选。例如选择“3种开头”，则只保留组合中恰好有3种不同开头数字（0/1/2/3开头）的组合。</div>
             <div class="flex-row" style="justify-content:center; gap:12px; margin:15px 0;">
                 <button class="btn btn-head btn-sm head-count-btn" data-count="1">1种开头</button>
                 <button class="btn btn-head btn-sm head-count-btn" data-count="2">2种开头</button>
@@ -399,11 +404,11 @@
         </div>
     </div>
 
-    <!-- 保留尾数相同个数模态框 -->
+    <!-- 保留尾数相同个数模态框（多选） -->
     <div class="modal-overlay" id="keepTailCountModalOverlay">
         <div class="modal-box">
-            <div class="modal-title">🔢 保留尾数相同个数</div>
-            <div class="note-box" style="margin-bottom:10px;">选择尾数相同的模式：<br>0 = 尾数都不相同（如1,14,16,27,32）<br>2 = 恰好有一对尾数相同（如2,12,15,28,30）<br>3 = 恰好有三同尾（如5,15,25,8,20）<br>4 = 恰好有两对尾数相同（如2,12,15,25,30）</div>
+            <div class="modal-title">🔢 保留尾数相同个数（可多选）</div>
+            <div class="note-box" style="margin-bottom:10px;">点击选择尾数模式，可多选：<br>0 = 尾数都不相同（如1,14,16,27,32）<br>2 = 恰好一对尾数相同（如2,12,15,28,30）<br>3 = 三同尾（如5,15,25,8,20）<br>4 = 两对尾数相同（如2,12,15,25,30）</div>
             <div class="flex-row" style="justify-content:center; gap:12px; margin:15px 0;">
                 <button class="btn btn-tail btn-sm tail-count-btn" data-count="0">0（都不相同）</button>
                 <button class="btn btn-tail btn-sm tail-count-btn" data-count="2">2（一对相同）</button>
@@ -435,7 +440,7 @@
 
     <button class="cancel-float-btn" id="btnGlobalCancel" style="display:none;">❌ 取消当前计算</button>
 </div>
-<script>
+        <script>
 (function(){
 // ========== 历史数据 ==========
 var HISTORY_LINES = [
@@ -1023,8 +1028,7 @@ var HISTORY_LINES = [
 "14,16,25,26,35","1,16,20,23,28","1,9,19,20,30","6,10,16,17,25","3,4,18,23,32",
 "15,22,31,34,35","22,24,29,31,35"
 ];
-
-// ========== 解析历史数据 ==========
+    // ========== 解析历史数据 ==========
 var HISTORY_SET = new Set();
 var HISTORY_ARRAYS = [];
 for (var i = 0; i < HISTORY_LINES.length; i++) {
@@ -1090,8 +1094,8 @@ var digitRankMap = null;
 var pairRankList = null;
 var pairRankContentCache = null;
 var contentModalCache = null;
-var headCountSel = 0;
-var tailCountSel = -1;
+var headCountSelSet = new Set(); // 多选开头个数
+var tailCountSelSet = new Set(); // 多选尾数模式
 
 // ========== 位掩码操作 ==========
 function popcount32(v) { v=v-((v>>>1)&0x55555555); v=(v&0x33333333)+((v>>>2)&0x33333333); v=(v+(v>>>4))&0x0F0F0F0F; v=(v+(v>>>8))&0x0F0F0F0F; v=(v+(v>>>16))&0x0F0F0F0F; return v&0x3F; }
@@ -1152,7 +1156,8 @@ function prizeAmount(matchFront, matchBack) {
         return 0;
     }
 }
-    // ========== 工具函数 ==========
+
+// ========== 工具函数 ==========
 function log(s) { var el=document.getElementById('logArea'); var d=document.createElement('div'); d.textContent=s; el.appendChild(d); el.scrollTop=el.scrollHeight; while(el.children.length>25) el.removeChild(el.firstChild); }
 function setStatus(s) { document.getElementById('statusText').textContent=s; }
 function showProgress(pct) { document.getElementById('progressWrap').style.display='block'; document.getElementById('progressBar').style.width=pct+'%'; }
@@ -1205,13 +1210,14 @@ function hasSeq(arr,len) { return hasConsecutive(arr,len,1); }
 function hasGap(arr,len) { var odds=arr.filter(function(n){return n%2===1;}), evens=arr.filter(function(n){return n%2===0;}); return hasConsecutive(odds,len,2)||hasConsecutive(evens,len,2); }
 function hasArith3(arr) { for(var i=0;i<=arr.length-3;i++) { var d=arr[i+1]-arr[i]; if(d===arr[i+2]-arr[i+1] && d>1) return true; } return false; }
 function hasSameTail2(arr) { var t=[0,0,0,0,0,0,0,0,0,0]; for(var i=0;i<arr.length;i++) { t[arr[i]%10]++; if(t[arr[i]%10]>=2) return true; } return false; }
+function hasSameTail3(arr) { var t=[0,0,0,0,0,0,0,0,0,0]; for(var i=0;i<arr.length;i++) { t[arr[i]%10]++; if(t[arr[i]%10]>=3) return true; } return false; }
 function hasSameTail2Groups(arr) { var t=[0,0,0,0,0,0,0,0,0,0]; for(var i=0;i<arr.length;i++) t[arr[i]%10]++; var g=0; for(var i=0;i<10;i++) if(t[i]>=2) g++; return g>=2; }
 function getZonePattern(arr) { var a=0,b=0,c=0; for(var i=0;i<arr.length;i++) { if(arr[i]<=12) a++; else if(arr[i]<=24) b++; else c++; } return a+':'+b+':'+c; }
 function getSortedZonePattern(arr) { var a=0,b=0,c=0; for(var i=0;i<arr.length;i++) { if(arr[i]<=12) a++; else if(arr[i]<=24) b++; else c++; } return [a,b,c].sort().join(':'); }
 function countInZone(arr,zone) { var min=zone===1?1:zone===2?13:25, max=zone===1?12:zone===2?24:35, cnt=0; for(var i=0;i<arr.length;i++) if(arr[i]>=min&&arr[i]<=max) cnt++; return cnt; }
 function calcSum(arr) { var s=0; for(var i=0;i<arr.length;i++) s+=arr[i]; return s; }
 
-// ========== 新功能：2连号/2隔号计数 ==========
+// ========== 2连号/2隔号计数（用于新功能） ==========
 function count2Seq(arr) {
     var count = 0;
     for (var i = 0; i < arr.length - 1; i++) {
@@ -1242,19 +1248,19 @@ function count2Gap(arr) {
     return count;
 }
 
-// 保留2连号2隔号：组合中有任何2连号或2隔号
-function keepBothSeqGap(arr) {
+// 判断是否包含2连号或2隔号（用于过滤条件）
+function isBothSeqGap(arr) {
     return (count2Seq(arr) > 0 || count2Gap(arr) > 0);
 }
 
-// 仅保留2连号或2隔号：恰好一个2连号且没有2隔号，或恰好一个2隔号且没有2连号
-function keepXorSeqGap(arr) {
+// 判断是否仅含一个2连号或一个2隔号（用于过滤条件）
+function isXorSeqGap(arr) {
     var s = count2Seq(arr);
     var g = count2Gap(arr);
     return (s === 1 && g === 0) || (s === 0 && g === 1);
 }
 
-// ========== 新功能：开头号码个数 ==========
+// ========== 开头号码个数 ==========
 function countHeadTypes(arr) {
     var heads = new Set();
     for (var i = 0; i < arr.length; i++) {
@@ -1264,7 +1270,7 @@ function countHeadTypes(arr) {
     return heads.size;
 }
 
-// ========== 新功能：尾数相同模式 ==========
+// ========== 尾数相同模式 ==========
 function getTailPattern(arr) {
     var tailCount = [0,0,0,0,0,0,0,0,0,0];
     for (var i = 0; i < arr.length; i++) {
@@ -1366,9 +1372,9 @@ function getDigitRanks(arr) {
     ranks.sort(function(a,b){ return a - b; });
     return ranks;
 }
-
-// ========== 输入解析 ==========
+    // ========== 输入解析 ==========
 function norm(s) { return s.replace(/，/g, ',').replace(/：/g, ':').replace(/｜/g, '|').trim(); }
+
 function parseNums(s, minVal, maxVal) {
     s = norm(s).replace(/\s+/g, '');
     if (!s) return [];
@@ -1383,22 +1389,36 @@ function parseNums(s, minVal, maxVal) {
     }
     return Array.from(new Set(nums)).sort(function(a, b) { return a - b; });
 }
+
 function isDanTuo(s) {
     return /前区胆\s*[:：]/.test(norm(s)) || /前区拖\s*[:：]/.test(norm(s));
 }
+
+// 修复胆拖解析：使用关键词切割，支持拖码多个数字
 function parseDanTuo(s) {
     var n = norm(s);
-    var frontDan = [], frontTuo = [], backDan = [], backTuo = [];
-    var fdm = n.match(/前区胆\s*[:：]\s*([^，,]*)/);
-    if (fdm) { var val = fdm[1].trim(); if (val && val !== '无' && val !== '空') frontDan = parseNums(val, FRONT_MIN, FRONT_MAX); }
-    var ftm = n.match(/前区拖\s*[:：]\s*([^，,]*)/);
-    if (ftm) { var val = ftm[1].trim(); if (val && val !== '无' && val !== '空') frontTuo = parseNums(val, FRONT_MIN, FRONT_MAX); }
-    var bdm = n.match(/后区胆\s*[:：]\s*([^，,]*)/);
-    if (bdm) { var val = bdm[1].trim(); if (val && val !== '无' && val !== '空') backDan = parseNums(val, BACK_MIN, BACK_MAX); }
-    var btm = n.match(/后区拖\s*[:：]\s*([^，,]*)/);
-    if (btm) { var val = btm[1].trim(); if (val && val !== '无' && val !== '空') backTuo = parseNums(val, BACK_MIN, BACK_MAX); }
+    function getSection(startKey, endKeys) {
+        var startIdx = n.indexOf(startKey);
+        if (startIdx === -1) return '';
+        startIdx += startKey.length;
+        var endIdx = n.length;
+        for (var i = 0; i < endKeys.length; i++) {
+            var idx = n.indexOf(endKeys[i], startIdx);
+            if (idx !== -1 && idx < endIdx) endIdx = idx;
+        }
+        return n.substring(startIdx, endIdx).trim();
+    }
+    var frontDanStr = getSection('前区胆:', ['前区拖:', '后区胆:', '后区拖:']);
+    var frontTuoStr = getSection('前区拖:', ['前区胆:', '后区胆:', '后区拖:']);
+    var backDanStr = getSection('后区胆:', ['前区胆:', '前区拖:', '后区拖:']);
+    var backTuoStr = getSection('后区拖:', ['前区胆:', '前区拖:', '后区胆:']);
+    var frontDan = parseNums(frontDanStr, FRONT_MIN, FRONT_MAX);
+    var frontTuo = parseNums(frontTuoStr, FRONT_MIN, FRONT_MAX);
+    var backDan = parseNums(backDanStr, BACK_MIN, BACK_MAX);
+    var backTuo = parseNums(backTuoStr, BACK_MIN, BACK_MAX);
     return { frontDan: frontDan, frontTuo: frontTuo, backDan: backDan, backTuo: backTuo };
 }
+
 function combos(nums, k) {
     if (k === 0) return [[]];
     if (nums.length < k) return [];
@@ -1409,22 +1429,29 @@ function combos(nums, k) {
     })(0, 0);
     return res;
 }
+
 function parseLineWithBlue(line) {
     line = line.trim();
     if (!line) return [];
+    
     if (isDanTuo(line)) {
         var dt = parseDanTuo(line);
         var frontDan = dt.frontDan, frontTuo = dt.frontTuo, backDan = dt.backDan, backTuo = dt.backTuo;
+        
         frontTuo = frontTuo.filter(function(n) { return frontDan.indexOf(n) === -1; });
         backTuo = backTuo.filter(function(n) { return backDan.indexOf(n) === -1; });
+        
         var frontNeed = FRONT_PICK - frontDan.length;
         if (frontNeed < 0 || frontDan.length > FRONT_PICK) return [];
         if (frontNeed > 0 && frontTuo.length < frontNeed) return [];
+        
         var backNeed = BACK_PICK - backDan.length;
         if (backNeed < 0 || backDan.length > BACK_PICK) return [];
         if (backNeed > 0 && backTuo.length < backNeed) return [];
+        
         var frontCombos = frontNeed === 0 ? [frontDan.slice()] : combos(frontTuo, frontNeed);
         var backCombos = backNeed === 0 ? [backDan.slice()] : combos(backTuo, backNeed);
+        
         var results = [];
         for (var fi = 0; fi < frontCombos.length; fi++) {
             var f = frontDan.concat(frontCombos[fi]).sort(function(a,b){return a-b;});
@@ -1435,16 +1462,21 @@ function parseLineWithBlue(line) {
         }
         return results;
     }
+    
     if (line.indexOf('-') === -1) return [];
     var parts = line.split('-');
     var frontPart = parts[0].trim();
     var backStr = parts[1].trim();
+    
     var frontNums = parseNums(frontPart, FRONT_MIN, FRONT_MAX);
     var backNums = parseNums(backStr, BACK_MIN, BACK_MAX);
+    
     if (frontNums.length < FRONT_PICK) return [];
     if (backNums.length < BACK_PICK) return [];
+    
     var fCombos = combos(frontNums, FRONT_PICK);
     var bCombos = combos(backNums, BACK_PICK);
+    
     var results = [];
     for (var fi = 0; fi < fCombos.length; fi++) {
         for (var bi = 0; bi < bCombos.length; bi++) {
@@ -1453,6 +1485,7 @@ function parseLineWithBlue(line) {
     }
     return results;
 }
+
 function expandCurrent() {
     var text = document.getElementById('inputArea').value;
     var lines = text.split(/[\n\r]+/).filter(function(l) { return l.trim(); });
@@ -1463,6 +1496,7 @@ function expandCurrent() {
     }
     return all;
 }
+
 function addToHistory() {
     var raw = document.getElementById('inputArea').value.trim();
     if (!raw || raw === lastInputSnapshot) return;
@@ -1477,6 +1511,7 @@ function addToHistory() {
         log('📥 已记录 ' + expanded.length + ' 注，历史总计 ' + historyCombos.length + ' 注');
     }
 }
+
 function rebuildUserHistoryMasks() {
     userHistoryMasks = [];
     var seen = new Set();
@@ -1485,6 +1520,7 @@ function rebuildUserHistoryMasks() {
         if (!seen.has(k)) { seen.add(k); userHistoryMasks.push(maskFromFront(historyCombos[i])); }
     }
 }
+
 function fixHistory() {
     if (historyRedBlue.length > 0) {
         fixedHistoryRedBlue = historyRedBlue.slice();
@@ -2331,7 +2367,7 @@ function exportXLSX() {
                 var isSeq3 = hasSeq(nums,3)?'是':'否';
                 var isGap3 = hasGap(nums,3)?'是':'否';
                 var isArith3 = hasArith3(nums)?'是':'否';
-                var isTail2 = hasSameTail2(nums)?'是':'否';
+                var isTail3 = hasSameTail3(nums)?'是':'否';
                 var isTail2Group = hasSameTail2Groups(nums)?'是':'否';
                 var pairRanks = getPairRanks(nums);
                 var minPairRank = pairRanks.length ? Math.min.apply(null, pairRanks) : 999;
@@ -2339,7 +2375,7 @@ function exportXLSX() {
                 var row = {
                     combo: comboStr, sum: sum, oe: oe.odd+'奇'+oe.even+'偶', zp: zp,
                     isSeq3: isSeq3, isGap3: isGap3, isArith3: isArith3,
-                    isTail2: isTail2, isTail2Group: isTail2Group,
+                    isTail3: isTail3, isTail2Group: isTail2Group,
                     pairRanks: pairRanks.join(','), minPairRank: minPairRank, digitRanks: digitRanks
                 };
                 result.push(row);
@@ -2353,10 +2389,10 @@ function exportXLSX() {
             setTimeout(function() {
                 try {
                     var wb = XLSX.utils.book_new();
-                    var headers = ['前区号码','和值','奇偶比','区间比','3连号','3隔号','等差3+','同尾数≥2个','同尾数组数≥2组','10个双数字排名','最小双数字排名','5个数字排名'];
+                    var headers = ['前区号码','和值','奇偶比','区间比','3连号','3隔号','等差3+','同尾≥3个','同尾数组数≥2组','10个双数字排名','最小双数字排名','5个数字排名'];
                     var sheetData = [headers];
                     for (var i = 0; i < result.length; i++) {
-                        var row = [result[i].combo, result[i].sum, result[i].oe, result[i].zp, result[i].isSeq3, result[i].isGap3, result[i].isArith3, result[i].isTail2, result[i].isTail2Group, result[i].pairRanks, result[i].minPairRank, result[i].digitRanks];
+                        var row = [result[i].combo, result[i].sum, result[i].oe, result[i].zp, result[i].isSeq3, result[i].isGap3, result[i].isArith3, result[i].isTail3, result[i].isTail2Group, result[i].pairRanks, result[i].minPairRank, result[i].digitRanks];
                         sheetData.push(row);
                     }
                     var ws1 = XLSX.utils.aoa_to_sheet(sheetData);
@@ -2946,7 +2982,7 @@ function showRemainingStats() {
     globalAbortFlag = false;
     var stats = {
         '3连号': 0, '3隔号': 0, '等差3+': 0,
-        '同尾≥2': 0, '同尾组≥2': 0,
+        '同尾≥3': 0, '同尾组≥2': 0,
         '5:0:0': 0, '4:1:0': 0, '3:2:0': 0, '3:1:1': 0, '2:2:1': 0,
         '全奇': 0, '全偶': 0, '1奇4偶': 0, '2奇3偶': 0, '3奇2偶': 0, '4奇1偶': 0,
         '2连号': 0, '2隔号': 0, '4连号': 0, '4隔号': 0, '5连号': 0, '5隔号': 0
@@ -2961,7 +2997,7 @@ function showRemainingStats() {
             if (hasSeq(arr, 3)) stats['3连号']++;
             if (hasGap(arr, 3)) stats['3隔号']++;
             if (hasArith3(arr)) stats['等差3+']++;
-            if (hasSameTail2(arr)) stats['同尾≥2']++;
+            if (hasSameTail3(arr)) stats['同尾≥3']++;
             if (hasSameTail2Groups(arr)) stats['同尾组≥2']++;
             var zp = getSortedZonePattern(arr);
             if (zp === '0:0:5') stats['5:0:0']++;
@@ -3023,7 +3059,7 @@ function excludeSelectedStats() {
             if (key === '3连号' && hasSeq(arr, 3)) return true;
             if (key === '3隔号' && hasGap(arr, 3)) return true;
             if (key === '等差3+' && hasArith3(arr)) return true;
-            if (key === '同尾≥2' && hasSameTail2(arr)) return true;
+            if (key === '同尾≥3' && hasSameTail3(arr)) return true;
             if (key === '同尾组≥2' && hasSameTail2Groups(arr)) return true;
             if (key === '5:0:0' && getSortedZonePattern(arr) === '0:0:5') return true;
             if (key === '4:1:0' && getSortedZonePattern(arr) === '0:1:4') return true;
@@ -3058,7 +3094,7 @@ function keepSelectedStats() {
             if (key === '3连号' && hasSeq(arr, 3)) return true;
             if (key === '3隔号' && hasGap(arr, 3)) return true;
             if (key === '等差3+' && hasArith3(arr)) return true;
-            if (key === '同尾≥2' && hasSameTail2(arr)) return true;
+            if (key === '同尾≥3' && hasSameTail3(arr)) return true;
             if (key === '同尾组≥2' && hasSameTail2Groups(arr)) return true;
             if (key === '5:0:0' && getSortedZonePattern(arr) === '0:0:5') return true;
             if (key === '4:1:0' && getSortedZonePattern(arr) === '0:1:4') return true;
@@ -3143,8 +3179,8 @@ function queryRank() {
 // ========== 保留功能 ==========
 function keep2Seq() { applyKeepFilter('保留2连号', function(arr){ return hasSeq(arr,2); }); }
 function keep2Gap() { applyKeepFilter('保留2隔号', function(arr){ return hasGap(arr,2); }); }
-function keepBothSeqGap() { applyKeepFilter('保留2连号2隔号', keepBothSeqGap); }
-function keepXorSeqGap() { applyKeepFilter('仅保留2连号或2隔号', keepXorSeqGap); }
+function keepBothSeqGap() { applyKeepFilter('保留2连号2隔号', isBothSeqGap); }
+function keepXorSeqGap() { applyKeepFilter('仅保留2连号或2隔号', isXorSeqGap); }
 
 function keepTop5Digits() {
     if (!digitRankMap || Object.keys(digitRankMap).length === 0) buildPairRankings();
@@ -3498,32 +3534,46 @@ function confirmPrizeRange() {
     step(0);
 }
 
-// ========== 保留开头号码个数 / 保留尾数相同个数 ==========
+// ========== 保留开头号码个数 / 保留尾数相同个数（多选） ==========
 function openKeepHeadCountModal() {
+    headCountSelSet.clear();
+    document.querySelectorAll('.head-count-btn').forEach(function(btn) {
+        btn.classList.remove('selected');
+    });
     document.getElementById('keepHeadCountModalOverlay').style.display = 'flex';
 }
 
-function openKeepTailCountModal() {
-    document.getElementById('keepTailCountModalOverlay').style.display = 'flex';
-}
-
 function confirmKeepHeadCount() {
-    if (headCountSel === 0) return alert('请先选择一个开头个数');
-    var targetCount = headCountSel;
+    if (headCountSelSet.size === 0) return alert('请至少选择一个开头个数');
+    var targetCounts = Array.from(headCountSelSet);
     document.getElementById('keepHeadCountModalOverlay').style.display = 'none';
-    headCountSel = 0;
-    applyKeepFilter('保留' + targetCount + '种开头', function(arr) {
-        return countHeadTypes(arr) === targetCount;
+    headCountSelSet.clear();
+    document.querySelectorAll('.head-count-btn').forEach(function(btn) {
+        btn.classList.remove('selected');
+    });
+    applyKeepFilter('保留' + targetCounts.join('或') + '种开头', function(arr) {
+        return targetCounts.indexOf(countHeadTypes(arr)) !== -1;
     });
 }
 
+function openKeepTailCountModal() {
+    tailCountSelSet.clear();
+    document.querySelectorAll('.tail-count-btn').forEach(function(btn) {
+        btn.classList.remove('selected');
+    });
+    document.getElementById('keepTailCountModalOverlay').style.display = 'flex';
+}
+
 function confirmKeepTailCount() {
-    if (tailCountSel === -1) return alert('请先选择一个尾数模式');
-    var targetCount = tailCountSel;
+    if (tailCountSelSet.size === 0) return alert('请至少选择一个尾数模式');
+    var targetPatterns = Array.from(tailCountSelSet);
     document.getElementById('keepTailCountModalOverlay').style.display = 'none';
-    tailCountSel = -1;
-    applyKeepFilter('保留尾数模式=' + targetCount, function(arr) {
-        return getTailPattern(arr) === targetCount;
+    tailCountSelSet.clear();
+    document.querySelectorAll('.tail-count-btn').forEach(function(btn) {
+        btn.classList.remove('selected');
+    });
+    applyKeepFilter('保留尾数模式' + targetPatterns.join('或'), function(arr) {
+        return targetPatterns.indexOf(getTailPattern(arr)) !== -1;
     });
 }
 
@@ -3582,8 +3632,8 @@ function init() {
             digitRankMap = null;
             pairRankContentCache = null;
             contentModalCache = null;
-            headCountSel = 0;
-            tailCountSel = -1;
+            headCountSelSet.clear();
+            tailCountSelSet.clear();
             updateDisplay();
             updateBlueStatus();
             document.getElementById('inputArea').value = '';
@@ -3664,23 +3714,33 @@ function init() {
         document.getElementById('btnKeepXor2SeqGap').addEventListener('click', keepXorSeqGap);
         document.getElementById('btnKeepHeadCount').addEventListener('click', openKeepHeadCountModal);
         document.getElementById('btnKeepTailCount').addEventListener('click', openKeepTailCountModal);
-        document.getElementById('btnKeepHeadCountCancel').addEventListener('click', function() { document.getElementById('keepHeadCountModalOverlay').style.display = 'none'; headCountSel = 0; });
+        document.getElementById('btnKeepHeadCountCancel').addEventListener('click', function() { document.getElementById('keepHeadCountModalOverlay').style.display = 'none'; headCountSelSet.clear(); document.querySelectorAll('.head-count-btn').forEach(function(b){b.classList.remove('selected');}); });
         document.getElementById('btnKeepHeadCountConfirm').addEventListener('click', confirmKeepHeadCount);
-        document.getElementById('btnKeepTailCountCancel').addEventListener('click', function() { document.getElementById('keepTailCountModalOverlay').style.display = 'none'; tailCountSel = -1; });
+        document.getElementById('btnKeepTailCountCancel').addEventListener('click', function() { document.getElementById('keepTailCountModalOverlay').style.display = 'none'; tailCountSelSet.clear(); document.querySelectorAll('.tail-count-btn').forEach(function(b){b.classList.remove('selected');}); });
         document.getElementById('btnKeepTailCountConfirm').addEventListener('click', confirmKeepTailCount);
 
         document.querySelectorAll('.head-count-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                headCountSel = parseInt(this.dataset.count);
-                document.querySelectorAll('.head-count-btn').forEach(function(b) { b.classList.remove('active'); });
-                this.classList.add('active');
+                var count = parseInt(this.dataset.count);
+                if (headCountSelSet.has(count)) {
+                    headCountSelSet.delete(count);
+                    this.classList.remove('selected');
+                } else {
+                    headCountSelSet.add(count);
+                    this.classList.add('selected');
+                }
             });
         });
         document.querySelectorAll('.tail-count-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                tailCountSel = parseInt(this.dataset.count);
-                document.querySelectorAll('.tail-count-btn').forEach(function(b) { b.classList.remove('active'); });
-                this.classList.add('active');
+                var count = parseInt(this.dataset.count);
+                if (tailCountSelSet.has(count)) {
+                    tailCountSelSet.delete(count);
+                    this.classList.remove('selected');
+                } else {
+                    tailCountSelSet.add(count);
+                    this.classList.add('selected');
+                }
             });
         });
 
@@ -3705,7 +3765,7 @@ function init() {
         bind('btn4Gap', function() { applyCustomFilter('4隔号', function(arr) { return hasGap(arr, 4); }); });
         bind('btn5Seq', function() { applyCustomFilter('5连号', function(arr) { return hasSeq(arr, 5); }); });
         bind('btn5Gap', function() { applyCustomFilter('5隔号', function(arr) { return hasGap(arr, 5); }); });
-        bind('btnTail2', function() { applyCustomFilter('同尾≥2', hasSameTail2); });
+        bind('btnTail2', function() { applyCustomFilter('同尾≥3', hasSameTail3); });
         bind('btnTail2Group', function() { applyCustomFilter('同尾组≥2', hasSameTail2Groups); });
         bind('btnRatio500', function() { applyCustomFilter('5:0:0', function(arr) { return getSortedZonePattern(arr) === '0:0:5'; }); });
         bind('btnRatio410', function() { applyCustomFilter('4:1:0', function(arr) { return getSortedZonePattern(arr) === '0:1:4'; }); });
