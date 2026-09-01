@@ -625,6 +625,7 @@
         
         const mul = getMultiplier(singleMultiplierInput);
         const frontStr = fronts.join(',');
+        const backStr = backs.join(',');
         const gen = [];
         
         // 添加分隔线（如果有之前的记录）
@@ -632,13 +633,11 @@
           gen.push('--- 单式复式 ---');
         }
         
-        for (let b of backs) {
-          const line = `${frontStr}-${b}`;
-          for (let i = 0; i < mul; i++) gen.push(line);
-        }
+        const line = `${frontStr}-${backStr}`;
+        for (let i = 0; i < mul; i++) gen.push(line);
         
         appendOutput(gen);
-        showToast(`成功生成${gen.length}注号码`);
+        showToast(`成功生成${mul}注号码`);
         resetSingle();
       }
 
