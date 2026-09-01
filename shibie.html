@@ -628,11 +628,7 @@
         const backStr = backs.join(',');
         const gen = [];
         
-        // 添加分隔线（如果有之前的记录）
-        if (outputLines.length > 0) {
-          gen.push('--- 单式复式 ---');
-        }
-        
+        // 生成号码行（不添加分隔线）
         const line = `${frontStr}-${backStr}`;
         for (let i = 0; i < mul; i++) gen.push(line);
         
@@ -694,11 +690,7 @@
         
         const gen = [];
         
-        // 添加分隔线（如果有之前的记录）
-        if (outputLines.length > 0) {
-          gen.push('--- 胆拖投注 ---');
-        }
-        
+        // 生成胆拖格式行（不添加分隔线）
         const line = `前区胆：${danFrontStr}，前区拖：${tuoFrontStr}，后区胆：${danBackStr}，后区拖：${tuoBackStr}`;
         for (let i = 0; i < mul; i++) gen.push(line);
         
