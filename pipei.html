@@ -451,4 +451,131 @@
                 groupHtml += `<div class="group-block"><div class="group-title">🔹 ${key} （共${g.total}注）</div>`;
                 groupHtml += '<table class="stats-table" style="margin-bottom:0;"><thead><tr><th>命中数</th><th>注数</th><th>占比</th></tr></thead><tbody>';
                 for(let m=5; m>=0; m--){
-                    let cnt = g[m]||
+                    let cnt = g[m]||0;
+                    let pct = g.total ? ((cnt/g.total)*100).toFixed(2) : '0.00';
+                    groupHtml += `<tr><td>中${m}个</td><td>${cnt}</td><td>${pct}%</td></tr>`;
+                }
+                groupHtml += '</tbody></table></div>';
+            }
+            $('groupMatchArea').innerHTML = groupHtml;
+
+            $('resultsContainer').classList.add('visible');
+            showToast(`✅ 共 ${totalValid} 注参与对比`);
+        };
+        window.copyList = (id) => {
+            let el = document.getElementById(id); if(!el) return;
+            let txt = Array.from(el.querySelectorAll('.combo-tag')).map(s=>s.textContent).join('\n');
+            navigator.clipboard.writeText(txt).then(()=>showToast('已复制'));
+        };
+        window.resetAll = ()=>{
+            baseSet=null; baseDisp=[]; $('baseNumberDisplay').classList.remove('visible');
+            $('resultsContainer').classList.remove('visible'); updateBtn();
+            showToast('已重置'); setTimeout(openModal1,300);
+        };
+        updateBtn();
+    })();
+
+    // ===== 模式二 =====
+    let lastSSQResultText = '';
+
+    function generateSSQResultText(draw, lines) {
+        const prizeMap = currentPrizeMap();
+        const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
+
+        let groupStats = {};
+        let totalTickets = 0;
+        for(let line of lines){
+            let t = line.trim(); if(!t) continue;
+            let parsed = parseBetLine(t);
+            if(parsed.error || !parsed.tickets) continue;
+            let gkey = parsed.groupKey;
+            if(!groupStats[gkey]) {
+                groupStats[gkey] = {};
+                for(let k of order) groupStats[gkey][k] = 0;
+                groupStats[gkey]._total = 0;
+            }
+            for(let ticket of parsed.tickets){
+                totalTickets++;
+                groupStats[gkey]._total++;
+                let frontHit = 0;
+                for(let n of ticket.front) if(draw.front.has(n)) frontHit++;
+                let backHit = 0;
+                for(let n of ticket.back) if(draw.back.has(n)) backHit++;
+                let key = frontHit + '+' + backHit;
+                if(groupStats[gkey][key] !== undefined) groupStats[gkey][key]++;
+            }
+        }
+
+        let resultText = '';
+        let allCount = {};
+        for(let k of order) allCount[k] = 0;
+        for(let gkey in groupStats){
+            let g = groupStats[gkey];
+            for(let k of order) allCount[k] += (g[k]||0);
+        }
+        let grandTotal = 0;
+        resultText += `===== 📈 全部总计 (共${totalTickets}注) =====\n`;
+        for(let k of order){
+            let cnt = allCount[k];
+            let money = prizeMap[k];
+            grandTotal += cnt * money;
+            resultText += `${cnt}注 ${k}，共${(cnt*money).toLocaleString()}元\n`;
+        }
+        resultText += `💰 总奖金：${grandTotal.toLocaleString()}元\n`;
+
+        let sortedKeys = sortGroupKeys(Object.keys(groupStats));
+        for(let gkey of sortedKeys){
+            let g = groupStats[gkey];
+            resultText += `\n===== ${gkey} (共${g._total}注) =====\n`;
+            let groupTotal = 0;
+            for(let k of order){
+                let cnt = g[k] || 0;
+                let money = prizeMap[k];
+                groupTotal += cnt * money;
+                resultText += `${cnt}注 ${k}，共${(cnt*money).toLocaleString()}元\n`;
+            }
+            resultText += `小计：${groupTotal.toLocaleString()}元\n`;
+        }
+        return resultText;
+    }
+
+    window.analyzeSSQ = function(){
+        let drawRaw = $('ssqDrawInput').value.trim();
+        let inputRaw = $('ssqInput').value.trim();
+        if(!drawRaw || !inputRaw) { showToast('⚠️ 请输入开奖号码和投注号码','warning'); return; }
+        let drawLine = parseBetLine(drawRaw);
+        if(drawLine.error || !drawLine.tickets || drawLine.tickets.length!==1){
+            showToast('⚠️ 开奖号码格式错误（需为单式）','warning'); return;
+        }
+        let draw = drawLine.tickets[0];
+        let lines = inputRaw.split(/\n|\r\n|\r/);
+        lastSSQResultText = generateSSQResultText(draw, lines);
+        $('ssqResultContent').textContent = lastSSQResultText;
+        $('resultsContainerSSQ').classList.add('visible');
+        showToast('✅ 统计完成');
+    };
+
+    window.togglePool = function(){
+        poolHigh = !poolHigh;
+        const btn = $('btnTogglePool');
+        if(poolHigh){
+            btn.textContent = '奖池：高于8亿';
+            btn.classList.add('active');
+        } else {
+            btn.textContent = '奖池：低于8亿';
+            btn.classList.remove('active');
+        }
+        let drawRaw = $('ssqDrawInput').value.trim();
+        let inputRaw = $('ssqInput').value.trim();
+        if(drawRaw && inputRaw && $('resultsContainerSSQ').classList.contains('visible')){
+            analyzeSSQ();
+        }
+    };
+
+    window.copySSQResult = () => {
+        if(!lastSSQResultText) { showToast('暂无结果可复制'); return; }
+        navigator.clipboard.writeText(lastSSQResultText).then(()=>showToast('已复制'));
+    };
+</script>
+</body>
+</html>
