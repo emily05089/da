@@ -167,7 +167,8 @@
     // ---------- 通用解析 ----------
     function parseNumList(str) {
         if(!str) return [];
-        let cleaned = str.replace(/，/g, ',').replace(/\s+/g, '');
+        // 统一全角逗号、中文逗号、空格等
+        let cleaned = str.replace(/，/g, ',').replace(/[\s\u3000]+/g, '').replace(/[;；]/g, ',');
         return cleaned.split(',').map(s=>s.trim()).filter(s=>/^\d{1,2}$/.test(s)).map(Number);
     }
     function combinations(arr, k) {
@@ -181,27 +182,42 @@
         return result;
     }
 
+    // ---------- 从字符串中提取胆码和拖码（用位置定位，避免正则歧义） ----------
+    function extractDanTuo(str, prefixDan, prefixTuo) {
+        // 查找前缀位置
+        let posDan = str.indexOf(prefixDan);
+        let posTuo = str.indexOf(prefixTuo);
+        if(posDan === -1 && posTuo === -1) return null; // 没有胆拖
+        let danStr = '', tuoStr = '';
+        if(posDan !== -1) {
+            let start = posDan + prefixDan.length;
+            // 跳过冒号和空格
+            while(start < str.length && (str[start] === '：' || str[start] === ':' || str[start] === ' ' || str[start] === '\t')) start++;
+            let end = posTuo !== -1 ? posTuo : str.length;
+            danStr = str.substring(start, end).trim();
+        }
+        if(posTuo !== -1) {
+            let start = posTuo + prefixTuo.length;
+            while(start < str.length && (str[start] === '：' || str[start] === ':' || str[start] === ' ' || str[start] === '\t')) start++;
+            // 拖码结束位置：如果是后区拖，可能后面还有“后区胆”等，但调用时会传入正确的前缀，后面没有其他干扰
+            let end = str.length;
+            tuoStr = str.substring(start, end).trim();
+        }
+        return { danStr, tuoStr };
+    }
+
     // ---------- 解析前区（5码） ----------
     function parseFrontPart(frontStr) {
         if(!frontStr) return { error: '前区号码为空' };
-        // 尝试胆拖格式：前区胆：... 前区拖：...
+        frontStr = frontStr.trim();
+        // 尝试标准前区胆拖格式：前区胆：xx 前区拖：xx
         if(frontStr.includes('前区胆') || frontStr.includes('前区拖')) {
-            let danMatch = frontStr.match(/前区胆\s*[:：]\s*([^前区拖]*)/);
-            let tuoMatch = frontStr.match(/前区拖\s*[:：]\s*([^后区]*)/);
-            // 如果只写了前区胆/拖，没有匹配到后区，则取剩余全部
-            if(!danMatch) {
-                // 尝试普通格式：胆：... 拖：...
-                danMatch = frontStr.match(/胆\s*[:：]\s*([^拖]*)/);
-                tuoMatch = frontStr.match(/拖\s*[:：]\s*([^后区]*)/);
-            }
-            if(!danMatch || !tuoMatch) return { error: '前区胆拖格式错误，请使用：前区胆：xx 前区拖：xx' };
-
-            let danNums = parseNumList(danMatch[1]);
-            let tuoNums = parseNumList(tuoMatch[1]);
-            // 处理“无”或空
-            if(danMatch[1].trim() === '无' || danMatch[1].trim() === '') danNums = [];
-            if(tuoMatch[1].trim() === '无' || tuoMatch[1].trim() === '') tuoNums = [];
-
+            let dt = extractDanTuo(frontStr, '前区胆', '前区拖');
+            if(!dt) return { error: '前区胆拖格式错误' };
+            let danNums = parseNumList(dt.danStr);
+            let tuoNums = parseNumList(dt.tuoStr);
+            if(dt.danStr.trim() === '无' || dt.danStr.trim() === '') danNums = [];
+            if(dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
             danNums = [...new Set(danNums)];
             tuoNums = [...new Set(tuoNums)];
             if(danNums.length > 5) return { error: '前区胆码最多5个' };
@@ -213,35 +229,48 @@
             let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0')));
             let groupKey = danNums.length === 0 ? '前区无胆拖' : `前区胆拖${danNums.length}胆`;
             return { combos, groupKey };
-        } else {
-            // 普通号码
-            let nums = parseNumList(frontStr);
-            if(nums.length < 5) return { error: '前区号码不足5个' };
-            let uniq = [...new Set(nums)].sort((a,b)=>a-b);
-            if(uniq.length < 5) return { error: '前区号码去重后不足5个' };
-            let combos = combinations(uniq, 5).map(c => c.map(n=>String(n).padStart(2,'0')));
-            let groupKey = uniq.length === 5 ? '单式5个' : `复式${uniq.length}个`;
+        }
+        // 兼容旧格式：胆：xx 拖：xx
+        if(frontStr.includes('胆') && frontStr.includes('拖')) {
+            let dt = extractDanTuo(frontStr, '胆', '拖');
+            if(!dt) return { error: '胆拖格式错误' };
+            let danNums = parseNumList(dt.danStr);
+            let tuoNums = parseNumList(dt.tuoStr);
+            if(dt.danStr.trim() === '无' || dt.danStr.trim() === '') danNums = [];
+            if(dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
+            danNums = [...new Set(danNums)];
+            tuoNums = [...new Set(tuoNums)];
+            if(danNums.length > 5) return { error: '前区胆码最多5个' };
+            if(danNums.some(n=>tuoNums.includes(n))) return { error: '前区胆码和拖码不能重复' };
+            let need = 5 - danNums.length;
+            if(tuoNums.length < need) return { error: `前区拖码不足，需至少${need}个` };
+            let tuoCombos = combinations(tuoNums, need);
+            let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0')));
+            let groupKey = danNums.length === 0 ? '前区无胆拖' : `前区胆拖${danNums.length}胆`;
             return { combos, groupKey };
         }
+        // 普通前区号码
+        let nums = parseNumList(frontStr);
+        if(nums.length < 5) return { error: '前区号码不足5个' };
+        let uniq = [...new Set(nums)].sort((a,b)=>a-b);
+        if(uniq.length < 5) return { error: '前区号码去重后不足5个' };
+        let combos = combinations(uniq, 5).map(c => c.map(n=>String(n).padStart(2,'0')));
+        let groupKey = uniq.length === 5 ? '单式5个' : `复式${uniq.length}个`;
+        return { combos, groupKey };
     }
 
     // ---------- 解析后区（2码） ----------
     function parseBackPart(backStr) {
         if(!backStr) return { error: '后区号码为空' };
+        backStr = backStr.trim();
+        // 标准后区胆拖
         if(backStr.includes('后区胆') || backStr.includes('后区拖')) {
-            let danMatch = backStr.match(/后区胆\s*[:：]\s*([^后区拖]*)/);
-            let tuoMatch = backStr.match(/后区拖\s*[:：]\s*([^后区]*)/);
-            if(!danMatch) {
-                danMatch = backStr.match(/胆\s*[:：]\s*([^拖]*)/);
-                tuoMatch = backStr.match(/拖\s*[:：]\s*([^后区]*)/);
-            }
-            if(!danMatch || !tuoMatch) return { error: '后区胆拖格式错误，请使用：后区胆：xx 后区拖：xx' };
-
-            let danNums = parseNumList(danMatch[1]);
-            let tuoNums = parseNumList(tuoMatch[1]);
-            if(danMatch[1].trim() === '无' || danMatch[1].trim() === '') danNums = [];
-            if(tuoMatch[1].trim() === '无' || tuoMatch[1].trim() === '') tuoNums = [];
-
+            let dt = extractDanTuo(backStr, '后区胆', '后区拖');
+            if(!dt) return { error: '后区胆拖格式错误' };
+            let danNums = parseNumList(dt.danStr);
+            let tuoNums = parseNumList(dt.tuoStr);
+            if(dt.danStr.trim() === '无' || dt.danStr.trim() === '') danNums = [];
+            if(dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
             danNums = [...new Set(danNums)];
             tuoNums = [...new Set(tuoNums)];
             if(danNums.length > 2) return { error: '后区胆码最多2个' };
@@ -252,14 +281,32 @@
             let tuoCombos = combinations(tuoNums, need);
             let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0')));
             return { combos };
-        } else {
-            let nums = parseNumList(backStr);
-            if(nums.length < 2) return { error: '后区号码不足2个' };
-            let uniq = [...new Set(nums)].sort((a,b)=>a-b);
-            if(uniq.length < 2) return { error: '后区号码去重后不足2个' };
-            let combos = combinations(uniq, 2).map(c => c.map(n=>String(n).padStart(2,'0')));
+        }
+        // 兼容旧格式：胆：xx 拖：xx（后区）
+        if(backStr.includes('胆') && backStr.includes('拖')) {
+            let dt = extractDanTuo(backStr, '胆', '拖');
+            if(!dt) return { error: '后区胆拖格式错误' };
+            let danNums = parseNumList(dt.danStr);
+            let tuoNums = parseNumList(dt.tuoStr);
+            if(dt.danStr.trim() === '无' || dt.danStr.trim() === '') danNums = [];
+            if(dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
+            danNums = [...new Set(danNums)];
+            tuoNums = [...new Set(tuoNums)];
+            if(danNums.length > 2) return { error: '后区胆码最多2个' };
+            if(danNums.some(n=>tuoNums.includes(n))) return { error: '后区胆码和拖码不能重复' };
+            let need = 2 - danNums.length;
+            if(tuoNums.length < need) return { error: `后区拖码不足，需至少${need}个` };
+            let tuoCombos = combinations(tuoNums, need);
+            let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0')));
             return { combos };
         }
+        // 普通后区号码
+        let nums = parseNumList(backStr);
+        if(nums.length < 2) return { error: '后区号码不足2个' };
+        let uniq = [...new Set(nums)].sort((a,b)=>a-b);
+        if(uniq.length < 2) return { error: '后区号码去重后不足2个' };
+        let combos = combinations(uniq, 2).map(c => c.map(n=>String(n).padStart(2,'0')));
+        return { combos };
     }
 
     // ---------- 解析完整投注行（前区-后区） ----------
@@ -275,7 +322,6 @@
         let backRes = parseBackPart(backPart);
         if(backRes.error) return { error: backRes.error };
 
-        // 笛卡尔积
         let tickets = [];
         for(let front of frontRes.combos) {
             for(let back of backRes.combos) {
@@ -291,50 +337,22 @@
     }
 
     // ---------- 奖金规则 ----------
-    let poolHigh = false; // false=低于8亿, true=高于8亿
+    let poolHigh = false;
     const prizeMapLow = {
-        '5+2': 5000000,
-        '5+1': 500000,
-        '5+0': 5000,
-        '4+2': 5000,
-        '4+1': 300,
-        '4+0': 150,
-        '3+2': 150,
-        '3+1': 15,
-        '2+2': 15,
-        '3+0': 5,
-        '2+1': 5,
-        '1+2': 5,
-        '0+2': 5,
-        '2+0': 0,
-        '1+1': 0,
-        '0+1': 0,
-        '1+0': 0,
-        '0+0': 0
+        '5+2': 5000000, '5+1': 500000, '5+0': 5000, '4+2': 5000,
+        '4+1': 300, '4+0': 150, '3+2': 150, '3+1': 15, '2+2': 15,
+        '3+0': 5, '2+1': 5, '1+2': 5, '0+2': 5,
+        '2+0': 0, '1+1': 0, '0+1': 0, '1+0': 0, '0+0': 0
     };
     const prizeMapHigh = {
-        '5+2': 5000000,
-        '5+1': 500000,
-        '5+0': 6666,
-        '4+2': 6666,
-        '4+1': 380,
-        '4+0': 200,
-        '3+2': 200,
-        '3+1': 18,
-        '2+2': 18,
-        '3+0': 7,
-        '2+1': 7,
-        '1+2': 7,
-        '0+2': 7,
-        '2+0': 0,
-        '1+1': 0,
-        '0+1': 0,
-        '1+0': 0,
-        '0+0': 0
+        '5+2': 5000000, '5+1': 500000, '5+0': 6666, '4+2': 6666,
+        '4+1': 380, '4+0': 200, '3+2': 200, '3+1': 18, '2+2': 18,
+        '3+0': 7, '2+1': 7, '1+2': 7, '0+2': 7,
+        '2+0': 0, '1+1': 0, '0+1': 0, '1+0': 0, '0+0': 0
     };
     function currentPrizeMap() { return poolHigh ? prizeMapHigh : prizeMapLow; }
 
-    // ---------- 排序分组键 ----------
+    // 排序分组键
     function sortGroupKeys(keys) {
         return keys.sort((a, b) => {
             function getType(key) {
@@ -394,7 +412,6 @@
             for(let line of lines){
                 let t = line.trim(); if(!t) continue;
                 totalLines++;
-                // 模式一只关心前区，如果行内含有“-”，只取前半部分
                 let frontStr = t;
                 if(t.includes('-')) frontStr = t.split('-')[0].trim();
                 let parsed = parseFrontPart(frontStr);
@@ -423,13 +440,11 @@
             }
             closeModal2();
 
-            // 总摘要
             $('resultsSummary').innerHTML = `
                 <div class="summary-chip"><strong>${totalLines}</strong>输入行</div>
                 <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalValid}</strong>有效单注</div>
                 <div class="summary-chip" style="${invalidLines?'border-color:#e74c3c;':''}"><strong>${invalidLines}</strong>无效行</div>
                 <div class="summary-chip"><strong>${baseDisp.join(',')}</strong>基准</div>`;
-            // 总统计表
             let rows='';
             for(let m=5; m>=0; m--){
                 let cnt=totalCounts[m], pct=totalValid?((cnt/totalValid)*100).toFixed(2):'0.00';
@@ -438,7 +453,6 @@
             }
             $('statsTableBody').innerHTML = rows;
 
-            // 命中详情
             let detail='';
             [{l:'🎯全中5',d:hit5},{l:'🔥中4',d:hit4},{l:'⭐中3',d:hit3}].forEach(b=>{
                 if(b.d.length){
@@ -448,7 +462,6 @@
             });
             $('hitDetailsArea').innerHTML = detail;
 
-            // 分组统计
             let groupHtml = '<h3 style="margin-bottom:10px;">📊 按投注类型分组统计</h3>';
             let sortedKeys = sortGroupKeys(Object.keys(groupStats));
             for(let key of sortedKeys){
@@ -483,32 +496,6 @@
     // ===== 模式二逻辑 =====
     let lastSSQResultText = '';
 
-    function parseSSQLine(line) {
-        let lastDash = line.lastIndexOf('-');
-        if(lastDash === -1) return { error: '缺少蓝球分隔符“-”' };
-        let frontPart = line.substring(0, lastDash).trim();
-        let backPart = line.substring(lastDash+1).trim();
-        if(!frontPart || !backPart) return { error: '前区或后区为空' };
-
-        let frontRes = parseFrontPart(frontPart);
-        if(frontRes.error) return { error: frontRes.error };
-        let backRes = parseBackPart(backPart);
-        if(backRes.error) return { error: backRes.error };
-
-        let tickets = [];
-        for(let front of frontRes.combos){
-            for(let back of backRes.combos){
-                tickets.push({
-                    front: new Set(front.map(Number)),
-                    back: new Set(back.map(Number)),
-                    frontStr: front.join(','),
-                    backStr: back.join(',')
-                });
-            }
-        }
-        return { tickets, groupKey: frontRes.groupKey };
-    }
-
     function generateSSQResultText(draw, lines) {
         const prizeMap = currentPrizeMap();
         const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
@@ -517,7 +504,7 @@
         let totalTickets = 0;
         for(let line of lines){
             let t = line.trim(); if(!t) continue;
-            let parsed = parseSSQLine(t);
+            let parsed = parseBetLine(t);
             if(parsed.error || !parsed.tickets) continue;
             let gkey = parsed.groupKey;
             if(!groupStats[gkey]) {
@@ -537,7 +524,6 @@
             }
         }
 
-        // 全部总计
         let resultText = '';
         let allCount = {};
         for(let k of order) allCount[k] = 0;
@@ -555,7 +541,6 @@
         }
         resultText += `💰 总奖金：${grandTotal.toLocaleString()}元\n`;
 
-        // 分组详情
         let sortedKeys = sortGroupKeys(Object.keys(groupStats));
         for(let gkey of sortedKeys){
             let g = groupStats[gkey];
@@ -576,7 +561,7 @@
         let drawRaw = $('ssqDrawInput').value.trim();
         let inputRaw = $('ssqInput').value.trim();
         if(!drawRaw || !inputRaw) { showToast('⚠️ 请输入开奖号码和投注号码','warning'); return; }
-        let drawLine = parseSSQLine(drawRaw);
+        let drawLine = parseBetLine(drawRaw);
         if(drawLine.error || !drawLine.tickets || drawLine.tickets.length!==1){
             showToast('⚠️ 开奖号码格式错误（需为单式）','warning'); return;
         }
@@ -598,7 +583,6 @@
             btn.textContent = '奖池：低于8亿';
             btn.classList.remove('active');
         }
-        // 如果已有结果则自动重新统计
         let drawRaw = $('ssqDrawInput').value.trim();
         let inputRaw = $('ssqInput').value.trim();
         if(drawRaw && inputRaw && $('resultsContainerSSQ').classList.contains('visible')){
