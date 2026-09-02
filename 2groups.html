@@ -318,39 +318,77 @@
         }
 
         function parseDantuo(line, lineIdx) {
-            // 解析胆拖格式
-            const frontDanMatch = line.match(/前区胆[：:]\s*([^，,]+)/);
-            const frontTuoMatch = line.match(/前区拖[：:]\s*([^，,]+)/);
-            const backDanMatch = line.match(/后区胆[：:]\s*([^，,]+)/);
-            const backTuoMatch = line.match(/后区拖[：:]\s*([^，,]+)/);
+            // 使用更健壮的分割方法，按关键字拆分
+            const frontDanKey = '前区胆';
+            const frontTuoKey = '前区拖';
+            const backDanKey = '后区胆';
+            const backTuoKey = '后区拖';
             
-            if (!frontTuoMatch || !backTuoMatch) {
+            // 找出各关键字的位置
+            const findKeyIndex = (key) => {
+                const idx = line.indexOf(key);
+                return idx !== -1 ? idx : null;
+            };
+            
+            const frontDanIdx = findKeyIndex(frontDanKey);
+            const frontTuoIdx = findKeyIndex(frontTuoKey);
+            const backDanIdx = findKeyIndex(backDanKey);
+            const backTuoIdx = findKeyIndex(backTuoKey);
+            
+            if (frontTuoIdx === null || backTuoIdx === null) {
                 return { error: `第${lineIdx+1}行：胆拖格式错误，需要前区胆、前区拖、后区胆、后区拖` };
             }
             
+            // 提取各部分内容（冒号后到下一个关键字或行尾）
+            const extractContent = (keyIdx, nextIdx) => {
+                const colonIdx = line.indexOf('：', keyIdx);
+                const colonIdx2 = line.indexOf(':', keyIdx);
+                let start = -1;
+                if (colonIdx !== -1 && (colonIdx2 === -1 || colonIdx < colonIdx2)) start = colonIdx;
+                else if (colonIdx2 !== -1) start = colonIdx2;
+                if (start === -1) return '';
+                let end = nextIdx !== null ? nextIdx : line.length;
+                return line.substring(start + 1, end);
+            };
+            
+            // 按顺序确定各部分的结束位置
+            const indices = [frontDanIdx, frontTuoIdx, backDanIdx, backTuoIdx].filter(idx => idx !== null).sort((a,b) => a-b);
+            const getNextIdx = (currentIdx) => {
+                const pos = indices.indexOf(currentIdx);
+                return pos < indices.length - 1 ? indices[pos + 1] : null;
+            };
+            
+            let frontDanStr = frontDanIdx !== null ? extractContent(frontDanIdx, getNextIdx(frontDanIdx)) : '';
+            let frontTuoStr = extractContent(frontTuoIdx, getNextIdx(frontTuoIdx));
+            let backDanStr = backDanIdx !== null ? extractContent(backDanIdx, getNextIdx(backDanIdx)) : '';
+            let backTuoStr = extractContent(backTuoIdx, getNextIdx(backTuoIdx));
+            
+            // 去除可能的尾随逗号或空格
+            frontDanStr = frontDanStr.trim().replace(/，$/,'').replace(/,$/,'').trim();
+            frontTuoStr = frontTuoStr.trim().replace(/，$/,'').replace(/,$/,'').trim();
+            backDanStr = backDanStr.trim().replace(/，$/,'').replace(/,$/,'').trim();
+            backTuoStr = backTuoStr.trim().replace(/，$/,'').replace(/,$/,'').trim();
+            
+            // 解析各部分号码
             let frontDan = [], backDan = [];
             
-            // 解析前区胆
-            if (frontDanMatch) {
-                const frontDanResult = parseNumbers(frontDanMatch[1], lineIdx, '前区胆码', 1, FRONT_RANGE);
+            if (frontDanStr && frontDanStr !== '无' && frontDanStr !== '無') {
+                const frontDanResult = parseNumbers(frontDanStr, lineIdx, '前区胆码', 1, FRONT_RANGE);
                 if (frontDanResult.error) return frontDanResult;
                 frontDan = frontDanResult.numbers;
             }
             
-            // 解析前区拖
-            const frontTuoResult = parseNumbers(frontTuoMatch[1], lineIdx, '前区拖码', 1, FRONT_RANGE);
+            const frontTuoResult = parseNumbers(frontTuoStr, lineIdx, '前区拖码', 1, FRONT_RANGE);
             if (frontTuoResult.error) return frontTuoResult;
             const frontTuo = frontTuoResult.numbers;
             
-            // 解析后区胆
-            if (backDanMatch) {
-                const backDanResult = parseNumbers(backDanMatch[1], lineIdx, '后区胆码', 1, BACK_RANGE);
+            if (backDanStr && backDanStr !== '无' && backDanStr !== '無') {
+                const backDanResult = parseNumbers(backDanStr, lineIdx, '后区胆码', 1, BACK_RANGE);
                 if (backDanResult.error) return backDanResult;
                 backDan = backDanResult.numbers;
             }
             
-            // 解析后区拖
-            const backTuoResult = parseNumbers(backTuoMatch[1], lineIdx, '后区拖码', 1, BACK_RANGE);
+            const backTuoResult = parseNumbers(backTuoStr, lineIdx, '后区拖码', 1, BACK_RANGE);
             if (backTuoResult.error) return backTuoResult;
             const backTuo = backTuoResult.numbers;
             
@@ -458,11 +496,10 @@
             results.sort((a,b) => b.count - a.count || a.a - b.a || a.b - b.b);
             lastResults = results;
 
-            // 统计摘要
+            // 统计摘要（已删除“前区子组合次数”）
             statsCard.style.display='block';
             statsGrid.innerHTML = `
                 <div class="stat-item"><div class="stat-value">${totalTickets}</div><div class="stat-label">拆解后总注数</div></div>
-                <div class="stat-item"><div class="stat-value">${totalTickets*10}</div><div class="stat-label">前区子组合次数</div></div>
                 <div class="stat-item"><div class="stat-value">${results.filter(r=>r.count>0).length}</div><div class="stat-label">前区出现≥1次组合</div></div>
                 <div class="stat-item"><div class="stat-value">${TOTAL_FRONT_PAIRS - results.filter(r=>r.count>0).length}</div><div class="stat-label">前区未出现组合</div></div>
             `;
