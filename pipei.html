@@ -76,6 +76,9 @@
         .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-120px); background:#333; color:#fff; padding:10px 22px; border-radius:50px; z-index:2000; transition: 0.3s; }
         .toast.show { transform: translateX(-50%) translateY(0); }
 
+        .invalid-list { background: #fff5f5; border: 1px solid #f5c6c6; border-radius: 10px; padding: 12px; margin-top: 16px; }
+        .invalid-item { font-size: 0.8rem; color: #c0392b; margin-bottom: 4px; }
+
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeInUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
     </style>
@@ -101,6 +104,7 @@
             <div class="stats-table-wrap"><table class="stats-table"><thead><tr><th>命中数</th><th>组数</th><th>占比</th></tr></thead><tbody id="statsTableBody"></tbody></table></div>
             <div id="hitDetailsArea"></div>
             <div id="groupMatchArea" style="margin-top:20px;"></div>
+            <div id="invalidAreaMatch"></div>
         </div>
     </div>
 
@@ -120,6 +124,7 @@
         </div>
         <div class="results-container" id="resultsContainerSSQ">
             <div id="ssqResultContent" style="background:#fafbfd; border:1px solid var(--border); border-radius:12px; padding:18px; font-family:monospace; white-space:pre-wrap; line-height:1.8;"></div>
+            <div id="invalidAreaSSQ" style="margin-top:12px;"></div>
             <button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="copySSQResult()">📋 一键复制结果</button>
         </div>
     </div>
@@ -297,12 +302,35 @@
         return { combos };
     }
 
-    // 解析完整投注行
+    // 解析完整投注行（支持有“-”或无“-”但含后区关键字）
     function parseBetLine(line) {
+        line = line.trim();
+        if(!line) return { error: '空行' };
+        let frontPart, backPart;
+        // 如果有“-”，直接按“-”分割
         let lastDash = line.lastIndexOf('-');
-        if(lastDash === -1) return { error: '缺少后区分隔符“-”' };
-        let frontPart = line.substring(0, lastDash).trim();
-        let backPart = line.substring(lastDash+1).trim();
+        if(lastDash !== -1) {
+            frontPart = line.substring(0, lastDash).trim();
+            backPart = line.substring(lastDash+1).trim();
+        } else {
+            // 没有“-”，尝试寻找“后区胆”或“后区拖”关键字来分割
+            let posBackDan = line.indexOf('后区胆');
+            let posBackTuo = line.indexOf('后区拖');
+            let posBack = -1;
+            if(posBackDan !== -1 && posBackTuo !== -1) {
+                posBack = Math.min(posBackDan, posBackTuo);
+            } else if(posBackDan !== -1) {
+                posBack = posBackDan;
+            } else if(posBackTuo !== -1) {
+                posBack = posBackTuo;
+            }
+            if(posBack !== -1) {
+                frontPart = line.substring(0, posBack).trim();
+                backPart = line.substring(posBack).trim();
+            } else {
+                return { error: '缺少后区信息（无“-”且未找到“后区胆/拖”关键字）' };
+            }
+        }
         if(!frontPart || !backPart) return { error: '前区或后区为空' };
         let frontRes = parseFrontPart(frontPart);
         if(frontRes.error) return { error: frontRes.error };
@@ -354,6 +382,18 @@
         });
     }
 
+    // 生成无效行HTML
+    function renderInvalidList(invalidList) {
+        if(!invalidList || invalidList.length === 0) return '';
+        let html = '<div class="invalid-list"><strong>❌ 无效行详情（前10条）：</strong>';
+        invalidList.slice(0,10).forEach(item => {
+            html += `<div class="invalid-item">行号 ${item.line}：${item.reason} —— ${item.content}</div>`;
+        });
+        if(invalidList.length > 10) html += `<div class="invalid-item">... 共${invalidList.length}条无效行</div>`;
+        html += '</div>';
+        return html;
+    }
+
     // ===== 模式一 =====
     (()=>{
         let baseSet=null, baseDisp=[];
@@ -390,10 +430,11 @@
             let totalCounts = {0:0,1:0,2:0,3:0,4:0,5:0};
             let groupStats = {};
             let totalValid = 0, totalLines=0, invalidLines=0;
-            let invalidEx = [];
+            let invalidList = [];
             let hit3=[], hit4=[], hit5=[];
 
-            for(let line of lines){
+            for(let idx=0; idx<lines.length; idx++){
+                let line = lines[idx];
                 let t = line.trim(); if(!t) continue;
                 totalLines++;
                 let frontStr = t;
@@ -401,7 +442,7 @@
                 let parsed = parseFrontPart(frontStr);
                 if(parsed.error || !parsed.combos || parsed.combos.length===0){
                     invalidLines++;
-                    if(invalidEx.length<5) invalidEx.push({line:t.substring(0,40), reason:parsed.error||'无法生成组合'});
+                    invalidList.push({ line: idx+1, content: t.substring(0,60), reason: parsed.error||'无法生成组合' });
                     continue;
                 }
                 let gkey = parsed.groupKey;
@@ -458,6 +499,9 @@
             }
             $('groupMatchArea').innerHTML = groupHtml;
 
+            // 无效行详情
+            $('invalidAreaMatch').innerHTML = renderInvalidList(invalidList);
+
             $('resultsContainer').classList.add('visible');
             showToast(`✅ 共 ${totalValid} 注参与对比`);
         };
@@ -483,10 +527,15 @@
 
         let groupStats = {};
         let totalTickets = 0;
-        for(let line of lines){
+        let invalidList = [];
+        for(let idx=0; idx<lines.length; idx++){
+            let line = lines[idx];
             let t = line.trim(); if(!t) continue;
             let parsed = parseBetLine(t);
-            if(parsed.error || !parsed.tickets) continue;
+            if(parsed.error || !parsed.tickets){
+                invalidList.push({ line: idx+1, content: t.substring(0,60), reason: parsed.error||'无法解析' });
+                continue;
+            }
             let gkey = parsed.groupKey;
             if(!groupStats[gkey]) {
                 groupStats[gkey] = {};
@@ -535,7 +584,9 @@
             }
             resultText += `小计：${groupTotal.toLocaleString()}元\n`;
         }
-        return resultText;
+
+        // 返回结果文本和无效行列表
+        return { text: resultText, invalidList };
     }
 
     window.analyzeSSQ = function(){
@@ -548,8 +599,10 @@
         }
         let draw = drawLine.tickets[0];
         let lines = inputRaw.split(/\n|\r\n|\r/);
-        lastSSQResultText = generateSSQResultText(draw, lines);
-        $('ssqResultContent').textContent = lastSSQResultText;
+        let result = generateSSQResultText(draw, lines);
+        lastSSQResultText = result.text;
+        $('ssqResultContent').textContent = result.text;
+        $('invalidAreaSSQ').innerHTML = renderInvalidList(result.invalidList);
         $('resultsContainerSSQ').classList.add('visible');
         showToast('✅ 统计完成');
     };
