@@ -201,15 +201,30 @@
         if(posTuo !== -1) {
             let start = posTuo + prefixTuo.length;
             while(start < str.length && (str[start] === '：' || str[start] === ':' || str[start] === ' ' || str[start] === '\t')) start++;
-            tuoStr = str.substring(start).trim();
+            // 截断到下一个关键字（如“后区”、“前区胆”、“前区拖”等）
+            let keyPositions = [];
+            ['后区', '前区胆', '前区拖'].forEach(kw => {
+                let idx = str.indexOf(kw, start);
+                if(idx !== -1) keyPositions.push(idx);
+            });
+            let end = keyPositions.length ? Math.min(...keyPositions) : str.length;
+            tuoStr = str.substring(start, end).trim();
         }
         return { danStr, tuoStr };
+    }
+
+    // 从前区字符串中移除后区信息
+    function removeBackArea(str) {
+        return str.replace(/后区.*$/g, '').trim();
     }
 
     // 解析前区
     function parseFrontPart(frontStr) {
         if(!frontStr) return { error: '前区号码为空' };
         frontStr = frontStr.trim();
+        // 彻底移除后区部分，避免干扰
+        frontStr = removeBackArea(frontStr);
+
         if(frontStr.includes('前区胆') || frontStr.includes('前区拖')) {
             let dt = extractDanTuo(frontStr, '前区胆', '前区拖');
             if(!dt) return { error: '前区胆拖格式错误' };
@@ -307,7 +322,6 @@
         line = line.trim();
         if(!line) return { error: '空行' };
         let frontPart, backPart;
-        // 如果有“-”，直接按“-”分割
         let lastDash = line.lastIndexOf('-');
         if(lastDash !== -1) {
             frontPart = line.substring(0, lastDash).trim();
@@ -437,24 +451,25 @@
                 let line = lines[idx];
                 let t = line.trim(); if(!t) continue;
                 totalLines++;
-                let frontStr = t;
-                if(t.includes('-')) frontStr = t.split('-')[0].trim();
-                let parsed = parseFrontPart(frontStr);
-                if(parsed.error || !parsed.combos || parsed.combos.length===0){
+                // 使用 parseBetLine 解析整行，以支持含后区的情况
+                let parsed = parseBetLine(t);
+                if(parsed.error || !parsed.tickets){
                     invalidLines++;
-                    invalidList.push({ line: idx+1, content: t.substring(0,60), reason: parsed.error||'无法生成组合' });
+                    invalidList.push({ line: idx+1, content: t.substring(0,60), reason: parsed.error||'无法解析' });
                     continue;
                 }
                 let gkey = parsed.groupKey;
                 if(!groupStats[gkey]) groupStats[gkey] = {0:0,1:0,2:0,3:0,4:0,5:0, total:0};
-                for(let combo of parsed.combos){
+                // 遍历每个票，只取前区部分
+                for(let ticket of parsed.tickets){
                     totalValid++;
                     groupStats[gkey].total++;
+                    let frontNums = Array.from(ticket.front); // Set转数组
                     let hit = 0;
-                    for(let n of combo) if(baseSet.has(parseInt(n))) hit++;
+                    for(let n of frontNums) if(baseSet.has(parseInt(n))) hit++;
                     totalCounts[hit]++;
                     groupStats[gkey][hit]++;
-                    let comboStr = combo.join(',');
+                    let comboStr = frontNums.sort((a,b)=>a-b).map(n=>String(n).padStart(2,'0')).join(',');
                     if(hit===3) hit3.push(comboStr);
                     else if(hit===4) hit4.push(comboStr);
                     else if(hit===5) hit5.push(comboStr);
@@ -584,8 +599,6 @@
             }
             resultText += `小计：${groupTotal.toLocaleString()}元\n`;
         }
-
-        // 返回结果文本和无效行列表
         return { text: resultText, invalidList };
     }
 
