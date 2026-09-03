@@ -562,13 +562,13 @@
             return str.replace(/后区.*$/g, '').trim();
         }
 
-        // 解析前区，返回 { groupKey, numbers } 或 { error }
+        // 解析前区：返回 { groupKey, numbers, combos? } 或 { error }
         function parseFrontPart(frontStr) {
             if (!frontStr) return { error: '前区号码为空' };
             frontStr = frontStr.trim();
             frontStr = removeBackArea(frontStr);
 
-            // 处理胆拖
+            // 胆拖处理
             if (frontStr.includes('前区胆') || frontStr.includes('前区拖')) {
                 let dt = extractDanTuo(frontStr, '前区胆', '前区拖');
                 if (!dt) return { error: '前区胆拖格式错误' };
@@ -578,7 +578,7 @@
                 if (dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
                 danNums = [...new Set(danNums)];
                 tuoNums = [...new Set(tuoNums)];
-                // 胆码优先，去重
+                // 胆码优先，去除拖码中与胆码重复的数字
                 if (danNums.length > 0 && tuoNums.length > 0) {
                     const danSet = new Set(danNums);
                     tuoNums = tuoNums.filter(n => !danSet.has(n));
@@ -611,7 +611,7 @@
                 return { groupKey, numbers: allNums };
             }
 
-            // 无胆拖：普通数字
+            // 普通号码
             let nums = parseNumList(frontStr);
             if (nums.length < 5) return { error: '前区号码不足5个' };
             let uniq = [...new Set(nums)].sort((a, b) => a - b);
@@ -716,8 +716,12 @@
             if (frontRes.error) return { error: frontRes.error };
             let backRes = parseBackPart(backPart);
             if (backRes.error) return { error: backRes.error };
+            // 生成所有单注组合
+            let frontCombos = (frontRes.numbers.length === 5) ? [frontRes.numbers.map(n => String(n).padStart(2, '0'))] :
+                              (frontRes.numbers.length === 6) ? [frontRes.numbers.map(n => String(n).padStart(2, '0'))] :
+                              combinations(frontRes.numbers, 5).map(c => c.map(n => String(n).padStart(2, '0')));
             let tickets = [];
-            for (let front of frontRes.combos) {
+            for (let front of frontCombos) {
                 for (let back of backRes.combos) {
                     tickets.push({
                         front: new Set(front.map(Number)),
@@ -882,7 +886,7 @@
                     return;
                 }
                 let lines = raw.split(/\n|\r\n|\r/);
-                let groupStats = {}; // { groupKey: { total: 0, maxHit: 0, minHit: 99 } }
+                let groupStats = {}; // { groupKey: { total: 0, maxHit: -1, minHit: 99 } }
                 let totalValid = 0,
                     totalLines = 0,
                     invalidLines = 0;
@@ -904,7 +908,7 @@
                     if (!groupStats[gkey]) {
                         groupStats[gkey] = { total: 0, maxHit: -1, minHit: 99 };
                     }
-                    // 每一行算一注
+                    // 每一行算一注（整体号码集）
                     totalValid++;
                     groupStats[gkey].total++;
                     let numbers = parsed.numbers;
@@ -917,7 +921,6 @@
                 }
                 closeModal2();
 
-                // 汇总信息
                 let summaryHTML = `
                     <div class="summary-chip"><strong>${totalLines}</strong>输入行</div>
                     <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalValid}</strong>总注数</div>
@@ -925,19 +928,15 @@
                     <div class="summary-chip"><strong>${baseDisp.join(',')}</strong>基准</div>`;
                 $('resultsSummary').innerHTML = summaryHTML;
 
-                // 分组展示
                 let groupHtml = '<h3 style="margin-bottom:12px;">📊 按投注类型统计</h3>';
                 let sortedKeys = sortGroupKeys(Object.keys(groupStats));
                 for (let key of sortedKeys) {
                     let g = groupStats[key];
                     groupHtml += `<div class="group-block"><div class="group-title">🔹 ${key}</div>`;
                     groupHtml += '<div class="group-stats">';
-                    groupHtml +=
-                        `<div class="group-stat-item">总注数 <strong>${g.total}</strong></div>`;
-                    groupHtml +=
-                        `<div class="group-stat-item">最多命中 <strong>${g.maxHit}</strong></div>`;
-                    groupHtml +=
-                        `<div class="group-stat-item">最少命中 <strong>${g.minHit}</strong></div>`;
+                    groupHtml += `<div class="group-stat-item">总注数 <strong>${g.total}</strong></div>`;
+                    groupHtml += `<div class="group-stat-item">最多命中 <strong>${g.maxHit}</strong></div>`;
+                    groupHtml += `<div class="group-stat-item">最少命中 <strong>${g.minHit}</strong></div>`;
                     groupHtml += '</div></div>';
                 }
                 if (sortedKeys.length === 0) {
