@@ -740,20 +740,6 @@
             return { tickets, groupKey: frontRes.groupKey };
         }
 
-        // 模式一专用：解析前区，返回 { groupKey, numbers, combos } 或 { error }
-        function parseFrontOnlyLine(line) {
-            line = line.trim();
-            if (!line) return { error: '空行' };
-            let frontStr = line;
-            let dashIdx = line.lastIndexOf('-');
-            if (dashIdx !== -1) {
-                frontStr = line.substring(0, dashIdx).trim();
-            } else {
-                frontStr = removeBackArea(line);
-            }
-            return parseFrontPart(frontStr);
-        }
-
         // 奖金规则
         let poolHigh = false;
         const prizeMapLow = {
@@ -903,8 +889,8 @@
                     let t = line.trim();
                     if (!t) continue;
                     totalLines++;
-                    let parsed = parseFrontOnlyLine(t);
-                    if (parsed.error) {
+                    let parsed = parseBetLine(t);  // 完整解析，包含后区
+                    if (parsed.error || !parsed.tickets) {
                         invalidLines++;
                         invalidList.push({ line: idx + 1, content: t.substring(0, 60), reason: parsed.error ||
                                 '无法解析' });
@@ -914,13 +900,13 @@
                     if (!groupStats[gkey]) {
                         groupStats[gkey] = { total: 0, maxHit: -1, minHit: 99 };
                     }
-                    // 统计所有5码组合
-                    for (let combo of parsed.combos) {
+                    for (let ticket of parsed.tickets) {
                         totalTickets++;
                         groupStats[gkey].total++;
+                        // 只计算前区命中
                         let hit = 0;
-                        for (let n of combo) {
-                            if (baseSet.has(parseInt(n))) hit++;
+                        for (let n of ticket.front) {
+                            if (baseSet.has(n)) hit++;
                         }
                         if (hit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = hit;
                         if (hit < groupStats[gkey].minHit) groupStats[gkey].minHit = hit;
