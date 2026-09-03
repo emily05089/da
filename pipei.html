@@ -562,7 +562,7 @@
             return str.replace(/后区.*$/g, '').trim();
         }
 
-        // 解析前区：返回 { groupKey, numbers, combos? } 或 { error }
+        // 解析前区，返回 { groupKey, numbers, combos } 或 { error }
         function parseFrontPart(frontStr) {
             if (!frontStr) return { error: '前区号码为空' };
             frontStr = frontStr.trim();
@@ -578,17 +578,21 @@
                 if (dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
                 danNums = [...new Set(danNums)];
                 tuoNums = [...new Set(tuoNums)];
-                // 胆码优先，去除拖码中与胆码重复的数字
                 if (danNums.length > 0 && tuoNums.length > 0) {
                     const danSet = new Set(danNums);
                     tuoNums = tuoNums.filter(n => !danSet.has(n));
                 }
                 if (danNums.length > 5) return { error: '前区胆码最多5个' };
-                let allNums = [...danNums, ...tuoNums];
-                if (allNums.length < 5) return { error: '前区号码总数不足5个' };
-                allNums = [...new Set(allNums)].sort((a, b) => a - b);
-                let groupKey = `前区胆拖${danNums.length}胆`;
-                return { groupKey, numbers: allNums };
+                let need = 5 - danNums.length;
+                if (need < 0) return { error: '前区胆码超过5个' };
+                if (need > 0 && tuoNums.length < need) return { error: `前区拖码不足，需至少${need}个` };
+                let tuoCombos = need === 0 ? [
+                    []
+                ] : combinations(tuoNums, need);
+                let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a, b) => a - b).map(n => String(n)
+                .padStart(2, '0')));
+                let allNums = [...new Set([...danNums, ...tuoNums])].sort((a, b) => a - b);
+                return { groupKey: `前区胆拖${danNums.length}胆`, numbers: allNums, combos };
             }
             if (frontStr.includes('胆') && frontStr.includes('拖')) {
                 let dt = extractDanTuo(frontStr, '胆', '拖');
@@ -604,11 +608,16 @@
                     tuoNums = tuoNums.filter(n => !danSet.has(n));
                 }
                 if (danNums.length > 5) return { error: '前区胆码最多5个' };
-                let allNums = [...danNums, ...tuoNums];
-                if (allNums.length < 5) return { error: '前区号码总数不足5个' };
-                allNums = [...new Set(allNums)].sort((a, b) => a - b);
-                let groupKey = `前区胆拖${danNums.length}胆`;
-                return { groupKey, numbers: allNums };
+                let need = 5 - danNums.length;
+                if (need < 0) return { error: '前区胆码超过5个' };
+                if (need > 0 && tuoNums.length < need) return { error: `前区拖码不足，需至少${need}个` };
+                let tuoCombos = need === 0 ? [
+                    []
+                ] : combinations(tuoNums, need);
+                let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a, b) => a - b).map(n => String(n)
+                .padStart(2, '0')));
+                let allNums = [...new Set([...danNums, ...tuoNums])].sort((a, b) => a - b);
+                return { groupKey: `前区胆拖${danNums.length}胆`, numbers: allNums, combos };
             }
 
             // 普通号码
@@ -617,12 +626,13 @@
             let uniq = [...new Set(nums)].sort((a, b) => a - b);
             if (uniq.length < 5) return { error: '前区号码去重后不足5个' };
 
+            let combos = combinations(uniq, 5).map(c => c.map(n => String(n).padStart(2, '0')));
             if (uniq.length === 5) {
-                return { groupKey: '单式5个', numbers: uniq };
+                return { groupKey: '单式5个', numbers: uniq, combos };
             } else if (uniq.length === 6) {
-                return { groupKey: '单式6个', numbers: uniq };
+                return { groupKey: '单式6个', numbers: uniq, combos };
             } else {
-                return { groupKey: `复式${uniq.length}个`, numbers: uniq };
+                return { groupKey: `复式${uniq.length}个`, numbers: uniq, combos };
             }
         }
 
@@ -716,12 +726,8 @@
             if (frontRes.error) return { error: frontRes.error };
             let backRes = parseBackPart(backPart);
             if (backRes.error) return { error: backRes.error };
-            // 生成所有单注组合
-            let frontCombos = (frontRes.numbers.length === 5) ? [frontRes.numbers.map(n => String(n).padStart(2, '0'))] :
-                              (frontRes.numbers.length === 6) ? [frontRes.numbers.map(n => String(n).padStart(2, '0'))] :
-                              combinations(frontRes.numbers, 5).map(c => c.map(n => String(n).padStart(2, '0')));
             let tickets = [];
-            for (let front of frontCombos) {
+            for (let front of frontRes.combos) {
                 for (let back of backRes.combos) {
                     tickets.push({
                         front: new Set(front.map(Number)),
@@ -734,7 +740,7 @@
             return { tickets, groupKey: frontRes.groupKey };
         }
 
-        // 模式一专用：解析前区，返回 { groupKey, numbers } 或 { error }
+        // 模式一专用：解析前区，返回 { groupKey, numbers, combos } 或 { error }
         function parseFrontOnlyLine(line) {
             line = line.trim();
             if (!line) return { error: '空行' };
@@ -887,7 +893,7 @@
                 }
                 let lines = raw.split(/\n|\r\n|\r/);
                 let groupStats = {}; // { groupKey: { total: 0, maxHit: -1, minHit: 99 } }
-                let totalValid = 0,
+                let totalTickets = 0,
                     totalLines = 0,
                     invalidLines = 0;
                 let invalidList = [];
@@ -908,22 +914,23 @@
                     if (!groupStats[gkey]) {
                         groupStats[gkey] = { total: 0, maxHit: -1, minHit: 99 };
                     }
-                    // 每一行算一注（整体号码集）
-                    totalValid++;
-                    groupStats[gkey].total++;
-                    let numbers = parsed.numbers;
-                    let hit = 0;
-                    for (let n of numbers) {
-                        if (baseSet.has(n)) hit++;
+                    // 统计所有5码组合
+                    for (let combo of parsed.combos) {
+                        totalTickets++;
+                        groupStats[gkey].total++;
+                        let hit = 0;
+                        for (let n of combo) {
+                            if (baseSet.has(parseInt(n))) hit++;
+                        }
+                        if (hit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = hit;
+                        if (hit < groupStats[gkey].minHit) groupStats[gkey].minHit = hit;
                     }
-                    if (hit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = hit;
-                    if (hit < groupStats[gkey].minHit) groupStats[gkey].minHit = hit;
                 }
                 closeModal2();
 
                 let summaryHTML = `
                     <div class="summary-chip"><strong>${totalLines}</strong>输入行</div>
-                    <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalValid}</strong>总注数</div>
+                    <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalTickets}</strong>总注数</div>
                     <div class="summary-chip" style="${invalidLines?'border-color:#e74c3c;':''}"><strong>${invalidLines}</strong>无效行</div>
                     <div class="summary-chip"><strong>${baseDisp.join(',')}</strong>基准</div>`;
                 $('resultsSummary').innerHTML = summaryHTML;
@@ -947,7 +954,7 @@
                 $('invalidAreaMatch').innerHTML = renderInvalidList(invalidList);
 
                 $('resultsContainer').classList.add('visible');
-                showToast(`✅ 共 ${totalValid} 注参与对比`, 'success');
+                showToast(`✅ 共 ${totalTickets} 注参与对比`, 'success');
             };
 
             window.resetAll = () => {
