@@ -440,6 +440,7 @@
                 <button class="btn btn-outline btn-sm" id="btnReset" style="display:none;" onclick="resetAll()">🔄 重新开始</button>
             </div>
             <div class="results-container" id="resultsContainer">
+                <div id="globalMaxHitMatch" style="font-size:1.2rem;font-weight:700;margin-bottom:12px;color:var(--primary);"></div>
                 <div id="resultsSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
                 <div id="groupMatchArea"></div>
                 <div id="invalidAreaMatch"></div>
@@ -570,7 +571,6 @@
                 frontStr = frontStr.trim();
                 frontStr = removeBackArea(frontStr);
 
-                // 胆拖处理
                 if (frontStr.includes('前区胆') || frontStr.includes('前区拖')) {
                     let dt = extractDanTuo(frontStr, '前区胆', '前区拖');
                     if (!dt) return { error: '前区胆拖格式错误' };
@@ -691,29 +691,22 @@
                 let rawLines = rawText.split(/\n|\r\n|\r/);
                 let mergedLines = [];
                 let currentLine = '';
-                
                 for (let i = 0; i < rawLines.length; i++) {
                     let line = rawLines[i].trim();
                     if (!line) continue;
-                    
                     if (currentLine) {
                         currentLine += ' ' + line;
                     } else {
                         currentLine = line;
                     }
-                    
-                    // 如果当前行包含后区信息，则视为完整
                     if (isCompleteLine(currentLine)) {
                         mergedLines.push(currentLine);
                         currentLine = '';
                     }
                 }
-                
-                // 如果最后还有未完成的行，也加入
                 if (currentLine) {
                     mergedLines.push(currentLine);
                 }
-                
                 return mergedLines;
             }
 
@@ -834,7 +827,6 @@
             window.confirmBulkData = () => {
                 let raw = $('bulkInput').value;
                 if (!raw.trim()) { showToast('⚠️ 请输入号码', 'warning'); return; }
-                // 合并跨行胆拖
                 let lines = mergeMultilineBets(raw);
                 let groupStats = {};
                 let totalCombinations = 0;
@@ -866,7 +858,6 @@
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 计算该行整体命中数
                     let hit = 0;
                     for (let n of parsed.frontAllNums) {
                         if (baseSet.has(n)) hit++;
@@ -882,6 +873,13 @@
                     });
                 }
                 closeModal2();
+
+                // 计算全局最多命中
+                let globalMaxHit = 0;
+                for (let key in groupStats) {
+                    if (groupStats[key].maxHit > globalMaxHit) globalMaxHit = groupStats[key].maxHit;
+                }
+                $('globalMaxHitMatch').textContent = `🎯 全部最多中 ${globalMaxHit} 个`;
 
                 let summaryHTML = `
                     <div class="summary-chip"><strong>${totalLines}</strong>输入行</div>
@@ -900,7 +898,6 @@
                     groupHtml += `<div class="group-stat-item">最多命中 <strong>${g.maxHit}</strong></div>`;
                     groupHtml += `<div class="group-stat-item">最少命中 <strong>${g.minHit}</strong></div>`;
                     groupHtml += '</div>';
-                    // 命中分布表
                     groupHtml += '<table class="distribution-table"><thead><tr><th>命中数</th><th>注数</th></tr></thead><tbody>';
                     for (let m = 5; m >= 0; m--) {
                         if (g.hitDist[m] > 0) {
@@ -908,7 +905,6 @@
                         }
                     }
                     groupHtml += '</tbody></table>';
-                    // 显示中高命中详情
                     if (key.startsWith('复式') || key.startsWith('前区胆拖')) {
                         let highHits = g.details.filter(d => d.hit >= 4);
                         if (highHits.length > 0) {
@@ -974,7 +970,6 @@
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 整行作为一注计算
                     let frontHit = 0;
                     for (let n of parsed.frontAllNums) {
                         if (draw.front.has(n)) frontHit++;
@@ -1007,7 +1002,21 @@
                     });
                 }
 
-                let resultText = `===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
+                // 计算全局最佳组合（按score最高）
+                let globalMaxScore = -1;
+                let globalMaxFront = 0, globalMaxBack = 0;
+                for (let gkey in groupStats) {
+                    let g = groupStats[gkey];
+                    let score = g.maxFrontBack.front * 10 + g.maxFrontBack.back;
+                    if (score > globalMaxScore) {
+                        globalMaxScore = score;
+                        globalMaxFront = g.maxFrontBack.front;
+                        globalMaxBack = g.maxFrontBack.back;
+                    }
+                }
+
+                let resultText = `🎯 全部最多中 ${globalMaxFront}+${globalMaxBack}\n\n`;
+                resultText += `===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
                 let grandTotalPrize = 0;
                 for (let gkey in groupStats) grandTotalPrize += groupStats[gkey].totalPrize;
                 resultText += `💰 总奖金：${grandTotalPrize.toLocaleString()}元\n\n`;
@@ -1024,7 +1033,6 @@
                     for (let k of order) {
                         if (g.dist[k]) resultText += `${k} ： ${g.dist[k]} 注，奖金小计：${(g.dist[k] * prizeMap[k]).toLocaleString()}元\n`;
                     }
-                    // 中高奖金详情
                     if (gkey.startsWith('复式') || gkey.startsWith('前区胆拖')) {
                         let highDetails = g.details.filter(d => d.frontHit >= 4);
                         if (highDetails.length > 0) {
@@ -1052,7 +1060,6 @@
                     front: new Set(drawParsed.frontAllNums), 
                     back: new Set(drawParsed.backAllNums) 
                 };
-                // 合并跨行胆拖
                 let lines = mergeMultilineBets(inputRaw);
                 let result = generateSSQResultText(draw, lines);
                 lastSSQResultText = result.text;
