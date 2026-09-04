@@ -453,7 +453,7 @@
                 <input type="text" class="input-text" id="ssqDrawInput" placeholder="01,02,03,04,05-01,02">
             </div>
             <div style="margin-bottom:14px;">
-                <label class="section-label">📥 投注号码（每行一组，支持复式/胆拖）</label>
+                <label class="section-label">📥 投注号码（每行一组，支持复式/胆拖，胆拖可跨行）</label>
                 <textarea class="input-textarea" id="ssqInput" placeholder="1,2,3,4,5,6-1,2&#10;前区胆：1 前区拖：10，12，13，15，21 后区胆：6 后区拖：7，8，9&#10;..."></textarea>
             </div>
             <div class="btn-row" style="margin-bottom:10px;">
@@ -484,7 +484,7 @@
         <div class="modal-card" style="max-width:580px;">
             <h3>📝 对比号码</h3>
             <div class="modal-ref">基准：<strong id="modal2BaseRef"></strong></div>
-            <textarea class="input-textarea" id="bulkInput" style="min-height:200px;" placeholder="每行一组前区号码，支持复式/胆拖，例如：&#10;1,2,3,4,5&#10;1,2,3,4,5,6&#10;前区胆：1 前区拖：2,3,4,5,6&#10;也可以带后区：1,2,3,4,5-1,2"></textarea>
+            <textarea class="input-textarea" id="bulkInput" style="min-height:200px;" placeholder="每行一组前区号码，支持复式/胆拖，胆拖可跨行&#10;例如：&#10;1,2,3,4,5&#10;1,2,3,4,5,6&#10;前区胆：1 前区拖：2,3,4,5,6&#10;也可以带后区：1,2,3,4,5-1,2"></textarea>
             <div class="modal-actions">
                 <button class="btn btn-outline btn-sm" onclick="closeModal2()">取消</button>
                 <button class="btn btn-primary btn-sm" onclick="confirmBulkData()">分析</button>
@@ -564,7 +564,7 @@
                 return str.replace(/后区.*$/g, '').trim();
             }
 
-            // 解析前区，返回原始号码和组合（组合用于总注数计算）
+            // 解析前区，返回原始号码和组合
             function parseFrontPart(frontStr) {
                 if (!frontStr) return { error: '前区号码为空' };
                 frontStr = frontStr.trim();
@@ -679,6 +679,44 @@
                 return { combos, allNums: uniq };
             }
 
+            // 判断一行是否完整（包含后区信息）
+            function isCompleteLine(line) {
+                if (line.includes('-')) return true;
+                if (line.includes('后区胆') || line.includes('后区拖')) return true;
+                return false;
+            }
+
+            // 合并跨行的胆拖
+            function mergeMultilineBets(rawText) {
+                let rawLines = rawText.split(/\n|\r\n|\r/);
+                let mergedLines = [];
+                let currentLine = '';
+                
+                for (let i = 0; i < rawLines.length; i++) {
+                    let line = rawLines[i].trim();
+                    if (!line) continue;
+                    
+                    if (currentLine) {
+                        currentLine += ' ' + line;
+                    } else {
+                        currentLine = line;
+                    }
+                    
+                    // 如果当前行包含后区信息，则视为完整
+                    if (isCompleteLine(currentLine)) {
+                        mergedLines.push(currentLine);
+                        currentLine = '';
+                    }
+                }
+                
+                // 如果最后还有未完成的行，也加入
+                if (currentLine) {
+                    mergedLines.push(currentLine);
+                }
+                
+                return mergedLines;
+            }
+
             function parseBetLine(line) {
                 line = line.trim();
                 if (!line) return { error: '空行' };
@@ -698,7 +736,7 @@
                         frontPart = line.substring(0, posBack).trim();
                         backPart = line.substring(posBack).trim();
                     } else {
-                        return { error: '缺少后区信息（无"-"且未找到"后区胆/拖"关键字）' };
+                        return { error: '缺少后区信息' };
                     }
                 }
                 if (!frontPart || !backPart) return { error: '前区或后区为空' };
@@ -796,7 +834,8 @@
             window.confirmBulkData = () => {
                 let raw = $('bulkInput').value;
                 if (!raw.trim()) { showToast('⚠️ 请输入号码', 'warning'); return; }
-                let lines = raw.split(/\n|\r\n|\r/);
+                // 合并跨行胆拖
+                let lines = mergeMultilineBets(raw);
                 let groupStats = {};
                 let totalCombinations = 0;
                 let totalLines = 0, invalidLines = 0;
@@ -827,7 +866,7 @@
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 计算该行整体命中数（整行作为一注）
+                    // 计算该行整体命中数
                     let hit = 0;
                     for (let n of parsed.frontAllNums) {
                         if (baseSet.has(n)) hit++;
@@ -1013,7 +1052,8 @@
                     front: new Set(drawParsed.frontAllNums), 
                     back: new Set(drawParsed.backAllNums) 
                 };
-                let lines = inputRaw.split(/\n|\r\n|\r/);
+                // 合并跨行胆拖
+                let lines = mergeMultilineBets(inputRaw);
                 let result = generateSSQResultText(draw, lines);
                 lastSSQResultText = result.text;
                 $('ssqResultContent').textContent = result.text;
