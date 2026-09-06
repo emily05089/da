@@ -537,7 +537,6 @@
                 return result;
             }
 
-            // 提取胆拖字符串，支持“前区胆/前区拖”或者直接“胆/拖”
             function extractDanTuo(str, prefixDan, prefixTuo) {
                 let posDan = str.indexOf(prefixDan);
                 let posTuo = str.indexOf(prefixTuo);
@@ -567,13 +566,11 @@
                 return str.replace(/后区.*$/g, '').trim();
             }
 
-            // 解析前区，返回 { groupKey, combos, allNums } 或 { error }
             function parseFrontPart(frontStr) {
                 if (!frontStr) return { error: '前区号码为空' };
                 frontStr = frontStr.trim();
                 frontStr = removeBackArea(frontStr);
 
-                // 优先判断“前区胆/前区拖”
                 if (frontStr.includes('前区胆') || frontStr.includes('前区拖')) {
                     let dt = extractDanTuo(frontStr, '前区胆', '前区拖');
                     if (!dt) return { error: '前区胆拖格式错误' };
@@ -597,7 +594,6 @@
                     return { groupKey: `前区胆拖${danNums.length}胆`, combos, allNums };
                 }
 
-                // 判断普通胆拖（没有“前区”前缀，只有“胆”和“拖”）
                 if (frontStr.includes('胆') && frontStr.includes('拖')) {
                     let dt = extractDanTuo(frontStr, '胆', '拖');
                     if (!dt) return { error: '前区胆拖格式错误' };
@@ -621,7 +617,6 @@
                     return { groupKey: `前区胆拖${danNums.length}胆`, combos, allNums };
                 }
 
-                // 普通复式或单式
                 let nums = parseNumList(frontStr);
                 let uniq = [...new Set(nums)].sort((a, b) => a - b);
                 if (uniq.length < 5) return { error: '前区号码不足5个' };
@@ -634,7 +629,6 @@
                 if (!backStr) return { error: '后区号码为空' };
                 backStr = backStr.trim();
 
-                // 后区胆拖（显式后区胆/后区拖）
                 if (backStr.includes('后区胆') || backStr.includes('后区拖')) {
                     let dt = extractDanTuo(backStr, '后区胆', '后区拖');
                     if (!dt) return { error: '后区胆拖格式错误' };
@@ -658,7 +652,6 @@
                     return { combos, allNums };
                 }
 
-                // 普通胆拖（只有“胆”“拖”）
                 if (backStr.includes('胆') && backStr.includes('拖')) {
                     let dt = extractDanTuo(backStr, '胆', '拖');
                     if (!dt) return { error: '后区胆拖格式错误' };
@@ -682,7 +675,6 @@
                     return { combos, allNums };
                 }
 
-                // 普通复式或单式
                 let nums = parseNumList(backStr);
                 let uniq = [...new Set(nums)].sort((a, b) => a - b);
                 if (uniq.length < 2) return { error: '后区号码不足2个' };
@@ -690,14 +682,12 @@
                 return { combos, allNums: uniq };
             }
 
-            // 判断一行是否包含后区信息（用于合并跨行）
             function isCompleteLine(line) {
                 if (line.includes('-')) return true;
                 if (line.includes('后区胆') || line.includes('后区拖')) return true;
                 return false;
             }
 
-            // 合并跨行的胆拖投注
             function mergeMultilineBets(rawText) {
                 let rawLines = rawText.split(/\n|\r\n|\r/);
                 let mergedLines = [];
@@ -749,9 +739,7 @@
                 let backRes = parseBackPart(backPart);
                 if (backRes.error) return { error: backRes.error };
 
-                // 实际总组合数（用于统计注数）
                 let totalCombinations = frontRes.combos.length * backRes.combos.length;
-                // 实际行数记为1（用于分组统计时的“注数”显示）
                 let actualCount = 1;
 
                 return {
@@ -862,44 +850,36 @@
                             maxHit: -1,
                             minHit: 99,
                             hitDist: {0:0,1:0,2:0,3:0,4:0,5:0},
-                            details: []   // 存储具体命中的组合（用于中高命中详情）
+                            details: []
                         };
                     }
                     totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 遍历该行的每一个前区组合，计算命中数
-                    for (let frontCombo of parsed.frontCombos) {
-                        const comboSet = new Set(frontCombo.map(n => parseInt(n, 10)));
-                        let hit = 0;
-                        for (let n of comboSet) {
-                            if (baseSet.has(n)) hit++;
-                        }
-                        // 更新命中分布
-                        groupStats[gkey].hitDist[hit] = (groupStats[gkey].hitDist[hit] || 0) + 1;
-                        if (hit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = hit;
-                        if (hit < groupStats[gkey].minHit) groupStats[gkey].minHit = hit;
-
-                        // 记录高命中组合（命中 >= 4 的组合）
-                        if (hit >= 4) {
-                            groupStats[gkey].details.push({
-                                frontNums: frontCombo.slice(), // 已排序好的字符串数组
-                                hit: hit
-                            });
-                        }
+                    // ===== 分组统计：整行算一注，只计算前区所有号码与基准的重合 =====
+                    let hit = 0;
+                    for (let n of parsed.frontAllNums) {
+                        if (baseSet.has(n)) hit++;
                     }
+                    if (hit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = hit;
+                    if (hit < groupStats[gkey].minHit) groupStats[gkey].minHit = hit;
+                    groupStats[gkey].hitDist[hit] = (groupStats[gkey].hitDist[hit] || 0) + 1;
+                    groupStats[gkey].details.push({
+                        frontAll: parsed.frontAllNums,
+                        backAll: parsed.backAllNums,
+                        hit: hit,
+                        line: line
+                    });
                 }
                 closeModal2();
 
-                // 全局最多命中
                 let globalMaxHit = 0;
                 for (let key in groupStats) {
                     if (groupStats[key].maxHit > globalMaxHit) globalMaxHit = groupStats[key].maxHit;
                 }
                 $('globalMaxHitMatch').textContent = `🎯 全部最多中 ${globalMaxHit} 个`;
 
-                // 顶部汇总：总注数 = 所有行展开的组合总数
                 let summaryHTML = `
                     <div class="summary-chip"><strong>${totalLines}</strong>输入行</div>
                     <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalCombinations}</strong>总注数(组合)</div>
@@ -907,40 +887,31 @@
                     <div class="summary-chip"><strong>${baseDisp.join(',')}</strong>基准</div>`;
                 $('resultsSummary').innerHTML = summaryHTML;
 
-                let groupHtml = '<h3 style="margin-bottom:12px;">📊 按投注类型统计（基于实际组合命中）</h3>';
+                let groupHtml = '<h3 style="margin-bottom:12px;">📊 按投注类型统计（每行算1注）</h3>';
                 let sortedKeys = sortGroupKeys(Object.keys(groupStats));
                 for (let key of sortedKeys) {
                     let g = groupStats[key];
-                    groupHtml += `<div class="group-block"><div class="group-title">🔹 ${key} (组合总数 ${g.totalCombinations} 注)</div>`;
+                    groupHtml += `<div class="group-block"><div class="group-title">🔹 ${key} (共${g.actualCount}注)</div>`;
                     groupHtml += '<div class="group-stats">';
-                    groupHtml += `<div class="group-stat-item">组合总数 <strong>${g.totalCombinations}</strong></div>`;
+                    groupHtml += `<div class="group-stat-item">注数 <strong>${g.actualCount}</strong></div>`;
                     groupHtml += `<div class="group-stat-item">最多命中 <strong>${g.maxHit}</strong></div>`;
                     groupHtml += `<div class="group-stat-item">最少命中 <strong>${g.minHit}</strong></div>`;
                     groupHtml += '</div>';
-                    groupHtml += '<table class="distribution-table"><thead><tr><th>命中数</th><th>组合数</th></tr></thead><tbody>';
+                    groupHtml += '<table class="distribution-table"><thead><tr><th>命中数</th><th>注数</th></tr></thead><tbody>';
                     for (let m = 5; m >= 0; m--) {
                         if (g.hitDist[m] > 0) {
                             groupHtml += `<tr><td>命中 ${m} 个</td><td>${g.hitDist[m]} 注</td></tr>`;
                         }
                     }
                     groupHtml += '</tbody></table>';
-                    // 展示中高命中详情（具体组合）
                     if (g.details.length > 0) {
-                        groupHtml += '<div style="margin-top:10px;font-weight:600;">🎯 中高命中组合详情：</div>';
-                        // 去重，防止同一组合重复显示（虽然理论上不会）
-                        const uniqueDetails = [];
-                        const seen = new Set();
-                        for (let d of g.details) {
-                            const key = d.frontNums.join(',');
-                            if (!seen.has(key)) {
-                                seen.add(key);
-                                uniqueDetails.push(d);
-                            }
+                        let highHits = g.details.filter(d => d.hit >= 4);
+                        if (highHits.length > 0) {
+                            groupHtml += '<div style="margin-top:10px;font-weight:600;">🎯 中高命中详情：</div>';
+                            highHits.forEach(item => {
+                                groupHtml += `<div style="margin:4px 0;">命中 ${item.hit} 个：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}</div>`;
+                            });
                         }
-                        uniqueDetails.slice(0, 20).forEach(item => {
-                            groupHtml += `<div style="margin:4px 0;">命中 ${item.hit} 个：${item.frontNums.join(',')}</div>`;
-                        });
-                        if (uniqueDetails.length > 20) groupHtml += `<div style="margin:4px 0;">... 共${uniqueDetails.length}条</div>`;
                     }
                     groupHtml += '</div>';
                 }
@@ -991,53 +962,46 @@
                             minFrontBack: {front:99, back:99},
                             totalPrize: 0,
                             dist: {},
-                            details: []  // 存储中高奖金的具体组合
+                            details: []
                         };
                     }
                     totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 遍历所有前区组合与后区组合的笛卡尔积
-                    for (let frontCombo of parsed.frontCombos) {
-                        for (let backCombo of parsed.backCombos) {
-                            let frontHit = 0;
-                            for (let n of frontCombo) {
-                                if (draw.front.has(parseInt(n, 10))) frontHit++;
-                            }
-                            let backHit = 0;
-                            for (let n of backCombo) {
-                                if (draw.back.has(parseInt(n, 10))) backHit++;
-                            }
-                            let key = frontHit + '+' + backHit;
-                            let prize = prizeMap[key] || 0;
-                            groupStats[gkey].totalPrize += prize;
-                            groupStats[gkey].dist[key] = (groupStats[gkey].dist[key] || 0) + 1;
-
-                            let score = frontHit * 10 + backHit;
-                            let maxScore = groupStats[gkey].maxFrontBack.front * 10 + groupStats[gkey].maxFrontBack.back;
-                            let minScore = groupStats[gkey].minFrontBack.front * 10 + groupStats[gkey].minFrontBack.back;
-                            if (groupStats[gkey].maxFrontBack.front === -1 || score > maxScore) {
-                                groupStats[gkey].maxFrontBack = { front: frontHit, back: backHit };
-                            }
-                            if (groupStats[gkey].minFrontBack.front === 99 || score < minScore) {
-                                groupStats[gkey].minFrontBack = { front: frontHit, back: backHit };
-                            }
-                            // 记录中高奖金组合（前区命中>=4）
-                            if (frontHit >= 4) {
-                                groupStats[gkey].details.push({
-                                    frontNums: frontCombo.slice(),
-                                    backNums: backCombo.slice(),
-                                    frontHit,
-                                    backHit,
-                                    prize
-                                });
-                            }
-                        }
+                    // ===== 分组统计：整行算一注，只计算前区所有号码和后区所有号码与开奖号码的重合 =====
+                    let frontHit = 0;
+                    for (let n of parsed.frontAllNums) {
+                        if (draw.front.has(n)) frontHit++;
                     }
+                    let backHit = 0;
+                    for (let n of parsed.backAllNums) {
+                        if (draw.back.has(n)) backHit++;
+                    }
+                    let key = frontHit + '+' + backHit;
+                    let prize = prizeMap[key] || 0;
+                    groupStats[gkey].totalPrize += prize;
+                    groupStats[gkey].dist[key] = (groupStats[gkey].dist[key] || 0) + 1;
+
+                    let score = frontHit * 10 + backHit;
+                    let maxScore = groupStats[gkey].maxFrontBack.front * 10 + groupStats[gkey].maxFrontBack.back;
+                    let minScore = groupStats[gkey].minFrontBack.front * 10 + groupStats[gkey].minFrontBack.back;
+                    if (groupStats[gkey].maxFrontBack.front === -1 || score > maxScore) {
+                        groupStats[gkey].maxFrontBack = { front: frontHit, back: backHit };
+                    }
+                    if (groupStats[gkey].minFrontBack.front === 99 || score < minScore) {
+                        groupStats[gkey].minFrontBack = { front: frontHit, back: backHit };
+                    }
+                    groupStats[gkey].details.push({
+                        frontAll: parsed.frontAllNums,
+                        backAll: parsed.backAllNums,
+                        frontHit,
+                        backHit,
+                        prize,
+                        key
+                    });
                 }
 
-                // 全局最佳组合
                 let globalMaxScore = -1;
                 let globalMaxFront = 0, globalMaxBack = 0;
                 for (let gkey in groupStats) {
@@ -1059,7 +1023,7 @@
                 let sortedKeys = sortGroupKeys(Object.keys(groupStats));
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
-                    resultText += `===== ${gkey} (组合总数 ${g.totalCombinations} 注) =====\n`;
+                    resultText += `===== ${gkey} (共${g.actualCount}注) =====\n`;
                     resultText += `最多命中：${g.maxFrontBack.front}+${g.maxFrontBack.back}\n`;
                     resultText += `最少命中：${g.minFrontBack.front}+${g.minFrontBack.back}\n`;
                     resultText += `奖金小计：${g.totalPrize.toLocaleString()}元\n`;
@@ -1068,10 +1032,11 @@
                     for (let k of order) {
                         if (g.dist[k]) resultText += `${k} ： ${g.dist[k]} 注，奖金小计：${(g.dist[k] * prizeMap[k]).toLocaleString()}元\n`;
                     }
-                    if (g.details.length > 0) {
+                    let highDetails = g.details.filter(d => d.frontHit >= 4);
+                    if (highDetails.length > 0) {
                         resultText += `--- 中高奖金详情 ---\n`;
-                        g.details.forEach(item => {
-                            resultText += `中${item.frontHit}+${item.backHit}，号码：${item.frontNums.join(',')}-${item.backNums.join(',')}，奖金${item.prize.toLocaleString()}元\n`;
+                        highDetails.forEach(item => {
+                            resultText += `中${item.frontHit}+${item.backHit}，号码：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}-${item.backAll.map(n=>String(n).padStart(2,'0')).join(',')}，奖金${item.prize.toLocaleString()}元\n`;
                         });
                     }
                     resultText += '\n';
