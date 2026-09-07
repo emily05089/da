@@ -972,8 +972,9 @@
                             maxGrade: { frontHit: -1, backHit: -1 },
                             minGrade: { frontHit: 99, backHit: 99 },
                             totalPrize: 0,
-                            dist: {},     // 按最高等级统计行数
-                            details: []   // 中高奖金详情
+                            dist: {},        // 记录每个最高等级的行数
+                            distPrize: {},   // 新增：记录每个最高等级的实际奖金总和
+                            details: []
                         };
                     }
                     totalCombinations += parsed.totalCombinations;
@@ -982,7 +983,6 @@
 
                     // 展开所有组合，计算每个组合的实际中奖等级和奖金
                     let maxGrade = { frontHit: -1, backHit: -1, prize: -1 };
-                    let minGrade = { frontHit: 99, backHit: 99, prize: Infinity };
                     let linePrize = 0;
 
                     for (let frontCombo of parsed.frontCombos) {
@@ -1002,9 +1002,6 @@
                             if (maxGrade.frontHit === -1 || compareGrade({frontHit, backHit}, maxGrade) > 0) {
                                 maxGrade = { frontHit, backHit, prize };
                             }
-                            if (minGrade.frontHit === 99 || compareGrade({frontHit, backHit}, minGrade) < 0) {
-                                minGrade = { frontHit, backHit, prize };
-                            }
                         }
                     }
 
@@ -1021,6 +1018,8 @@
 
                     let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
                     groupStats[gkey].dist[maxKey] = (groupStats[gkey].dist[maxKey] || 0) + 1;
+                    // 累加该行的实际奖金到对应等级
+                    groupStats[gkey].distPrize[maxKey] = (groupStats[gkey].distPrize[maxKey] || 0) + linePrize;
 
                     if (maxGrade.frontHit >= 4) {
                         groupStats[gkey].details.push({
@@ -1059,8 +1058,7 @@
                     const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
                     for (let k of order) {
                         if (g.dist[k]) {
-                            let prizePerLine = prizeMap[k] || 0;
-                            let subtotal = g.dist[k] * prizePerLine;
+                            let subtotal = g.distPrize[k] || 0; // 使用实际奖金累加
                             resultText += `${k} ： ${g.dist[k]} 注（行），小计：${subtotal.toLocaleString()}元\n`;
                         }
                     }
