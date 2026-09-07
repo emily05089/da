@@ -999,34 +999,29 @@
                             let prize = prizeMap[key] || 0;
                             linePrize += prize;
 
-                            // 更新该行实际最高等级
                             if (maxGrade.frontHit === -1 || compareGrade({frontHit, backHit}, maxGrade) > 0) {
                                 maxGrade = { frontHit, backHit, prize };
                             }
-                            // 更新该行实际最低等级
                             if (minGrade.frontHit === 99 || compareGrade({frontHit, backHit}, minGrade) < 0) {
                                 minGrade = { frontHit, backHit, prize };
                             }
                         }
                     }
 
-                    // 该行总奖金
                     groupStats[gkey].totalPrize += linePrize;
 
                     // 更新组内最大等级：取所有行的最高等级的最大值
                     if (compareGrade(maxGrade, groupStats[gkey].maxGrade) > 0) {
                         groupStats[gkey].maxGrade = maxGrade;
                     }
-                    // 更新组内最小等级：取所有行的最高等级的最小值（关键修正）
+                    // 更新组内最小等级：取所有行的最高等级的最小值
                     if (compareGrade(maxGrade, groupStats[gkey].minGrade) < 0) {
                         groupStats[gkey].minGrade = maxGrade;
                     }
 
-                    // 按该行最高等级统计行数（用于分布）
                     let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
                     groupStats[gkey].dist[maxKey] = (groupStats[gkey].dist[maxKey] || 0) + 1;
 
-                    // 如果该行最高等级符合中高条件（前区>=4），记录详情
                     if (maxGrade.frontHit >= 4) {
                         groupStats[gkey].details.push({
                             frontAll: parsed.frontAllNums,
@@ -1039,7 +1034,6 @@
                     }
                 }
 
-                // 计算全局最佳组合（实际最高等级）
                 let globalMaxGrade = { frontHit: 0, backHit: 0 };
                 for (let gkey in groupStats) {
                     let g = groupStats[gkey];
@@ -1064,7 +1058,11 @@
                     resultText += `--- 命中分布（按每行最高等级统计） ---\n`;
                     const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
                     for (let k of order) {
-                        if (g.dist[k]) resultText += `${k} ： ${g.dist[k]} 注（行）\n`;
+                        if (g.dist[k]) {
+                            let prizePerLine = prizeMap[k] || 0;
+                            let subtotal = g.dist[k] * prizePerLine;
+                            resultText += `${k} ： ${g.dist[k]} 注（行），小计：${subtotal.toLocaleString()}元\n`;
+                        }
                     }
                     if (g.details.length > 0) {
                         resultText += `--- 中高奖金详情 ---\n`;
