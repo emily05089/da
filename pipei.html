@@ -572,7 +572,6 @@
                 frontStr = frontStr.trim();
                 frontStr = removeBackArea(frontStr);
 
-                // 胆拖（前区胆/前区拖 或 胆/拖）
                 if (frontStr.includes('前区胆') || frontStr.includes('前区拖') || (frontStr.includes('胆') && frontStr.includes('拖'))) {
                     let dt = null;
                     if (frontStr.includes('前区胆') || frontStr.includes('前区拖')) {
@@ -587,7 +586,6 @@
                     if (dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
                     danNums = [...new Set(danNums)];
                     tuoNums = [...new Set(tuoNums)];
-                    // 去除胆码和拖码重复
                     if (danNums.length > 0 && tuoNums.length > 0) {
                         const danSet = new Set(danNums);
                         tuoNums = tuoNums.filter(n => !danSet.has(n));
@@ -609,7 +607,6 @@
                     };
                 }
 
-                // 普通复式或单式 (视为所有号码都是拖码，胆码为空)
                 let nums = parseNumList(frontStr);
                 let uniq = [...new Set(nums)].sort((a, b) => a - b);
                 if (uniq.length < 5) return { error: '前区号码不足5个' };
@@ -625,7 +622,6 @@
                 };
             }
 
-            // 解析后区，返回 { combos, allNums, danNums, tuoNums, needTuos }
             function parseBackPart(backStr) {
                 if (!backStr) return { error: '后区号码为空' };
                 backStr = backStr.trim();
@@ -658,7 +654,6 @@
                     return { combos, allNums, danNums, tuoNums, needTuos };
                 }
 
-                // 普通复式或单式
                 let nums = parseNumList(backStr);
                 let uniq = [...new Set(nums)].sort((a, b) => a - b);
                 if (uniq.length < 2) return { error: '后区号码不足2个' };
@@ -776,7 +771,7 @@
                 return html;
             }
 
-            // 计算胆拖（或普通）的命中范围
+            // 计算胆拖（或普通）的命中范围，返回 { maxHit, minHit }，用于模式一
             function calcHitRange(danNums, tuoNums, needTuos, targetSet) {
                 let danHit = 0;
                 for (let n of danNums) {
@@ -868,13 +863,12 @@
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 计算前区命中范围
+                    // 计算前区命中范围（使用胆拖规则，针对模式一）
                     let { maxHit, minHit } = calcHitRange(parsed.frontDanNums, parsed.frontTuoNums, parsed.frontNeedTuos, baseSet);
                     
-                    // 更新组统计
                     if (maxHit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = maxHit;
                     if (minHit < groupStats[gkey].minHit) groupStats[gkey].minHit = minHit;
-                    groupStats[gkey].hitDist[maxHit] = (groupStats[gkey].hitDist[maxHit] || 0) + 1; // 使用最大命中计数
+                    groupStats[gkey].hitDist[maxHit] = (groupStats[gkey].hitDist[maxHit] || 0) + 1;
                     groupStats[gkey].details.push({
                         frontAll: parsed.frontAllNums,
                         backAll: parsed.backAllNums,
@@ -950,6 +944,12 @@
             const prizeMapHigh = { '5+2':5000000, '5+1':500000, '5+0':6666, '4+2':6666, '4+1':380, '4+0':200, '3+2':200, '3+1':18, '2+2':18, '3+0':7, '2+1':7, '1+2':7, '0+2':7, '2+0':0, '1+1':0, '0+1':0, '1+0':0, '0+0':0 };
             function currentPrizeMap() { return poolHigh ? prizeMapHigh : prizeMapLow; }
 
+            // 比较等级高低，返回1表示a>b，-1表示a<b，0相等
+            function compareGrade(a, b) {
+                if (a.frontHit !== b.frontHit) return a.frontHit - b.frontHit;
+                return a.backHit - b.backHit;
+            }
+
             function generateSSQResultText(draw, lines) {
                 const prizeMap = currentPrizeMap();
                 let groupStats = {};
@@ -969,67 +969,85 @@
                         groupStats[gkey] = {
                             totalCombinations: 0,
                             actualCount: 0,
-                            maxFrontBack: {front:-1, back:-1},
-                            minFrontBack: {front:99, back:99},
+                            maxGrade: { frontHit: -1, backHit: -1 },
+                            minGrade: { frontHit: 99, backHit: 99 },
                             totalPrize: 0,
-                            dist: {},
-                            details: []
+                            dist: {},     // 按最高等级统计行数
+                            details: []   // 中高奖金详情
                         };
                     }
                     totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 计算前区命中范围
-                    let frontRange = calcHitRange(parsed.frontDanNums, parsed.frontTuoNums, parsed.frontNeedTuos, draw.front);
-                    // 计算后区命中范围
-                    let backRange = calcHitRange(parsed.backDanNums, parsed.backTuoNums, parsed.backNeedTuos, draw.back);
+                    // 展开所有组合，计算每个组合的奖金和等级
+                    let maxGrade = { frontHit: -1, backHit: -1, prize: -1 };
+                    let minGrade = { frontHit: 99, backHit: 99, prize: Infinity };
+                    let linePrize = 0;
 
-                    let maxFront = frontRange.maxHit;
-                    let minFront = frontRange.minHit;
-                    let maxBack = backRange.maxHit;
-                    let minBack = backRange.minHit;
+                    for (let frontCombo of parsed.frontCombos) {
+                        for (let backCombo of parsed.backCombos) {
+                            let frontHit = 0;
+                            for (let n of frontCombo) {
+                                if (draw.front.has(parseInt(n, 10))) frontHit++;
+                            }
+                            let backHit = 0;
+                            for (let n of backCombo) {
+                                if (draw.back.has(parseInt(n, 10))) backHit++;
+                            }
+                            let key = frontHit + '+' + backHit;
+                            let prize = prizeMap[key] || 0;
+                            linePrize += prize;
 
-                    // 使用最大命中组合计算奖金
-                    let key = maxFront + '+' + maxBack;
-                    let prize = prizeMap[key] || 0;
-                    groupStats[gkey].totalPrize += prize;
-                    groupStats[gkey].dist[key] = (groupStats[gkey].dist[key] || 0) + 1;
-
-                    let maxScore = maxFront * 10 + maxBack;
-                    let minScore = minFront * 10 + minBack;
-                    if (groupStats[gkey].maxFrontBack.front === -1 || maxScore > groupStats[gkey].maxFrontBack.front * 10 + groupStats[gkey].maxFrontBack.back) {
-                        groupStats[gkey].maxFrontBack = { front: maxFront, back: maxBack };
+                            // 更新最高等级
+                            if (maxGrade.frontHit === -1 || compareGrade({frontHit, backHit}, maxGrade) > 0) {
+                                maxGrade = { frontHit, backHit, prize };
+                            }
+                            // 更新最低等级
+                            if (minGrade.frontHit === 99 || compareGrade({frontHit, backHit}, minGrade) < 0) {
+                                minGrade = { frontHit, backHit, prize };
+                            }
+                        }
                     }
-                    if (groupStats[gkey].minFrontBack.front === 99 || minScore < groupStats[gkey].minFrontBack.front * 10 + groupStats[gkey].minFrontBack.back) {
-                        groupStats[gkey].minFrontBack = { front: minFront, back: minBack };
+
+                    // 该行总奖金
+                    groupStats[gkey].totalPrize += linePrize;
+
+                    // 更新组内最大最小等级
+                    if (compareGrade(maxGrade, groupStats[gkey].maxGrade) > 0) {
+                        groupStats[gkey].maxGrade = maxGrade;
+                    }
+                    if (compareGrade(minGrade, groupStats[gkey].minGrade) < 0) {
+                        groupStats[gkey].minGrade = minGrade;
                     }
 
-                    groupStats[gkey].details.push({
-                        frontAll: parsed.frontAllNums,
-                        backAll: parsed.backAllNums,
-                        maxFront,
-                        maxBack,
-                        minFront,
-                        minBack,
-                        prize,
-                        key
-                    });
+                    // 按最高等级统计行数
+                    let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
+                    groupStats[gkey].dist[maxKey] = (groupStats[gkey].dist[maxKey] || 0) + 1;
+
+                    // 如果最高等级满足中高条件（前区>=4），记录详情
+                    if (maxGrade.frontHit >= 4) {
+                        groupStats[gkey].details.push({
+                            frontAll: parsed.frontAllNums,
+                            backAll: parsed.backAllNums,
+                            maxFront: maxGrade.frontHit,
+                            maxBack: maxGrade.backHit,
+                            prize: linePrize,
+                            key: maxKey
+                        });
+                    }
                 }
 
-                let globalMaxScore = -1;
-                let globalMaxFront = 0, globalMaxBack = 0;
+                // 计算全局最佳组合
+                let globalMaxGrade = { frontHit: 0, backHit: 0 };
                 for (let gkey in groupStats) {
                     let g = groupStats[gkey];
-                    let score = g.maxFrontBack.front * 10 + g.maxFrontBack.back;
-                    if (score > globalMaxScore) {
-                        globalMaxScore = score;
-                        globalMaxFront = g.maxFrontBack.front;
-                        globalMaxBack = g.maxFrontBack.back;
+                    if (compareGrade(g.maxGrade, globalMaxGrade) > 0) {
+                        globalMaxGrade = g.maxGrade;
                     }
                 }
 
-                let resultText = `🎯 全部最多中 ${globalMaxFront}+${globalMaxBack}\n\n`;
+                let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n\n`;
                 resultText += `===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
                 let grandTotalPrize = 0;
                 for (let gkey in groupStats) grandTotalPrize += groupStats[gkey].totalPrize;
@@ -1039,19 +1057,18 @@
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
                     resultText += `===== ${gkey} (共${g.actualCount}注) =====\n`;
-                    resultText += `最多命中：${g.maxFrontBack.front}+${g.maxFrontBack.back}\n`;
-                    resultText += `最少命中：${g.minFrontBack.front}+${g.minFrontBack.back}\n`;
+                    resultText += `最多命中：${g.maxGrade.frontHit}+${g.maxGrade.backHit}\n`;
+                    resultText += `最少命中：${g.minGrade.frontHit}+${g.minGrade.backHit}\n`;
                     resultText += `奖金小计：${g.totalPrize.toLocaleString()}元\n`;
-                    resultText += `--- 命中分布 ---\n`;
+                    resultText += `--- 命中分布（按最高等级统计行数） ---\n`;
                     const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
                     for (let k of order) {
-                        if (g.dist[k]) resultText += `${k} ： ${g.dist[k]} 注，奖金小计：${(g.dist[k] * prizeMap[k]).toLocaleString()}元\n`;
+                        if (g.dist[k]) resultText += `${k} ： ${g.dist[k]} 注（行）\n`;
                     }
-                    let highDetails = g.details.filter(d => d.maxFront >= 4);
-                    if (highDetails.length > 0) {
+                    if (g.details.length > 0) {
                         resultText += `--- 中高奖金详情 ---\n`;
-                        highDetails.forEach(item => {
-                            resultText += `最多中${item.maxFront}+${item.maxBack}，号码范围：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}-${item.backAll.map(n=>String(n).padStart(2,'0')).join(',')}，奖金${item.prize.toLocaleString()}元\n`;
+                        g.details.forEach(item => {
+                            resultText += `中${item.maxFront}+${item.maxBack}，号码：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}-${item.backAll.map(n=>String(n).padStart(2,'0')).join(',')}，奖金合计：${item.prize.toLocaleString()}元\n`;
                         });
                     }
                     resultText += '\n';
