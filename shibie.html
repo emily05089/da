@@ -1,740 +1,1115 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
-  <title>大识别 · 号码生成器</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-    }
-    body {
-      background: linear-gradient(145deg, #f5f0ea 0%, #e8e0d5 100%);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 0.5rem;
-    }
-    .container {
-      max-width: 700px;
-      width: 100%;
-      background: rgba(255, 250, 245, 0.95);
-      backdrop-filter: blur(18px);
-      background: #fffbf5;
-      border-radius: 1.8rem;
-      box-shadow: 0 20px 35px rgba(0, 0, 0, 0.12), inset 0 1px 0 #fff;
-      padding: 1rem 1rem 1.2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.9rem;
-      border: 1px solid #e7d7c0;
-    }
-    h1 {
-      text-align: center;
-      font-weight: 500;
-      font-size: 1.3rem;
-      color: #4a3724;
-      letter-spacing: 1px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.3rem;
-    }
-    h1 span {
-      background: #c9372c;
-      color: #fff;
-      font-size: 1.1rem;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .tabs {
-      display: flex;
-      gap: 0.4rem;
-      background: #f2e5d2;
-      padding: 0.35rem;
-      border-radius: 40px;
-    }
-    .tab-btn {
-      flex: 1;
-      background: transparent;
-      border: none;
-      padding: 0.45rem 0.4rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      border-radius: 30px;
-      color: #5e4a34;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .tab-btn.active {
-      background: white;
-      color: #b23b2c;
-      box-shadow: 0 3px 8px rgba(180, 100, 60, 0.2);
-      font-weight: 700;
-    }
-    .module {
-      display: none;
-      flex-direction: column;
-      gap: 0.8rem;
-    }
-    .module.active {
-      display: flex;
-    }
-    .ball-selector {
-      background: #fef9f2;
-      border-radius: 1.2rem;
-      padding: 0.7rem;
-      box-shadow: 0 4px 10px rgba(120, 70, 30, 0.05);
-    }
-    .section-title {
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-weight: 600;
-      margin-bottom: 0.4rem;
-      color: #4d3824;
-      font-size: 0.75rem;
-    }
-    .front-dot {
-      width: 9px;
-      height: 9px;
-      background: #d32f2f;
-      border-radius: 50%;
-      display: inline-block;
-      box-shadow: 0 0 0 2px #fbc4c4;
-    }
-    .back-dot {
-      width: 9px;
-      height: 9px;
-      background: #1565c0;
-      border-radius: 50%;
-      display: inline-block;
-      box-shadow: 0 0 0 2px #bbdefb;
-    }
-    .ball-grid.front-grid {
-      display: grid;
-      grid-template-columns: repeat(9, 28px);
-      gap: 4px;
-      justify-content: center;
-      margin-bottom: 0.3rem;
-    }
-    .ball-grid.back-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 28px);
-      gap: 4px;
-      justify-content: center;
-    }
-    .ball {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.7rem;
-      background: white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-      cursor: pointer;
-      transition: all 0.1s;
-      border: 1.5px solid #e5d5c0;
-      color: #3e2e1f;
-      line-height: 1;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .ball:hover {
-      transform: scale(1.1);
-      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-    }
-    .front-ball {
-      background: #fff5f0;
-      border-color: #f5bc9c;
-    }
-    .front-ball.selected {
-      background: #c62828;
-      border-color: #b71c1c;
-      color: white;
-      box-shadow: 0 0 0 2.5px #f9a19a;
-      transform: scale(1.05);
-    }
-    .back-ball {
-      background: #f0f4ff;
-      border-color: #b0c8f0;
-    }
-    .back-ball.selected {
-      background: #0d47a1;
-      border-color: #002171;
-      color: white;
-      box-shadow: 0 0 0 2.5px #7baaf7;
-    }
-    .action-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 0.4rem;
-      gap: 0.4rem;
-    }
-    .multi-group {
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-      background: #f4ede4;
-      padding: 0.2rem 0.6rem;
-      border-radius: 1.5rem;
-    }
-    .multi-group label {
-      font-weight: 600;
-      color: #4e3b28;
-      font-size: 0.7rem;
-    }
-    .multi-group input {
-      width: 45px;
-      padding: 0.3rem 0.2rem;
-      border: 1px solid #dac09a;
-      border-radius: 1rem;
-      text-align: center;
-      font-weight: 600;
-      font-size: 0.7rem;
-      background: white;
-      outline: none;
-    }
-    .multi-group input:focus {
-      border-color: #b34134;
-      box-shadow: 0 0 0 2px rgba(179, 65, 52, 0.1);
-    }
-    .btn {
-      background: #f3ede5;
-      border: 1px solid #d9c4a5;
-      padding: 0.35rem 0.7rem;
-      border-radius: 1.5rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: #4f3b29;
-      font-size: 0.7rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.2rem;
-      transition: all 0.2s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn:hover {
-      background: #e8dcc8;
-      transform: translateY(-1px);
-    }
-    .btn:active {
-      transform: translateY(0);
-    }
-    .btn-primary {
-      background: #b34134;
-      color: white;
-      border: none;
-      box-shadow: 0 3px 8px rgba(170, 70, 40, 0.3);
-      font-weight: 700;
-    }
-    .btn-primary:hover {
-      background: #9e3027;
-    }
-    .output-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.3rem;
-    }
-    .output-header h3 {
-      color: #4d3824;
-      margin: 0;
-      font-size: 0.8rem;
-      font-weight: 700;
-    }
-    .output-area {
-      background: #3e3629;
-      border-radius: 1rem;
-      padding: 0.8rem;
-      color: #f7e7ce;
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      font-size: 0.7rem;
-      min-height: 90px;
-      max-height: 200px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      box-shadow: inset 0 0 8px rgba(0,0,0,0.3);
-      border: 1px solid #5c4a35;
-      margin-top: 0.1rem;
-      line-height: 1.4;
-    }
-    .output-area:empty::before {
-      content: '暂无生成记录...';
-      color: #9e8b75;
-      font-style: italic;
-    }
-    .copy-btn,
-    .clear-output-btn {
-      background: #d9c8ad;
-      color: #3e2e1f;
-      border: 1px solid #b89b7a;
-      font-weight: 600;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-    }
-    .copy-btn:hover,
-    .clear-output-btn:hover {
-      background: #cbb592;
-    }
-    .dantuo-extra {
-      font-size: 0.7rem;
-      background: #f6eddf;
-      padding: 0.2rem 0.6rem;
-      border-radius: 1rem;
-      margin: 0.2rem 0 0.3rem;
-      color: #4b3824;
-    }
-    .dantuo-extra.warning {
-      background: #ffe0e0;
-      color: #c62828;
-      font-weight: 600;
-    }
-    @media (max-width: 380px) {
-      .ball-grid.front-grid {
-        grid-template-columns: repeat(9, 24px);
-        gap: 3px;
-      }
-      .ball-grid.back-grid {
-        grid-template-columns: repeat(6, 24px);
-        gap: 3px;
-      }
-      .ball {
-        width: 24px;
-        height: 24px;
-        font-size: 0.65rem;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>号码分析工具箱 · 顺序分组统计</title>
+    <style>
+        :root {
+            --primary: #4A6CF7;
+            --primary-dark: #3651d5;
+            --danger: #e74c3c;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --text-light: #5a6c7d;
+            --border: #dde4ed;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.25s;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #e8edf5, #dce3ed);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text);
+        }
+        .app-container {
+            width: 100%;
+            max-width: 980px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            padding: 30px 28px;
+        }
+        .app-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .app-header h1 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 8px 20px;
+            border: none;
+            background: #f1f5fa;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            color: var(--text-light);
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(74, 108, 247, 0.3);
+        }
+        .tab-btn:hover:not(.active) {
+            background: #e3eaf2;
+            color: var(--text);
+        }
+        .mode-panel {
+            display: none;
+        }
+        .mode-panel.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        .base-number-display {
+            display: none;
+            background: #f8fafd;
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .base-number-display.visible {
+            display: block;
+        }
+        .num-ball {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4A6CF7, #5d7ef9);
+            color: #fff;
+            font-weight: 700;
+            margin: 0 3px;
+            font-size: 1rem;
+            box-shadow: 0 2px 6px rgba(74, 108, 247, 0.35);
+            transition: transform 0.2s;
+        }
+        .num-ball:hover {
+            transform: scale(1.1);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 11px 22px;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-size: 0.9rem;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        .btn-outline {
+            background: #fff;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-outline:hover {
+            background: #f5f8ff;
+        }
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-lg {
+            padding: 15px 36px;
+            font-size: 1.1rem;
+        }
+        .btn-sm {
+            padding: 6px 16px;
+            font-size: 0.8rem;
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+        .results-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .results-container.visible {
+            display: block;
+            animation: fadeInUp 0.3s;
+        }
+        .summary-chip {
+            flex: 1 1 auto;
+            min-width: 80px;
+            text-align: center;
+            background: #f8fafd;
+            border-radius: var(--radius-sm);
+            padding: 10px 8px;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            border: 1px solid var(--border);
+            margin: 4px;
+            transition: all 0.2s;
+        }
+        .summary-chip:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(74, 108, 247, 0.15);
+        }
+        .summary-chip strong {
+            display: block;
+            font-size: 1.5rem;
+            color: var(--text);
+            line-height: 1.3;
+        }
+        .group-block {
+            background: #fafbfd;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 16px;
+            transition: box-shadow 0.2s;
+        }
+        .group-block:hover {
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        }
+        .group-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .group-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        .group-stat-item {
+            background: #fff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #e3eaf2;
+            white-space: nowrap;
+        }
+        .group-stat-item strong {
+            color: var(--primary);
+            font-size: 1.1rem;
+            margin-left: 4px;
+        }
+        .detail-list {
+            margin-top: 10px;
+            background: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e3eaf2;
+        }
+        .detail-item {
+            padding: 4px 0;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        .distribution-table {
+            margin-top: 10px;
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.85rem;
+        }
+        .distribution-table th,
+        .distribution-table td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        .distribution-table th {
+            background: #f1f5fa;
+        }
+        .input-text,
+        .input-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            background: #fafbfd;
+            font-size: 0.9rem;
+            transition: border-color 0.25s, box-shadow 0.25s;
+            color: var(--text);
+        }
+        .input-text:focus,
+        .input-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+            background: #fff;
+        }
+        .input-textarea {
+            min-height: 160px;
+            resize: vertical;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-120px);
+            background: #333;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 50px;
+            z-index: 2000;
+            transition: 0.3s;
+            font-size: 0.9rem;
+            font-weight: 500;
+            pointer-events: none;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        .toast.warning {
+            background: #e67e22;
+        }
+        .toast.error {
+            background: #c0392b;
+        }
+        .toast.success {
+            background: #27ae60;
+        }
+        .invalid-list {
+            background: #fff5f5;
+            border: 1px solid #f5c6c6;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 16px;
+        }
+        .invalid-list strong {
+            color: #c0392b;
+        }
+        .invalid-item {
+            font-size: 0.8rem;
+            color: #c0392b;
+            margin-bottom: 4px;
+            font-family: monospace;
+        }
+        .section-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            font-size: 0.9rem;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 16px;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-card {
+            background: #fff;
+            border-radius: 18px;
+            width: 100%;
+            max-width: 560px;
+            padding: 24px 22px;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+        }
+        .modal-overlay.open .modal-card {
+            transform: translateY(0);
+        }
+        .modal-card h3 {
+            margin-bottom: 14px;
+            font-size: 1.1rem;
+            color: var(--text);
+        }
+        .modal-actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .modal-ref {
+            background: #f0f5fb;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 600px) {
+            .app-container { padding: 20px 16px; border-radius: 14px; }
+            .tab-btn { padding: 6px 14px; font-size: 0.8rem; }
+            .btn-lg { padding: 12px 24px; font-size: 1rem; }
+            .num-ball { width: 32px; height: 32px; font-size: 0.85rem; margin: 0 2px; }
+            .summary-chip strong { font-size: 1.2rem; }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1><span>⚬</span> 大识别</h1>
+    <div class="app-container">
+        <div class="app-header"><h1>📊 号码分析工具箱</h1></div>
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchMode('match')">模式一：号码匹配分析</button>
+            <button class="tab-btn" onclick="switchMode('ssq')">模式二：奖金统计</button>
+        </div>
 
-    <div class="tabs">
-      <button class="tab-btn active" id="tabSingle">🎯 单式·复式</button>
-      <button class="tab-btn" id="tabDantuo">🧩 胆拖投注</button>
+        <!-- 模式一 -->
+        <div class="mode-panel active" id="modeMatch">
+            <div class="base-number-display" id="baseNumberDisplay">
+                <div style="font-size:0.75rem;margin-bottom:8px;">📌 当前基准号码（前区5码）</div>
+                <div id="baseNumberBalls"></div>
+            </div>
+            <button class="btn btn-primary btn-block btn-lg" id="btnStart"><span id="btnStartText">开始分析</span></button>
+            <div class="btn-row">
+                <button class="btn btn-outline btn-sm" id="btnReset" style="display:none;" onclick="resetAll()">🔄 重新开始</button>
+            </div>
+            <div class="results-container" id="resultsContainer">
+                <div id="globalMaxHitMatch" style="font-size:1.2rem;font-weight:700;margin-bottom:12px;color:var(--primary);"></div>
+                <div id="resultsSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
+                <div id="groupMatchArea"></div>
+                <div id="invalidAreaMatch"></div>
+            </div>
+        </div>
+
+        <!-- 模式二 -->
+        <div class="mode-panel" id="modeSSQ">
+            <div style="margin-bottom:16px;">
+                <label class="section-label">📌 开奖号码（前区5码-后区2码）</label>
+                <input type="text" class="input-text" id="ssqDrawInput" placeholder="例如：01,02,03,04,05-06,07">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label class="section-label">📥 投注号码（每行一组，支持复式/胆拖，胆拖可跨行）</label>
+                <textarea class="input-textarea" id="ssqInput" placeholder="1,2,3,4,5,6-1,2&#10;前区胆：1 前区拖：10，12，13，15，21 后区胆：6 后区拖：7，8，9&#10;..."></textarea>
+            </div>
+            <div class="btn-row" style="margin-bottom:10px;">
+                <button class="btn btn-primary btn-lg" onclick="analyzeSSQ()">🔍 统计奖金</button>
+                <button class="btn btn-outline" id="btnTogglePool" onclick="togglePool()">奖池：低于8亿</button>
+            </div>
+            <div class="results-container" id="resultsContainerSSQ">
+                <div id="ssqResultContent" style="background:#fafbfd;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:'SF Mono','Monaco','Consolas',monospace;white-space:pre-wrap;line-height:1.8;font-size:0.85rem;overflow-x:auto;"></div>
+                <div id="invalidAreaSSQ" style="margin-top:12px;"></div>
+                <button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="copySSQResult()">📋 一键复制结果</button>
+            </div>
+        </div>
     </div>
 
-    <div id="moduleSingle" class="module active">
-      <div class="ball-selector">
-        <div class="section-title"><span class="front-dot"></span> 前区 (至少选5个，1-35)</div>
-        <div class="ball-grid front-grid" id="singleFrontContainer"></div>
-        <div class="section-title"><span class="back-dot"></span> 后区 (至少选2个，1-12)</div>
-        <div class="ball-grid back-grid" id="singleBackContainer"></div>
-      </div>
-      <div class="action-row">
-        <div class="multi-group">
-          <label>🔁 倍数</label>
-          <input type="number" id="singleMultiplier" value="1" min="1" max="99" step="1">
+    <!-- 弹窗1：基准号码 -->
+    <div id="modalOverlay1" class="modal-overlay">
+        <div class="modal-card">
+            <h3>📋 基准号码（前区5码）</h3>
+            <input class="input-text" id="baseInput" placeholder="例如：01,02,03,04,05" autocomplete="off">
+            <div class="modal-actions">
+                <button class="btn btn-outline btn-sm" onclick="closeModal1()">取消</button>
+                <button class="btn btn-primary btn-sm" onclick="confirmBaseNumber()">确认</button>
+            </div>
         </div>
-        <div style="display: flex; gap:0.3rem;">
-          <button class="btn" id="clearSingleBtn">🗑️ 清空</button>
-          <button class="btn btn-primary" id="generateSingleBtn">✅ 确定</button>
-        </div>
-      </div>
     </div>
-
-    <div id="moduleDantuo" class="module">
-      <div class="ball-selector">
-        <div class="section-title"><span class="front-dot"></span> 前区胆码 (0~4个)</div>
-        <div class="ball-grid front-grid" id="danFrontContainer"></div>
-        <div class="section-title"><span class="front-dot"></span> 前区拖码 (胆+拖≥5)</div>
-        <div class="ball-grid front-grid" id="tuoFrontContainer"></div>
-        <div class="dantuo-extra" id="dantuoHint">📌 前区胆码+拖码≥5，且不重复</div>
-        <div class="section-title"><span class="back-dot"></span> 后区胆码 (0~1个)</div>
-        <div class="ball-grid back-grid" id="danBackContainer"></div>
-        <div class="section-title"><span class="back-dot"></span> 后区拖码 (胆+拖≥2)</div>
-        <div class="ball-grid back-grid" id="tuoBackContainer"></div>
-      </div>
-      <div class="action-row">
-        <div class="multi-group">
-          <label>🔁 倍数</label>
-          <input type="number" id="dantuoMultiplier" value="1" min="1" max="99" step="1">
+    <!-- 弹窗2：对比号码 -->
+    <div id="modalOverlay2" class="modal-overlay">
+        <div class="modal-card" style="max-width:580px;">
+            <h3>📝 对比号码</h3>
+            <div class="modal-ref">基准：<strong id="modal2BaseRef"></strong></div>
+            <textarea class="input-textarea" id="bulkInput" style="min-height:200px;" placeholder="每行一组前区号码，支持复式/胆拖，胆拖可跨行&#10;例如：&#10;1,2,3,4,5&#10;1,2,3,4,5,6&#10;前区胆：1 前区拖：2,3,4,5,6&#10;也可以带后区：1,2,3,4,5-1,2"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-outline btn-sm" onclick="closeModal2()">取消</button>
+                <button class="btn btn-primary btn-sm" onclick="confirmBulkData()">分析</button>
+            </div>
         </div>
-        <div style="display: flex; gap:0.3rem;">
-          <button class="btn" id="clearDantuoBtn">🗑️ 清空</button>
-          <button class="btn btn-primary" id="generateDantuoBtn">✅ 确定</button>
-        </div>
-      </div>
     </div>
+    <div class="toast" id="toast"></div>
 
-    <div class="output-header">
-      <h3>📋 生成结果</h3>
-      <div style="display: flex; gap:0.3rem;">
-        <button class="btn copy-btn" id="copyOutputBtn">📋 复制</button>
-        <button class="btn clear-output-btn" id="clearOutputBtn">🗑️ 清空输出</button>
-      </div>
-    </div>
-    <div class="output-area" id="outputBox"></div>
-  </div>
+    <script>
+        (function() {
+            const $ = id => document.getElementById(id);
 
-  <script>
-    (function () {
-      let selectedSingleFront = new Set();
-      let selectedSingleBack = new Set();
-      let selectedDanFront = new Set();
-      let selectedTuoFront = new Set();
-      let selectedDanBack = new Set();
-      let selectedTuoBack = new Set();
-      let outputLines = [];
+            function showToast(msg, type = '') {
+                const t = $('toast');
+                if (t._t) clearTimeout(t._t);
+                t.textContent = msg;
+                t.className = 'toast show ' + type;
+                t._t = setTimeout(() => t.classList.remove('show'), 2500);
+            }
 
-      const singleFrontContainer = document.getElementById('singleFrontContainer');
-      const singleBackContainer = document.getElementById('singleBackContainer');
-      const danFrontContainer = document.getElementById('danFrontContainer');
-      const tuoFrontContainer = document.getElementById('tuoFrontContainer');
-      const danBackContainer = document.getElementById('danBackContainer');
-      const tuoBackContainer = document.getElementById('tuoBackContainer');
-      const outputBox = document.getElementById('outputBox');
-      const singleMultiplierInput = document.getElementById('singleMultiplier');
-      const dantuoMultiplierInput = document.getElementById('dantuoMultiplier');
-      const dantuoHint = document.getElementById('dantuoHint');
+            window.switchMode = function(m) {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+                if (m === 'match') {
+                    document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+                    $('modeMatch').classList.add('active');
+                } else {
+                    document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+                    $('modeSSQ').classList.add('active');
+                }
+            };
 
-      // Tab切换
-      document.getElementById('tabSingle').addEventListener('click', () => {
-        switchTab('single');
-      });
-      document.getElementById('tabDantuo').addEventListener('click', () => {
-        switchTab('dantuo');
-      });
+            // ---------- 解析工具 ----------
+            function parseNumList(str) {
+                if (!str) return [];
+                let cleaned = str.replace(/，/g, ',').replace(/[\s\u3000]+/g, '').replace(/[;；]/g, ',');
+                return cleaned.split(',').map(s => s.trim()).filter(s => /^\d{1,2}$/.test(s)).map(Number);
+            }
 
-      function switchTab(tab) {
-        const isSingle = tab === 'single';
-        document.getElementById('moduleSingle').classList.toggle('active', isSingle);
-        document.getElementById('moduleDantuo').classList.toggle('active', !isSingle);
-        document.getElementById('tabSingle').classList.toggle('active', isSingle);
-        document.getElementById('tabDantuo').classList.toggle('active', !isSingle);
-      }
+            function combinations(arr, k) {
+                if (k === 0) return [[]];
+                if (arr.length < k) return [];
+                if (arr.length === k) return [arr.slice()];
+                let result = [];
+                let head = arr[0], rest = arr.slice(1);
+                for (let c of combinations(rest, k - 1)) result.push([head, ...c]);
+                for (let c of combinations(rest, k)) result.push(c);
+                return result;
+            }
 
-      // 渲染球
-      function renderBalls(container, total, selectedSet, ballType, exclusiveSets = null) {
-        container.innerHTML = '';
-        const fragment = document.createDocumentFragment();
-        
-        for (let i = 1; i <= total; i++) {
-          const ball = document.createElement('div');
-          ball.className = `ball ${ballType}`;
-          ball.textContent = i;
-          ball.setAttribute('data-number', i);
-          
-          if (selectedSet.has(i)) ball.classList.add('selected');
-          
-          ball.addEventListener('click', () => {
-            handleBallClick(i, container, selectedSet, ballType, exclusiveSets);
-          });
-          
-          fragment.appendChild(ball);
-        }
-        container.appendChild(fragment);
-      }
+            function extractDanTuo(str, prefixDan, prefixTuo) {
+                let posDan = str.indexOf(prefixDan);
+                let posTuo = str.indexOf(prefixTuo);
+                if (posDan === -1 && posTuo === -1) return null;
+                let danStr = '', tuoStr = '';
+                if (posDan !== -1) {
+                    let start = posDan + prefixDan.length;
+                    while (start < str.length && (str[start] === '：' || str[start] === ':' || str[start] === ' ' || str[start] === '\t')) start++;
+                    let end = posTuo !== -1 ? posTuo : str.length;
+                    danStr = str.substring(start, end).trim();
+                }
+                if (posTuo !== -1) {
+                    let start = posTuo + prefixTuo.length;
+                    while (start < str.length && (str[start] === '：' || str[start] === ':' || str[start] === ' ' || str[start] === '\t')) start++;
+                    let keyPositions = [];
+                    ['后区', '前区胆', '前区拖', '后区胆', '后区拖'].forEach(kw => {
+                        let idx = str.indexOf(kw, start);
+                        if (idx !== -1) keyPositions.push(idx);
+                    });
+                    let end = keyPositions.length ? Math.min(...keyPositions) : str.length;
+                    tuoStr = str.substring(start, end).trim();
+                }
+                return { danStr, tuoStr };
+            }
 
-      function handleBallClick(num, container, selectedSet, ballType, exclusiveSets) {
-        // 检查胆拖互斥
-        if (exclusiveSets) {
-          const otherSet = exclusiveSets.otherSet;
-          if (otherSet && otherSet.has(num)) {
-            showToast('胆码和拖码不能包含相同号码！');
-            return;
-          }
-        }
-        
-        if (selectedSet.has(num)) {
-          selectedSet.delete(num);
-        } else {
-          // 前区胆码最多4个的限制
-          if (container === danFrontContainer && selectedSet.size >= 4) {
-            showToast('前区胆码最多选择4个！');
-            return;
-          }
-          
-          // 后区胆码最多1个的限制
-          if (container === danBackContainer && selectedSet.size >= 1) {
-            showToast('后区胆码最多选择1个！');
-            return;
-          }
-          
-          // 前区最多35个的限制
-          if (ballType === 'front-ball' && selectedSet.size >= 35) {
-            showToast('前区最多选择35个！');
-            return;
-          }
-          
-          // 后区最多12个的限制
-          if (ballType === 'back-ball' && selectedSet.size >= 12) {
-            showToast('后区最多选择12个！');
-            return;
-          }
-          
-          selectedSet.add(num);
-        }
-        
-        renderAllBalls();
-        updateDantuoHint();
-      }
+            function removeBackArea(str) {
+                return str.replace(/后区.*$/g, '').trim();
+            }
 
-      function renderAllBalls() {
-        renderBalls(singleFrontContainer, 35, selectedSingleFront, 'front-ball');
-        renderBalls(singleBackContainer, 12, selectedSingleBack, 'back-ball');
-        renderBalls(danFrontContainer, 35, selectedDanFront, 'front-ball', { otherSet: selectedTuoFront });
-        renderBalls(tuoFrontContainer, 35, selectedTuoFront, 'front-ball', { otherSet: selectedDanFront });
-        renderBalls(danBackContainer, 12, selectedDanBack, 'back-ball', { otherSet: selectedTuoBack });
-        renderBalls(tuoBackContainer, 12, selectedTuoBack, 'back-ball', { otherSet: selectedDanBack });
-      }
+            // 解析前区，返回 { groupKey, combos, allNums, danNums, tuoNums, needTuos }
+            function parseFrontPart(frontStr) {
+                if (!frontStr) return { error: '前区号码为空' };
+                frontStr = frontStr.trim();
+                frontStr = removeBackArea(frontStr);
 
-      // 更新胆拖提示
-      function updateDantuoHint() {
-        const danFrontCount = selectedDanFront.size;
-        const tuoFrontCount = selectedTuoFront.size;
-        const danBackCount = selectedDanBack.size;
-        const tuoBackCount = selectedTuoBack.size;
-        const totalFrontCount = danFrontCount + tuoFrontCount;
-        const totalBackCount = danBackCount + tuoBackCount;
-        
-        let hintText = '';
-        let isWarning = false;
-        
-        if (danFrontCount === 0 && tuoFrontCount === 0 && danBackCount === 0 && tuoBackCount === 0) {
-          hintText = '📌 前区胆码+拖码≥5，后区胆码+拖码≥2';
-        } else {
-          const frontStatus = totalFrontCount >= 5 ? 
-            `✅ 前区${danFrontCount}胆+${tuoFrontCount}拖=${totalFrontCount}个` : 
-            `⚠️ 前区还需${5 - totalFrontCount}个`;
-          const backStatus = totalBackCount >= 2 ? 
-            `✅ 后区${danBackCount}胆+${tuoBackCount}拖=${totalBackCount}个` : 
-            `⚠️ 后区还需${2 - totalBackCount}个`;
-          
-          hintText = `${frontStatus} | ${backStatus}`;
-          isWarning = totalFrontCount < 5 || totalBackCount < 2;
-        }
-        
-        dantuoHint.textContent = hintText;
-        if (isWarning) {
-          dantuoHint.classList.add('warning');
-        } else {
-          dantuoHint.classList.remove('warning');
-        }
-      }
+                if (frontStr.includes('前区胆') || frontStr.includes('前区拖') || (frontStr.includes('胆') && frontStr.includes('拖'))) {
+                    let dt = null;
+                    if (frontStr.includes('前区胆') || frontStr.includes('前区拖')) {
+                        dt = extractDanTuo(frontStr, '前区胆', '前区拖');
+                    } else {
+                        dt = extractDanTuo(frontStr, '胆', '拖');
+                    }
+                    if (!dt) return { error: '前区胆拖格式错误' };
+                    let danNums = parseNumList(dt.danStr);
+                    let tuoNums = parseNumList(dt.tuoStr);
+                    if (dt.danStr.trim() === '无' || dt.danStr.trim() === '') danNums = [];
+                    if (dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
+                    danNums = [...new Set(danNums)];
+                    tuoNums = [...new Set(tuoNums)];
+                    if (danNums.length > 0 && tuoNums.length > 0) {
+                        const danSet = new Set(danNums);
+                        tuoNums = tuoNums.filter(n => !danSet.has(n));
+                    }
+                    if (danNums.length > 5) return { error: '前区胆码最多5个' };
+                    let needTuos = 5 - danNums.length;
+                    if (needTuos < 0) return { error: '前区胆码超过5个' };
+                    if (needTuos > 0 && tuoNums.length < needTuos) return { error: `前区拖码不足，需至少${needTuos}个` };
+                    let tuoCombos = needTuos === 0 ? [[]] : combinations(tuoNums, needTuos);
+                    let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a, b) => a - b).map(n => String(n).padStart(2, '0')));
+                    let allNums = [...new Set([...danNums, ...tuoNums])].sort((a,b)=>a-b);
+                    return { 
+                        groupKey: `前区胆拖${danNums.length}胆`, 
+                        combos, 
+                        allNums, 
+                        danNums, 
+                        tuoNums, 
+                        needTuos 
+                    };
+                }
 
-      // Toast提示
-      function showToast(message) {
-        const toast = document.createElement('div');
-        toast.textContent = message;
-        toast.style.cssText = `
-          position: fixed;
-          top: 20px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: rgba(0,0,0,0.8);
-          color: white;
-          padding: 10px 20px;
-          border-radius: 20px;
-          font-size: 14px;
-          z-index: 9999;
-          animation: fadeInOut 2s ease;
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-          toast.remove();
-        }, 2000);
-      }
+                let nums = parseNumList(frontStr);
+                let uniq = [...new Set(nums)].sort((a, b) => a - b);
+                if (uniq.length < 5) return { error: '前区号码不足5个' };
+                let combos = combinations(uniq, 5).map(c => c.map(n => String(n).padStart(2, '0')));
+                let groupKey = uniq.length === 5 ? '单式5个' : `复式${uniq.length}个`;
+                return { 
+                    groupKey, 
+                    combos, 
+                    allNums: uniq, 
+                    danNums: [], 
+                    tuoNums: uniq, 
+                    needTuos: 5 
+                };
+            }
 
-      // 添加动画
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translate(-50%, -20px); }
-          15% { opacity: 1; transform: translate(-50%, 0); }
-          85% { opacity: 1; transform: translate(-50%, 0); }
-          100% { opacity: 0; transform: translate(-50%, -20px); }
-        }
-      `;
-      document.head.appendChild(style);
+            function parseBackPart(backStr) {
+                if (!backStr) return { error: '后区号码为空' };
+                backStr = backStr.trim();
 
-      renderAllBalls();
-      updateDantuoHint();
+                if (backStr.includes('后区胆') || backStr.includes('后区拖') || (backStr.includes('胆') && backStr.includes('拖'))) {
+                    let dt = null;
+                    if (backStr.includes('后区胆') || backStr.includes('后区拖')) {
+                        dt = extractDanTuo(backStr, '后区胆', '后区拖');
+                    } else {
+                        dt = extractDanTuo(backStr, '胆', '拖');
+                    }
+                    if (!dt) return { error: '后区胆拖格式错误' };
+                    let danNums = parseNumList(dt.danStr);
+                    let tuoNums = parseNumList(dt.tuoStr);
+                    if (dt.danStr.trim() === '无' || dt.danStr.trim() === '') danNums = [];
+                    if (dt.tuoStr.trim() === '无' || dt.tuoStr.trim() === '') tuoNums = [];
+                    danNums = [...new Set(danNums)];
+                    tuoNums = [...new Set(tuoNums)];
+                    if (danNums.length > 0 && tuoNums.length > 0) {
+                        const danSet = new Set(danNums);
+                        tuoNums = tuoNums.filter(n => !danSet.has(n));
+                    }
+                    if (danNums.length > 2) return { error: '后区胆码最多2个' };
+                    let needTuos = 2 - danNums.length;
+                    if (needTuos < 0) return { error: '后区胆码超过2个' };
+                    if (needTuos > 0 && tuoNums.length < needTuos) return { error: `后区拖码不足，需至少${needTuos}个` };
+                    let tuoCombos = needTuos === 0 ? [[]] : combinations(tuoNums, needTuos);
+                    let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a, b) => a - b).map(n => String(n).padStart(2, '0')));
+                    let allNums = [...new Set([...danNums, ...tuoNums])].sort((a,b)=>a-b);
+                    return { combos, allNums, danNums, tuoNums, needTuos };
+                }
 
-      function getMultiplier(inputEl) {
-        let val = parseInt(inputEl.value, 10);
-        if (isNaN(val) || val < 1) val = 1;
-        if (val > 99) val = 99;
-        inputEl.value = val;
-        return val;
-      }
+                let nums = parseNumList(backStr);
+                let uniq = [...new Set(nums)].sort((a, b) => a - b);
+                if (uniq.length < 2) return { error: '后区号码不足2个' };
+                let combos = combinations(uniq, 2).map(c => c.map(n => String(n).padStart(2, '0')));
+                return { 
+                    combos, 
+                    allNums: uniq, 
+                    danNums: [], 
+                    tuoNums: uniq, 
+                    needTuos: 2 
+                };
+            }
 
-      function appendOutput(lines) {
-        if (!lines || lines.length === 0) return;
-        outputLines.push(...lines);
-        outputBox.textContent = outputLines.join('\n');
-        outputBox.scrollTop = outputBox.scrollHeight;
-      }
+            function isCompleteLine(line) {
+                if (line.includes('-')) return true;
+                if (line.includes('后区胆') || line.includes('后区拖')) return true;
+                return false;
+            }
 
-      function clearOutput() {
-        if (outputLines.length === 0) {
-          showToast('暂无生成记录');
-          return;
-        }
-        if (confirm('确定要清空所有生成记录吗？')) {
-          outputLines = [];
-          outputBox.textContent = '';
-        }
-      }
+            function mergeMultilineBets(rawText) {
+                let rawLines = rawText.split(/\n|\r\n|\r/);
+                let mergedLines = [];
+                let currentLine = '';
+                for (let i = 0; i < rawLines.length; i++) {
+                    let line = rawLines[i].trim();
+                    if (!line) continue;
+                    if (currentLine) {
+                        currentLine += ' ' + line;
+                    } else {
+                        currentLine = line;
+                    }
+                    if (isCompleteLine(currentLine)) {
+                        mergedLines.push(currentLine);
+                        currentLine = '';
+                    }
+                }
+                if (currentLine) {
+                    mergedLines.push(currentLine);
+                }
+                return mergedLines;
+            }
 
-      function resetSingle() {
-        selectedSingleFront.clear();
-        selectedSingleBack.clear();
-        singleMultiplierInput.value = 1;
-        renderAllBalls();
-      }
+            function parseBetLine(line) {
+                line = line.trim();
+                if (!line) return { error: '空行' };
+                let frontPart, backPart;
+                let lastDash = line.lastIndexOf('-');
+                if (lastDash !== -1) {
+                    frontPart = line.substring(0, lastDash).trim();
+                    backPart = line.substring(lastDash + 1).trim();
+                } else {
+                    let posBackDan = line.indexOf('后区胆');
+                    let posBackTuo = line.indexOf('后区拖');
+                    let posBack = -1;
+                    if (posBackDan !== -1 && posBackTuo !== -1) posBack = Math.min(posBackDan, posBackTuo);
+                    else if (posBackDan !== -1) posBack = posBackDan;
+                    else if (posBackTuo !== -1) posBack = posBackTuo;
+                    if (posBack !== -1) {
+                        frontPart = line.substring(0, posBack).trim();
+                        backPart = line.substring(posBack).trim();
+                    } else {
+                        return { error: '缺少后区信息' };
+                    }
+                }
+                if (!frontPart || !backPart) return { error: '前区或后区为空' };
+                let frontRes = parseFrontPart(frontPart);
+                if (frontRes.error) return { error: frontRes.error };
+                let backRes = parseBackPart(backPart);
+                if (backRes.error) return { error: backRes.error };
 
-      function resetDantuo() {
-        selectedDanFront.clear();
-        selectedTuoFront.clear();
-        selectedDanBack.clear();
-        selectedTuoBack.clear();
-        dantuoMultiplierInput.value = 1;
-        renderAllBalls();
-        updateDantuoHint();
-      }
+                let totalCombinations = frontRes.combos.length * backRes.combos.length;
+                let actualCount = 1;
 
-      function generateSingle() {
-        const fronts = Array.from(selectedSingleFront).sort((a, b) => a - b);
-        const backs = Array.from(selectedSingleBack).sort((a, b) => a - b);
-        
-        if (fronts.length < 5) { 
-          showToast(`前区至少5个，当前${fronts.length}个`); 
-          return; 
-        }
-        if (backs.length < 2) { 
-          showToast(`后区至少2个，当前${backs.length}个`); 
-          return; 
-        }
-        
-        const mul = getMultiplier(singleMultiplierInput);
-        const frontStr = fronts.join(',');
-        const backStr = backs.join(',');
-        const gen = [];
-        
-        // 生成号码行（不添加分隔线）
-        const line = `${frontStr}-${backStr}`;
-        for (let i = 0; i < mul; i++) gen.push(line);
-        
-        appendOutput(gen);
-        showToast(`成功生成${mul}注号码`);
-        resetSingle();
-      }
+                return {
+                    groupKey: frontRes.groupKey,
+                    frontAllNums: frontRes.allNums,
+                    backAllNums: backRes.allNums,
+                    frontCombos: frontRes.combos,
+                    backCombos: backRes.combos,
+                    frontDanNums: frontRes.danNums,
+                    frontTuoNums: frontRes.tuoNums,
+                    frontNeedTuos: frontRes.needTuos,
+                    backDanNums: backRes.danNums,
+                    backTuoNums: backRes.tuoNums,
+                    backNeedTuos: backRes.needTuos,
+                    totalCombinations,
+                    actualCount
+                };
+            }
 
-      function generateDantuo() {
-        const danFront = Array.from(selectedDanFront).sort((a, b) => a - b);
-        const tuoFront = Array.from(selectedTuoFront).sort((a, b) => a - b);
-        const danBack = Array.from(selectedDanBack).sort((a, b) => a - b);
-        const tuoBack = Array.from(selectedTuoBack).sort((a, b) => a - b);
-        
-        if (danFront.length > 4) { 
-          showToast('前区胆码最多4个'); 
-          return; 
-        }
-        if (danBack.length > 1) { 
-          showToast('后区胆码最多1个'); 
-          return; 
-        }
-        if (danFront.length + tuoFront.length < 5) { 
-          showToast(`前区胆+拖至少5个，当前${danFront.length + tuoFront.length}个`); 
-          return; 
-        }
-        if (danBack.length + tuoBack.length < 2) { 
-          showToast(`后区胆+拖至少2个，当前${danBack.length + tuoBack.length}个`); 
-          return; 
-        }
-        if (danFront.length + tuoFront.length > 35) { 
-          showToast('前区总数不能超过35个'); 
-          return; 
-        }
-        if (danBack.length + tuoBack.length > 12) { 
-          showToast('后区总数不能超过12个'); 
-          return; 
-        }
-        
-        // 检查重复
-        for (let d of danFront) {
-          if (selectedTuoFront.has(d)) { 
-            showToast('前区胆码和拖码不能重复！'); 
-            return; 
-          }
-        }
-        for (let d of danBack) {
-          if (selectedTuoBack.has(d)) { 
-            showToast('后区胆码和拖码不能重复！'); 
-            return; 
-          }
-        }
-        
-        const mul = getMultiplier(dantuoMultiplierInput);
-        const danFrontStr = danFront.length > 0 ? danFront.join(',') : '无';
-        const tuoFrontStr = tuoFront.join(',');
-        const danBackStr = danBack.length > 0 ? danBack.join(',') : '无';
-        const tuoBackStr = tuoBack.join(',');
-        
-        const gen = [];
-        
-        // 生成胆拖格式行（不添加分隔线）
-        const line = `前区胆：${danFrontStr}，前区拖：${tuoFrontStr}，后区胆：${danBackStr}，后区拖：${tuoBackStr}`;
-        for (let i = 0; i < mul; i++) gen.push(line);
-        
-        appendOutput(gen);
-        showToast(`成功生成${mul}注号码`);
-        resetDantuo();
-      }
+            function sortGroupKeys(keys) {
+                return keys.sort((a, b) => {
+                    function getType(key) {
+                        if (key.startsWith('单式5个')) return 1;
+                        if (key.startsWith('复式')) return 2;
+                        if (key.startsWith('前区胆拖')) return 3;
+                        return 4;
+                    }
+                    let typeA = getType(a), typeB = getType(b);
+                    if (typeA !== typeB) return typeA - typeB;
+                    let numA = parseInt(a.match(/\d+/)?.[0] || '0');
+                    let numB = parseInt(b.match(/\d+/)?.[0] || '0');
+                    return numA - numB;
+                });
+            }
 
-      // 事件监听
-      document.getElementById('clearSingleBtn').addEventListener('click', resetSingle);
-      document.getElementById('clearDantuoBtn').addEventListener('click', resetDantuo);
-      document.getElementById('generateSingleBtn').addEventListener('click', generateSingle);
-      document.getElementById('generateDantuoBtn').addEventListener('click', generateDantuo);
+            function renderInvalidList(invalidList) {
+                if (!invalidList || invalidList.length === 0) return '';
+                let html = '<div class="invalid-list"><strong>❌ 无效行详情（前10条）：</strong>';
+                invalidList.slice(0, 10).forEach(item => {
+                    html += `<div class="invalid-item">行号 ${item.line}：${item.reason} —— ${item.content}</div>`;
+                });
+                if (invalidList.length > 10) html += `<div class="invalid-item">... 共${invalidList.length}条无效行</div>`;
+                html += '</div>';
+                return html;
+            }
 
-      document.getElementById('copyOutputBtn').addEventListener('click', () => {
-        const text = outputBox.textContent || '';
-        if (!text.trim()) { 
-          showToast('无内容可复制'); 
-          return; 
-        }
-        navigator.clipboard.writeText(text).then(() => {
-          showToast('已复制到剪贴板');
-        }).catch(() => {
-          // 降级方案
-          const textarea = document.createElement('textarea');
-          textarea.value = text;
-          document.body.appendChild(textarea);
-          textarea.select();
-          document.execCommand('copy');
-          textarea.remove();
-          showToast('已复制到剪贴板');
-        });
-      });
+            // 模式一使用的胆拖理论命中范围（保留原样）
+            function calcHitRange(danNums, tuoNums, needTuos, targetSet) {
+                let danHit = 0;
+                for (let n of danNums) {
+                    if (targetSet.has(n)) danHit++;
+                }
+                let tuoHit = 0;
+                for (let n of tuoNums) {
+                    if (targetSet.has(n)) tuoHit++;
+                }
+                let maxHit = danHit + Math.min(tuoHit, needTuos);
+                let minHit = danHit + Math.max(0, needTuos - (tuoNums.length - tuoHit));
+                return { maxHit, minHit };
+            }
 
-      document.getElementById('clearOutputBtn').addEventListener('click', clearOutput);
-      outputBox.addEventListener('dblclick', clearOutput);
+            // ===== 模式一 =====
+            let baseSet = null, baseDisp = [];
 
-      singleMultiplierInput.addEventListener('change', () => getMultiplier(singleMultiplierInput));
-      dantuoMultiplierInput.addEventListener('change', () => getMultiplier(dantuoMultiplierInput));
-      
-      // 初始化
-      getMultiplier(singleMultiplierInput);
-      getMultiplier(dantuoMultiplierInput);
-    })();
-  </script>
+            function updateBaseDisplay() {
+                $('baseNumberBalls').innerHTML = baseDisp.map(n => `<span class="num-ball">${n}</span>`).join('');
+                $('baseNumberDisplay').classList.add('visible');
+                $('modal2BaseRef').textContent = baseDisp.join(', ');
+            }
+
+            function updateBtn() {
+                $('btnStartText').textContent = baseSet ? '继续分析（输入新一批）' : '开始分析';
+                $('btnReset').style.display = baseSet ? 'inline-flex' : 'none';
+            }
+            $('btnStart').onclick = () => baseSet ? openModal2() : openModal1();
+
+            window.openModal1 = () => {
+                $('baseInput').value = '';
+                $('modalOverlay1').classList.add('open');
+                setTimeout(() => $('baseInput').focus(), 100);
+            };
+            window.closeModal1 = () => $('modalOverlay1').classList.remove('open');
+            window.confirmBaseNumber = () => {
+                let nums = parseNumList($('baseInput').value);
+                if (nums.length !== 5) { showToast('⚠️ 基准必须正好5个不同数字', 'warning'); return; }
+                let uniq = [...new Set(nums)];
+                if (uniq.length !== 5) { showToast('⚠️ 基准号码不能有重复', 'warning'); return; }
+                baseSet = new Set(nums);
+                baseDisp = [...nums].sort((a, b) => a - b).map(n => String(n).padStart(2, '0'));
+                updateBaseDisplay();
+                closeModal1();
+                updateBtn();
+                setTimeout(openModal2, 300);
+            };
+
+            function openModal2() {
+                if (!baseSet) { openModal1(); return; }
+                $('bulkInput').value = '';
+                $('modal2BaseRef').textContent = baseDisp.join(', ');
+                $('modalOverlay2').classList.add('open');
+                setTimeout(() => $('bulkInput').focus(), 100);
+            }
+            window.closeModal2 = () => $('modalOverlay2').classList.remove('open');
+
+            window.confirmBulkData = () => {
+                let raw = $('bulkInput').value;
+                if (!raw.trim()) { showToast('⚠️ 请输入号码', 'warning'); return; }
+                let lines = mergeMultilineBets(raw);
+                let groupStats = {};
+                let totalCombinations = 0;
+                let totalLines = 0, invalidLines = 0;
+                let invalidList = [];
+
+                for (let idx = 0; idx < lines.length; idx++) {
+                    let line = lines[idx].trim();
+                    if (!line) continue;
+                    totalLines++;
+                    let parsed = parseBetLine(line);
+                    if (parsed.error) {
+                        invalidLines++;
+                        invalidList.push({ line: idx + 1, content: line.substring(0, 60), reason: parsed.error });
+                        continue;
+                    }
+                    let gkey = parsed.groupKey;
+                    if (!groupStats[gkey]) {
+                        groupStats[gkey] = {
+                            totalCombinations: 0,
+                            actualCount: 0,
+                            maxHit: -1,
+                            minHit: 99,
+                            hitDist: {0:0,1:0,2:0,3:0,4:0,5:0},
+                            details: []
+                        };
+                    }
+                    totalCombinations += parsed.totalCombinations;
+                    groupStats[gkey].totalCombinations += parsed.totalCombinations;
+                    groupStats[gkey].actualCount += parsed.actualCount;
+
+                    // 计算前区命中范围（胆拖理论，用于模式一）
+                    let { maxHit, minHit } = calcHitRange(parsed.frontDanNums, parsed.frontTuoNums, parsed.frontNeedTuos, baseSet);
+                    
+                    if (maxHit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = maxHit;
+                    if (minHit < groupStats[gkey].minHit) groupStats[gkey].minHit = minHit;
+                    groupStats[gkey].hitDist[maxHit] = (groupStats[gkey].hitDist[maxHit] || 0) + 1;
+                    groupStats[gkey].details.push({
+                        frontAll: parsed.frontAllNums,
+                        backAll: parsed.backAllNums,
+                        maxHit,
+                        minHit,
+                        line: line
+                    });
+                }
+                closeModal2();
+
+                let globalMaxHit = 0;
+                for (let key in groupStats) {
+                    if (groupStats[key].maxHit > globalMaxHit) globalMaxHit = groupStats[key].maxHit;
+                }
+                $('globalMaxHitMatch').textContent = `🎯 全部最多中 ${globalMaxHit} 个`;
+
+                let summaryHTML = `
+                    <div class="summary-chip"><strong>${totalLines}</strong>输入行</div>
+                    <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalCombinations}</strong>总注数(组合)</div>
+                    <div class="summary-chip" style="${invalidLines?'border-color:#e74c3c;':''}"><strong>${invalidLines}</strong>无效行</div>
+                    <div class="summary-chip"><strong>${baseDisp.join(',')}</strong>基准</div>`;
+                $('resultsSummary').innerHTML = summaryHTML;
+
+                let groupHtml = '<h3 style="margin-bottom:12px;">📊 按投注类型统计（每行算1注）</h3>';
+                let sortedKeys = sortGroupKeys(Object.keys(groupStats));
+                for (let key of sortedKeys) {
+                    let g = groupStats[key];
+                    groupHtml += `<div class="group-block"><div class="group-title">🔹 ${key} (共${g.actualCount}注)</div>`;
+                    groupHtml += '<div class="group-stats">';
+                    groupHtml += `<div class="group-stat-item">注数 <strong>${g.actualCount}</strong></div>`;
+                    groupHtml += `<div class="group-stat-item">最多命中 <strong>${g.maxHit}</strong></div>`;
+                    groupHtml += `<div class="group-stat-item">最少命中 <strong>${g.minHit}</strong></div>`;
+                    groupHtml += '</div>';
+                    groupHtml += '<table class="distribution-table"><thead><tr><th>命中数</th><th>注数</th></tr></thead><tbody>';
+                    for (let m = 5; m >= 0; m--) {
+                        if (g.hitDist[m] > 0) {
+                            groupHtml += `<tr><td>命中 ${m} 个</td><td>${g.hitDist[m]} 注</td></tr>`;
+                        }
+                    }
+                    groupHtml += '</tbody></table>';
+                    if (g.details.length > 0) {
+                        let highHits = g.details.filter(d => d.maxHit >= 4);
+                        if (highHits.length > 0) {
+                            groupHtml += '<div style="margin-top:10px;font-weight:600;">🎯 中高命中详情：</div>';
+                            highHits.forEach(item => {
+                                groupHtml += `<div style="margin:4px 0;">最多中 ${item.maxHit} 个，号码范围：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}</div>`;
+                            });
+                        }
+                    }
+                    groupHtml += '</div>';
+                }
+                if (sortedKeys.length === 0) groupHtml += '<p style="text-align:center;color:#999;">暂无有效数据</p>';
+                $('groupMatchArea').innerHTML = groupHtml;
+                $('invalidAreaMatch').innerHTML = renderInvalidList(invalidList);
+                $('resultsContainer').classList.add('visible');
+                showToast(`✅ 共 ${totalLines} 行参与对比`, 'success');
+            };
+
+            window.resetAll = () => {
+                baseSet = null; baseDisp = [];
+                $('baseNumberDisplay').classList.remove('visible');
+                $('resultsContainer').classList.remove('visible');
+                updateBtn();
+                showToast('已重置');
+                setTimeout(openModal1, 300);
+            };
+            updateBtn();
+
+            // ===== 模式二 =====
+            let lastSSQResultText = '';
+            let poolHigh = false;
+            const prizeMapLow = { '5+2':5000000, '5+1':500000, '5+0':5000, '4+2':5000, '4+1':300, '4+0':150, '3+2':150, '3+1':15, '2+2':15, '3+0':5, '2+1':5, '1+2':5, '0+2':5, '2+0':0, '1+1':0, '0+1':0, '1+0':0, '0+0':0 };
+            const prizeMapHigh = { '5+2':5000000, '5+1':500000, '5+0':6666, '4+2':6666, '4+1':380, '4+0':200, '3+2':200, '3+1':18, '2+2':18, '3+0':7, '2+1':7, '1+2':7, '0+2':7, '2+0':0, '1+1':0, '0+1':0, '1+0':0, '0+0':0 };
+            function currentPrizeMap() { return poolHigh ? prizeMapHigh : prizeMapLow; }
+
+            // 比较等级，返回1表示a>b，-1表示a<b，0相等
+            function compareGrade(a, b) {
+                if (a.frontHit !== b.frontHit) return a.frontHit - b.frontHit;
+                return a.backHit - b.backHit;
+            }
+
+            function generateSSQResultText(draw, lines) {
+                const prizeMap = currentPrizeMap();
+                let groupStats = {};
+                let totalCombinations = 0;
+                let invalidList = [];
+
+                for (let idx = 0; idx < lines.length; idx++) {
+                    let line = lines[idx].trim();
+                    if (!line) continue;
+                    let parsed = parseBetLine(line);
+                    if (parsed.error) {
+                        invalidList.push({ line: idx + 1, content: line.substring(0, 60), reason: parsed.error });
+                        continue;
+                    }
+                    let gkey = parsed.groupKey;
+                    if (!groupStats[gkey]) {
+                        groupStats[gkey] = {
+                            totalCombinations: 0,
+                            actualCount: 0,
+                            maxGrade: { frontHit: -1, backHit: -1 },
+                            minGrade: { frontHit: 99, backHit: 99 },
+                            totalPrize: 0,
+                            dist: {},     // 按最高等级统计行数
+                            details: []   // 中高奖金详情
+                        };
+                    }
+                    totalCombinations += parsed.totalCombinations;
+                    groupStats[gkey].totalCombinations += parsed.totalCombinations;
+                    groupStats[gkey].actualCount += parsed.actualCount;
+
+                    // 展开所有组合，计算每个组合的实际中奖等级和奖金
+                    let maxGrade = { frontHit: -1, backHit: -1, prize: -1 };
+                    let minGrade = { frontHit: 99, backHit: 99, prize: Infinity };
+                    let linePrize = 0;
+
+                    for (let frontCombo of parsed.frontCombos) {
+                        for (let backCombo of parsed.backCombos) {
+                            let frontHit = 0;
+                            for (let n of frontCombo) {
+                                if (draw.front.has(parseInt(n, 10))) frontHit++;
+                            }
+                            let backHit = 0;
+                            for (let n of backCombo) {
+                                if (draw.back.has(parseInt(n, 10))) backHit++;
+                            }
+                            let key = frontHit + '+' + backHit;
+                            let prize = prizeMap[key] || 0;
+                            linePrize += prize;
+
+                            // 更新该行实际最高等级
+                            if (maxGrade.frontHit === -1 || compareGrade({frontHit, backHit}, maxGrade) > 0) {
+                                maxGrade = { frontHit, backHit, prize };
+                            }
+                            // 更新该行实际最低等级
+                            if (minGrade.frontHit === 99 || compareGrade({frontHit, backHit}, minGrade) < 0) {
+                                minGrade = { frontHit, backHit, prize };
+                            }
+                        }
+                    }
+
+                    // 该行总奖金
+                    groupStats[gkey].totalPrize += linePrize;
+
+                    // 更新组内最大、最小等级（基于每行实际达到的最高/最低）
+                    if (compareGrade(maxGrade, groupStats[gkey].maxGrade) > 0) {
+                        groupStats[gkey].maxGrade = maxGrade;
+                    }
+                    if (compareGrade(minGrade, groupStats[gkey].minGrade) < 0) {
+                        groupStats[gkey].minGrade = minGrade;
+                    }
+
+                    // 按该行最高等级统计行数（用于分布）
+                    let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
+                    groupStats[gkey].dist[maxKey] = (groupStats[gkey].dist[maxKey] || 0) + 1;
+
+                    // 如果该行最高等级符合中高条件（前区>=4），记录详情
+                    if (maxGrade.frontHit >= 4) {
+                        groupStats[gkey].details.push({
+                            frontAll: parsed.frontAllNums,
+                            backAll: parsed.backAllNums,
+                            maxFront: maxGrade.frontHit,
+                            maxBack: maxGrade.backHit,
+                            prize: linePrize,
+                            key: maxKey
+                        });
+                    }
+                }
+
+                // 计算全局最佳组合（实际最高等级）
+                let globalMaxGrade = { frontHit: 0, backHit: 0 };
+                for (let gkey in groupStats) {
+                    let g = groupStats[gkey];
+                    if (compareGrade(g.maxGrade, globalMaxGrade) > 0) {
+                        globalMaxGrade = g.maxGrade;
+                    }
+                }
+
+                let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n\n`;
+                resultText += `===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
+                let grandTotalPrize = 0;
+                for (let gkey in groupStats) grandTotalPrize += groupStats[gkey].totalPrize;
+                resultText += `💰 总奖金：${grandTotalPrize.toLocaleString()}元\n\n`;
+
+                let sortedKeys = sortGroupKeys(Object.keys(groupStats));
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    resultText += `===== ${gkey} (共${g.actualCount}注) =====\n`;
+                    resultText += `最多命中：${g.maxGrade.frontHit}+${g.maxGrade.backHit}\n`;
+                    resultText += `最少命中：${g.minGrade.frontHit}+${g.minGrade.backHit}\n`;
+                    resultText += `奖金小计：${g.totalPrize.toLocaleString()}元\n`;
+                    resultText += `--- 命中分布（按每行最高等级统计） ---\n`;
+                    const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
+                    for (let k of order) {
+                        if (g.dist[k]) resultText += `${k} ： ${g.dist[k]} 注（行）\n`;
+                    }
+                    if (g.details.length > 0) {
+                        resultText += `--- 中高奖金详情 ---\n`;
+                        g.details.forEach(item => {
+                            resultText += `中${item.maxFront}+${item.maxBack}，号码：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}-${item.backAll.map(n=>String(n).padStart(2,'0')).join(',')}，奖金合计：${item.prize.toLocaleString()}元\n`;
+                        });
+                    }
+                    resultText += '\n';
+                }
+                return { text: resultText, invalidList };
+            }
+
+            window.analyzeSSQ = function() {
+                let drawRaw = $('ssqDrawInput').value.trim();
+                let inputRaw = $('ssqInput').value.trim();
+                if (!drawRaw || !inputRaw) { showToast('⚠️ 请输入开奖号码和投注号码', 'warning'); return; }
+                let drawParsed = parseBetLine(drawRaw);
+                if (drawParsed.error) {
+                    showToast('⚠️ 开奖号码格式错误', 'warning');
+                    return;
+                }
+                let draw = { 
+                    front: new Set(drawParsed.frontAllNums), 
+                    back: new Set(drawParsed.backAllNums) 
+                };
+                let lines = mergeMultilineBets(inputRaw);
+                let result = generateSSQResultText(draw, lines);
+                lastSSQResultText = result.text;
+                $('ssqResultContent').textContent = result.text;
+                $('invalidAreaSSQ').innerHTML = renderInvalidList(result.invalidList);
+                $('resultsContainerSSQ').classList.add('visible');
+                showToast('✅ 统计完成', 'success');
+            };
+
+            window.togglePool = function() {
+                poolHigh = !poolHigh;
+                const btn = $('btnTogglePool');
+                btn.textContent = poolHigh ? '奖池：高于8亿' : '奖池：低于8亿';
+                if ($('resultsContainerSSQ').classList.contains('visible')) analyzeSSQ();
+            };
+
+            window.copySSQResult = () => {
+                if (!lastSSQResultText) { showToast('暂无结果可复制', 'warning'); return; }
+                navigator.clipboard.writeText(lastSSQResultText).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
+            };
+        })();
+    </script>
 </body>
 </html>
