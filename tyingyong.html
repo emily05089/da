@@ -1262,11 +1262,6 @@ function countInZone(arr,zone) { var min=zone===1?1:zone===2?13:25, max=zone===1
 function calcSum(arr) { var s=0; for(var i=0;i<arr.length;i++) s+=arr[i]; return s; }
 
 // ========== 开头类型判断 ==========
-function getHeadTypes(arr) {
-    var heads = {};
-    for (var i=0;i<arr.length;i++) heads[Math.floor(arr[i]/10)] = true;
-    return heads; // 如 {0:true, 1:true}
-}
 function countHeadTypes(arr) {
     var heads = {};
     for (var i=0;i<arr.length;i++) heads[Math.floor(arr[i]/10)] = true;
@@ -1275,13 +1270,49 @@ function countHeadTypes(arr) {
     return c;
 }
 
-// ========== 2连号/2隔号计数 ==========
+// ========== 2连号/2隔号计数（不重叠，用于旧功能） ==========
 function count2Seq(arr) { var c=0; for(var i=0;i<arr.length-1;i++){ if(arr[i+1]-arr[i]===1){c++;i++;} } return c; }
 function count2Gap(arr) { var odds=arr.filter(function(n){return n%2===1;}), evens=arr.filter(function(n){return n%2===0;}); var c=0; for(var i=0;i<odds.length-1;i++){if(odds[i+1]-odds[i]===2){c++;i++;}} for(var i=0;i<evens.length-1;i++){if(evens[i+1]-evens[i]===2){c++;i++;}} return c; }
 function isBothSeqGap(arr) { return (count2Seq(arr)>0||count2Gap(arr)>0); }
 function isXorSeqGap(arr) { var s=count2Seq(arr),g=count2Gap(arr); return (s===1&&g===0)||(s===0&&g===1); }
-// 仅排除2连号或2隔号 = 反向保留（组合中含2连号或2隔号则保留）
-function isExcludeXorSeqGap(arr) { return (count2Seq(arr)>0 || count2Gap(arr)>0); }
+
+// ========== 【修正】相邻差1的全量计数（不管重叠） ==========
+function countAdjacentDiff1(arr) {
+    var c = 0;
+    for (var i = 0; i < arr.length - 1; i++) {
+        if (arr[i+1] - arr[i] === 1) c++;
+    }
+    return c;
+}
+
+// ========== 【修正】差2隔号的全量计数 ==========
+function countGapDiff2(arr) {
+    var odds = arr.filter(function(n){return n%2===1;});
+    var evens = arr.filter(function(n){return n%2===0;});
+    var c = 0;
+    for (var i = 0; i < odds.length - 1; i++) {
+        if (odds[i+1] - odds[i] === 2) c++;
+    }
+    for (var i = 0; i < evens.length - 1; i++) {
+        if (evens[i+1] - evens[i] === 2) c++;
+    }
+    return c;
+}
+
+// ========== 【修正】只有2连号：恰好一对相邻差1，且无差2隔号 ==========
+function isOnly2Seq(arr) {
+    return countAdjacentDiff1(arr) === 1 && countGapDiff2(arr) === 0;
+}
+
+// ========== 【修正】只有2隔号：恰好一对差2，且无差1相邻 ==========
+function isOnly2Gap(arr) {
+    return countGapDiff2(arr) === 1 && countAdjacentDiff1(arr) === 0;
+}
+
+// ========== 【修正】只有2连号 或 只有2隔号 → 用于"仅排除"功能 ==========
+function isExcludeXorSeqGap(arr) {
+    return isOnly2Seq(arr) || isOnly2Gap(arr);
+}
 
 // ========== 相邻差分析 ==========
 function getDiffs(arr) { var diffs=[]; for(var i=0;i<arr.length-1;i++) diffs.push(arr[i+1]-arr[i]); return diffs; }
@@ -1315,7 +1346,12 @@ function getTailPattern(arr) {
 
 // ========== 双数字/单数字排名 ==========
 function buildPairRankings() {
-    var src = isPrizeHistoryFixed ? fixedHistoryRedBlue : [];
+    var src;
+    if (isPrizeHistoryFixed && fixedHistoryRedBlue.length > 0) {
+        src = fixedHistoryRedBlue;
+    } else {
+        src = HISTORY_ARRAYS.map(function(arr){ return { front: arr.slice(), back: null }; });
+    }
     if (src.length === 0) { pairRankMap = {}; digitRankMap = {}; return; }
     var pairCount = {}, digitCount = {};
     for (var i = 0; i < src.length; i++) {
@@ -1901,12 +1937,17 @@ function showDigitStats() {
     step(0);
 }
 
-// ========== 双数字情况（基于固定组合） ==========
+// ========== 双数字情况 ==========
 function showPairRank() {
     if (busy) return alert('处理中');
     if (!filteredCount) return alert('无剩余');
-    var src = isPrizeHistoryFixed ? fixedHistoryRedBlue : [];
-    if (!src.length) return alert('请先固定历史组合再进行双数字情况统计');
+    var src;
+    if (isPrizeHistoryFixed && fixedHistoryRedBlue.length > 0) {
+        src = fixedHistoryRedBlue;
+    } else {
+        src = HISTORY_ARRAYS.map(function(arr){ return { front: arr.slice(), back: null }; });
+    }
+    if (!src.length) return alert('无历史组合');
     if (!pairRankMap || Object.keys(pairRankMap).length === 0) buildPairRankings();
     if (!pairRankMap || Object.keys(pairRankMap).length === 0) return alert('排名数据为空');
     var startTime = Date.now();
@@ -1941,64 +1982,71 @@ function showPairRank() {
                 html += '<tr><td class="cb-cell"><input type="checkbox" class="pair-rank-cb" data-combo="'+results[r].combo+'"></td><td>'+results[r].combo+'</td><td>'+results[r].pairRanks.join(',')+'</td><td>'+results[r].digitRanks.join(',')+'</td></tr>';
             }
             html += '</tbody></table>';
-            showContentModal('双数字情况（固定'+src.length.toLocaleString()+'注基准）', html, 'pairrank', results);
+            showContentModal('双数字情况（基准'+src.length.toLocaleString()+'注）', html, 'pairrank', results);
             finishOperation(startTime);
         }
     }
     step(0);
 }
 
-// ========== 重复组合中奖统计（仅前区） ==========
+// ========== 重复组合中奖统计（仅前区，修正版） ==========
 function showRepeatPrizeModal() {
     repeatPrizeSel.clear();
     drawRepeatPrizeGrid();
     document.getElementById('repeatPrizeCount').textContent = '0';
     document.getElementById('repeatPrizeResult').style.display = 'none';
+    document.getElementById('repeatPrizeResult').innerHTML = '';
     document.getElementById('repeatPrizeModalOverlay').style.display = 'flex';
 }
 function hideRepeatPrizeModal() { document.getElementById('repeatPrizeModalOverlay').style.display = 'none'; }
 function confirmRepeatPrizeStats() {
     if (repeatPrizeSel.size !== 5) return alert('请选择5个前区数字');
     var targetFront = Array.from(repeatPrizeSel).sort(function(a,b){return a-b;});
-    var src = isPrizeHistoryFixed ? fixedHistoryRedBlue : [];
-    if (!src.length) return alert('请先固定历史组合再进行统计');
-    // 统计重复组合（按前区去重，只统计重复次数）
+    var src;
+    if (isPrizeHistoryFixed && fixedHistoryRedBlue.length > 0) {
+        src = fixedHistoryRedBlue;
+    } else {
+        src = HISTORY_ARRAYS.map(function(arr){ return { front: arr.slice(), back: null }; });
+    }
+    if (!src.length) return alert('无历史组合');
     var freq = new Map();
-    for (var i=0;i<src.length;i++) {
+    for (var i = 0; i < src.length; i++) {
         var key = src[i].front.map(function(n){return String(n).padStart(2,'0');}).join(',');
-        freq.set(key,(freq.get(key)||0)+1);
+        freq.set(key, (freq.get(key)||0) + 1);
     }
     var repeatGroups = new Map();
-    freq.forEach(function(cnt,key){
-        if (cnt<2) return;
-        if (!repeatGroups.has(cnt)) repeatGroups.set(cnt,[]);
+    freq.forEach(function(cnt, key){
+        if (cnt < 2) return;
+        if (!repeatGroups.has(cnt)) repeatGroups.set(cnt, []);
         repeatGroups.get(cnt).push(key);
     });
-    var sortedCounts = Array.from(repeatGroups.keys()).sort(function(a,b){return b-a;});
+    var sortedCounts = Array.from(repeatGroups.keys()).sort(function(a,b){return a-b;});
+    var html = '<div style="margin-bottom:10px;"><b>选号（前区）：' + targetFront.map(function(n){return String(n).padStart(2,'0');}).join(',') + '</b></div>';
+    html += '<div style="margin-bottom:10px;">历史基准：' + src.length.toLocaleString() + ' 注' + (isPrizeHistoryFixed ? '（已固定）' : '（内置历史）') + '</div>';
     if (!sortedCounts.length) {
-        document.getElementById('repeatPrizeResult').innerHTML = '<div>无重复≥2的组合</div>';
+        html += '<div style="color:#999;padding:15px 0;">无重复≥2的组合</div>';
+        document.getElementById('repeatPrizeResult').innerHTML = html;
         document.getElementById('repeatPrizeResult').style.display = 'block';
-        document.getElementById('repeatPrizeModalOverlay').style.display = 'none';
         return;
     }
-    var html = '<div><b>选号（前区）：'+targetFront.map(function(n){return String(n).padStart(2,'0');}).join(',')+'</b></div>';
     html += '<table class="content-table"><thead><tr><th>重复次数</th><th>组合数</th><th>最多中</th><th>示例组合</th></tr></thead><tbody>';
-    for (var ci=0;ci<sortedCounts.length;ci++) {
+    for (var ci = 0; ci < sortedCounts.length; ci++) {
         var cnt = sortedCounts[ci];
         var combos = repeatGroups.get(cnt);
         var maxHit = 0, example = '';
-        for (var k=0;k<combos.length;k++) {
+        for (var k = 0; k < combos.length; k++) {
             var nums = combos[k].split(',').map(Number);
             var mf = 0;
-            for (var j=0;j<nums.length;j++) if (targetFront.indexOf(nums[j])!==-1) mf++;
-            if (mf>maxHit) { maxHit=mf; example=combos[k]; }
+            for (var j = 0; j < nums.length; j++) {
+                if (targetFront.indexOf(nums[j]) !== -1) mf++;
+            }
+            if (mf > maxHit) { maxHit = mf; example = combos[k]; }
         }
-        html += '<tr><td>重复'+cnt+'次</td><td>'+combos.length+'</td><td>'+maxHit+'</td><td>'+example+'</td></tr>';
+        html += '<tr><td>重复' + cnt + '次</td><td>' + combos.length + '</td><td style="color:#e74c3c;font-weight:700;">' + maxHit + '</td><td>' + example + '</td></tr>';
     }
     html += '</tbody></table>';
     document.getElementById('repeatPrizeResult').innerHTML = html;
     document.getElementById('repeatPrizeResult').style.display = 'block';
-    document.getElementById('repeatPrizeModalOverlay').style.display = 'none';
 }
 
 // ========== 内容模态框 ==========
@@ -2221,9 +2269,10 @@ function exportXLSX() {
     showProgress(0); showGlobalCancel();
     globalAbortFlag = false;
     exportSnapshot = new Uint8Array(filteredAlive);
-    var src = isPrizeHistoryFixed ? fixedHistoryRedBlue : [];
+    var src;
+    if (isPrizeHistoryFixed && fixedHistoryRedBlue.length > 0) src = fixedHistoryRedBlue;
+    else src = HISTORY_ARRAYS.map(function(arr){ return { front: arr.slice(), back: null }; });
     var hasFixed = src.length > 0;
-    // 统计重复组合（按前区）
     var repeatMap = new Map();
     var repeatSortedCounts = [];
     if (hasFixed) {
@@ -2279,7 +2328,7 @@ function exportXLSX() {
             setTimeout(function(){
                 try {
                     var wb = XLSX.utils.book_new();
-                    var headers = ['前区号码','和值','奇偶比','区间比','双数字排名','单数字排名'];
+                    var headers = ['前区号码','和值','奇偶比','区间比','10个双数字排名','5个单数字排名'];
                     for (var ci=0;ci<repeatSortedCounts.length;ci++) headers.push('重复'+repeatSortedCounts[ci]+'次最多中');
                     var sheetData = [headers];
                     for (var i=0;i<result.length;i++) {
@@ -2447,7 +2496,7 @@ function confirmSingleRankExclude() {
     applyCustomFilter('单数字排名区间['+minR+'-'+maxR+']排除', function(arr){
         var ranks = getDigitRanks(arr);
         if (!ranks.length) return false;
-        var minRank = ranks[0]; // 最小排名（排名第一）
+        var minRank = ranks[0];
         return minRank >= minR && minRank <= maxR;
     });
 }
