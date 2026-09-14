@@ -285,7 +285,6 @@
             font-family: monospace;
             word-break: break-all;
         }
-        /* 模式三：独立明细框 */
         .mode3-summary {
             background: #f0f5fb;
             border: 1px solid var(--border);
@@ -427,7 +426,7 @@
         <div class="modal-card" style="max-width:580px;">
             <h3>📝 对比号码</h3>
             <div class="modal-ref">基准：<strong id="modal2BaseRef"></strong></div>
-            <textarea class="input-textarea" id="bulkInput" style="min-height:200px;" placeholder="每行一组前区号码，支持复式/胆拖，胆拖可跨行&#10;例如：&#10;1,2,3,4,5&#10;1,2,3,4,5,6&#10;前区胆：1 前区拖：2,3,4,5,6&#10;也可以带后区：1,2,3,4,5-1,2"></textarea>
+            <textarea class="input-textarea" id="bulkInput" style="min-height:200px;" placeholder="每行一组前区号码（只需前区，支持复式/胆拖，胆拖可跨行）&#10;例如：&#10;1,2,3,4,5&#10;1,2,3,4,5,6&#10;前区胆：1 前区拖：2,3,4,5,6&#10;（如果带了后区也会被忽略）"></textarea>
             <div class="modal-actions">
                 <button class="btn btn-outline btn-sm" onclick="closeModal2()">取消</button>
                 <button class="btn btn-primary btn-sm" onclick="confirmBulkData()">分析</button>
@@ -545,6 +544,7 @@
                 return { groupKey, combos, allNums: uniq, danNums: [], tuoNums: uniq, needTuos: 5 };
             }
 
+            // allowEmpty: true 时，后区为空返回空组合（用于模式三）
             function parseBackPart(backStr, allowEmpty) {
                 if (!backStr) {
                     if (allowEmpty) return { combos: [[]], allNums: [], danNums: [], tuoNums: [], needTuos: 0 };
@@ -615,6 +615,7 @@
                 return mergedLines;
             }
 
+            // allowNoBack: true 时允许没有后区（模式一、模式三用）
             function parseBetLine(line, allowNoBack) {
                 line = line.trim();
                 if (!line) return { error: '空行' };
@@ -767,7 +768,8 @@
                     let line = lines[idx].trim();
                     if (!line) continue;
                     totalLines++;
-                    let parsed = parseBetLine(line, false);
+                    // 模式一：允许无后区（只看前区）
+                    let parsed = parseBetLine(line, true);
                     if (parsed.error) {
                         invalidLines++;
                         invalidList.push({ line: idx + 1, content: line.substring(0, 60), reason: parsed.error });
@@ -1050,7 +1052,6 @@
             };
 
             // ===== 模式三：批量开奖匹配 =====
-            // 复制指定明细框里的内容
             window.copyMode3Detail = function(boxId) {
                 let el = document.getElementById(boxId);
                 if (!el) { showToast('复制失败', 'error'); return; }
@@ -1058,7 +1059,6 @@
                 navigator.clipboard.writeText(text).then(() => showToast('已复制框内组合', 'success')).catch(() => showToast('复制失败', 'error'));
             };
 
-            // 解析开奖行：只提取前区，要求正好5个不同号码（可带后区也可不带）
             function parseDrawNumbers(line) {
                 line = line.trim();
                 if (!line) return null;
@@ -1075,7 +1075,6 @@
                 let betRaw = $('mode3BetInput').value.trim();
                 if (!drawRaw || !betRaw) { showToast('⚠️ 请输入开奖号码和投注号码', 'warning'); return; }
 
-                // 解析投注号码（允许无后区）
                 let betLines = mergeMultilineBets(betRaw);
                 let parsedBets = [];
                 let invalidBets = 0;
@@ -1089,7 +1088,6 @@
                     return;
                 }
 
-                // 解析开奖号码
                 let drawLines = drawRaw.split(/\n|\r\n|\r/).map(l => l.trim()).filter(l => l);
                 let parsedDraws = [];
                 let invalidDraws = 0;
@@ -1103,7 +1101,6 @@
                     return;
                 }
 
-                // 对每个开奖号码，计算命中4个前区的投注行数
                 let groups = {};
                 for (let draw of parsedDraws) {
                     let count4 = 0;
@@ -1122,7 +1119,6 @@
                     groups[count4].push(draw.original);
                 }
 
-                // 汇总文本
                 let totalDraws = parsedDraws.length;
                 let summaryHtml = `<div>📥 你输入的投注号码有 <strong>${parsedBets.length}</strong> 注</div>`;
                 summaryHtml += `<div>🎯 你输入的开奖组合有 <strong>${totalDraws}</strong> 注</div>`;
@@ -1134,14 +1130,12 @@
                 }
                 $('mode3Summary').innerHTML = summaryHtml;
 
-                // 构建每个分组的独立框
                 let groupsHtml = '';
                 let sortedKeys = Object.keys(groups).map(Number).sort((a, b) => a - b);
                 if (sortedKeys.length === 0) {
                     groupsHtml = `<div class="mode3-detail-box" style="text-align:center;color:#999;">暂无数据</div>`;
                 } else {
                     for (let k of sortedKeys) {
-                        let boxId = 'm3box_' + k;
                         let contentId = 'm3content_' + k;
                         let contentHtml = groups[k].map(l => escapeHtml(l)).join('\n');
                         groupsHtml += `
