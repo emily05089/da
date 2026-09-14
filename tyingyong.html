@@ -280,7 +280,6 @@
         <div class="note-box">※ 重复组合中奖统计：只需选择前区5个数字，统计固定历史中所有重复组合最多中几个。</div>
     </div>
 
-    <!-- 相邻差筛选模态框 -->
     <div class="modal-overlay" id="diffExcludeModalOverlay">
         <div class="modal-box">
             <div class="modal-title">📊 相邻差筛选（可多选）</div>
@@ -303,13 +302,13 @@
         </div>
     </div>
 
-    <!-- 开头筛选模态框 -->
     <div class="modal-overlay" id="headFilterModalOverlay">
         <div class="modal-box">
             <div class="modal-title">🎯 开头筛选（可多选）</div>
             <div class="note-box" style="margin-bottom:10px;">
                 0开头(01-09)、1开头(10-19)、2开头(20-29)、3开头(30-35)。<br>
-                勾选后点击"保留"或"删除"。
+                勾选后点击"保留"或"删除"。<br>
+                <b>保留</b>：组合中必须至少包含所勾选的每一种开头的数字（如勾0开头，组合里有01-09中任意一个即保留；勾0和1开头，则组合里必须同时有0开头和1开头的数字才保留）。
             </div>
             <div class="checkbox-group" id="headFilterCheckboxes">
                 <label><input type="checkbox" class="head-filter-check" value="0">0开头（01-09）</label>
@@ -325,7 +324,6 @@
         </div>
     </div>
 
-    <!-- 内容展示模态框 -->
     <div class="modal-overlay" id="contentModalOverlay" data-content-type="">
         <div class="modal-box" style="max-width:900px;">
             <div class="modal-close-top">
@@ -345,7 +343,6 @@
         </div>
     </div>
 
-    <!-- 排名查询模态框（仅前区） -->
     <div class="modal-overlay" id="rankModalOverlay">
         <div class="modal-box">
             <div class="modal-title">🔢 排名查询（仅前区）</div>
@@ -358,11 +355,10 @@
         </div>
     </div>
 
-    <!-- 双数字区间排除模态框 -->
     <div class="modal-overlay" id="pairRankExcludeModalOverlay">
         <div class="modal-box">
             <div class="modal-title">🔢 双数字区间排除</div>
-            <div class="note-box" style="margin-bottom:10px;">输入排名区间（如20-50），将删除组合的10个双数字排名中有任意一个在该区间内的组合。</div>
+            <div class="note-box" style="margin-bottom:10px;">输入排名区间（如20-50），将删除组合的10个双数字排名中<b>最小的那个</b>在该区间内的组合。</div>
             <input type="text" class="modal-input" id="pairRankExcludeInput" placeholder="输入区间，如：20-50">
             <div class="modal-buttons">
                 <button class="btn btn-outline" id="btnPairRankExcludeCancel">取消</button>
@@ -371,7 +367,6 @@
         </div>
     </div>
 
-    <!-- 单数字区间排除模态框 -->
     <div class="modal-overlay" id="singleRankExcludeModalOverlay">
         <div class="modal-box">
             <div class="modal-title">🔢 单数字区间排除</div>
@@ -384,7 +379,6 @@
         </div>
     </div>
 
-    <!-- 保留数字模态框 -->
     <div class="modal-overlay" id="keepDigitsModalOverlay">
         <div class="modal-box">
             <div class="modal-title">选择要保留的数字（前区，可多选）</div>
@@ -397,7 +391,6 @@
         </div>
     </div>
 
-    <!-- 匹配分析模态框 -->
     <div class="modal-overlay" id="matchModalOverlay">
         <div class="modal-box" style="max-width: 600px;">
             <div class="modal-title">🔍 匹配分析（点选数字 或 输入数字）</div>
@@ -417,7 +410,6 @@
         </div>
     </div>
 
-    <!-- 保留匹配个数模态框 -->
     <div class="modal-overlay" id="keepMatchModalOverlay">
         <div class="modal-box">
             <div class="modal-title">⭐ 保留匹配个数</div>
@@ -438,7 +430,6 @@
         </div>
     </div>
 
-    <!-- 保留开头号码个数模态框 -->
     <div class="modal-overlay" id="keepHeadCountModalOverlay">
         <div class="modal-box">
             <div class="modal-title">🔢 保留开头号码个数（可多选）</div>
@@ -455,7 +446,6 @@
         </div>
     </div>
 
-    <!-- 保留尾数相同个数模态框 -->
     <div class="modal-overlay" id="keepTailCountModalOverlay">
         <div class="modal-box">
             <div class="modal-title">🔢 保留尾数相同个数（可多选）</div>
@@ -472,7 +462,6 @@
         </div>
     </div>
 
-    <!-- 其他模态框 -->
     <div class="modal-overlay" id="multiModalOverlay"><div class="modal-box"><div class="modal-title">输入多数字组合</div><textarea class="modal-textarea" id="multiModalTextarea"></textarea><div class="modal-buttons"><button class="btn btn-outline" id="btnMultiModalCancel">取消</button><button class="btn btn-danger" id="btnMultiModalConfirm">确认排除</button></div></div></div>
     <div class="modal-overlay" id="multiHitModalOverlay"><div class="modal-box"><div class="modal-title">输入多数字组合，并勾选排除命中个数</div><textarea class="modal-textarea" id="multiHitModalTextarea"></textarea><div class="checkbox-group" id="multiHitCheckboxes"><label><input type="checkbox" class="hit-check" value="0">中0个</label><label><input type="checkbox" class="hit-check" value="1">中1个</label><label><input type="checkbox" class="hit-check" value="2">中2个</label><label><input type="checkbox" class="hit-check" value="3">中3个</label><label><input type="checkbox" class="hit-check" value="4">中4个</label><label><input type="checkbox" class="hit-check" value="5">中5个</label></div><div class="modal-buttons"><button class="btn btn-outline" id="btnMultiHitModalCancel">取消</button><button class="btn btn-danger" id="btnMultiHitModalConfirm">确认排除</button></div></div></div>
     <div class="modal-overlay" id="keepOnlyModalOverlay"><div class="modal-box"><div class="modal-title">输入要保留的组合</div><textarea class="modal-textarea" id="keepOnlyModalTextarea"></textarea><div class="modal-buttons"><button class="btn btn-outline" id="btnKeepOnlyModalCancel">取消</button><button class="btn btn-keep" id="btnKeepOnlyModalConfirm">确认保留</button></div></div></div>
@@ -1692,9 +1681,14 @@ function confirmHeadFilterKeep() {
     if (!selected.length) return alert('请至少勾选一个开头');
     document.getElementById('headFilterModalOverlay').style.display = 'none';
     var labels = selected.map(function(h){ return h+'开头'; });
+    // 新逻辑：组合中必须"至少包含一个"所勾选的每一种开头类型数字
+    // 如勾选0开头 → 组合里有任意 01-09 数字即保留
+    // 如勾选0开头+1开头 → 组合里必须同时有 01-09 和 10-19 数字才保留
     applyKeepFilter('保留开头['+labels.join(',')+']', function(arr){
-        for (var i=0;i<arr.length;i++) {
-            if (selected.indexOf(Math.floor(arr[i]/10)) === -1) return false;
+        var heads = {};
+        for (var i=0;i<arr.length;i++) heads[Math.floor(arr[i]/10)] = true;
+        for (var j=0;j<selected.length;j++) {
+            if (!heads[selected[j]]) return false;
         }
         return true;
     });
@@ -2028,7 +2022,6 @@ function confirmRepeatPrizeStats() {
     resultEl.style.display = 'block';
 
     // ★ 关键修复：这里不再关闭弹窗，让用户能看到结果
-    // document.getElementById('repeatPrizeModalOverlay').style.display = 'none';
     log('📈 重复组合中奖统计完成（选号：'+targetStr+'）');
 }
 
@@ -2254,6 +2247,23 @@ function exportXLSX() {
     exportSnapshot = new Uint8Array(filteredAlive);
     var src = isPrizeHistoryFixed ? fixedHistoryRedBlue : [];
     var hasFixed = src.length > 0;
+
+    // ★ 是否计算"中奖金额"列：需同时满足"已固定历史" + "已确定后区（选了2个）"
+    var withPrize = hasFixed && selectedBlues && selectedBlues.size === 2;
+    var bluesForPrize = null;
+    var histMasksForPrize = [];
+    var histBluesForPrize = [];
+    if (withPrize) {
+        bluesForPrize = [Array.from(selectedBlues).sort(function(a,b){return a-b;})];
+        for (var j=0;j<src.length;j++) {
+            var t = src[j];
+            if (t.back !== null && t.back !== undefined) {
+                histMasksForPrize.push(maskFromFront(t.front));
+                histBluesForPrize.push(t.back.slice());
+            }
+        }
+    }
+
     // 统计重复组合（按前区）
     var repeatMap = new Map();
     var repeatSortedCounts = [];
@@ -2300,6 +2310,23 @@ function exportXLSX() {
                         row['repeat_'+cnt] = maxFront;
                     }
                 }
+                // ★ 计算该组的中奖金额（与"奖金计算与导出"按钮口径一致）
+                if (withPrize) {
+                    var totalPrize = 0;
+                    var fmL = masksLow[i], fmH = masksHigh[i];
+                    for (var bi=0;bi<bluesForPrize.length;bi++) {
+                        var b = bluesForPrize[bi];
+                        for (var hh=0;hh<histMasksForPrize.length;hh++) {
+                            var interLow = fmL & histMasksForPrize[hh].l;
+                            var interHigh = fmH & histMasksForPrize[hh].h;
+                            var mf2 = popcount32(interLow) + (interHigh & 1);
+                            var mb = 0;
+                            for (var kk=0;kk<b.length;kk++) if (histBluesForPrize[hh].indexOf(b[kk]) !== -1) mb++;
+                            totalPrize += prizeAmount(mf2, mb);
+                        }
+                    }
+                    row.prize = totalPrize;
+                }
                 result.push(row);
             }
         }
@@ -2312,17 +2339,19 @@ function exportXLSX() {
                     var wb = XLSX.utils.book_new();
                     var headers = ['前区号码','和值','奇偶比','区间比','双数字排名','单数字排名'];
                     for (var ci=0;ci<repeatSortedCounts.length;ci++) headers.push('重复'+repeatSortedCounts[ci]+'次最多中');
+                    if (withPrize) headers.push('中奖金额（元）');
                     var sheetData = [headers];
                     for (var i=0;i<result.length;i++) {
                         var rowData = [result[i].combo, result[i].sum, result[i].oe, result[i].zp, result[i].pairRanks.join(','), result[i].digitRanks.join(',')];
                         for (var ci=0;ci<repeatSortedCounts.length;ci++) rowData.push(result[i]['repeat_'+repeatSortedCounts[ci]]||0);
+                        if (withPrize) rowData.push(result[i].prize || 0);
                         sheetData.push(rowData);
                     }
                     var ws1 = XLSX.utils.aoa_to_sheet(sheetData);
                     XLSX.utils.book_append_sheet(wb, ws1, '组合列表');
                     XLSX.writeFile(wb, '前区筛选_'+result.length+'组_'+new Date().toISOString().slice(0,10)+'.xlsx');
-                    log('📥 导出'+result.length.toLocaleString()+'组');
-                    document.getElementById('exportHint').textContent = '✅ 已导出';
+                    log('📥 导出'+result.length.toLocaleString()+'组'+(withPrize?'（含中奖金额列）':''));
+                    document.getElementById('exportHint').textContent = '✅ 已导出' + (withPrize ? '（含中奖金额列）' : '');
                 } catch(e) { alert('导出失败：'+e.message); }
                 finishOperation(startTime);
             }, 50);
@@ -2457,10 +2486,12 @@ function confirmPairRankExclude() {
     if (!pairRankMap||Object.keys(pairRankMap).length===0) buildPairRankings();
     if (!pairRankMap||Object.keys(pairRankMap).length===0) return alert('请先固定历史组合');
     document.getElementById('pairRankExcludeModalOverlay').style.display = 'none';
+    // 新逻辑：只看 10 个双数字排名中"最小的那个"，若它落在区间内才删除
     applyCustomFilter('双数字排名区间['+minR+'-'+maxR+']排除', function(arr){
         var ranks = getPairRanks(arr);
-        for (var i=0;i<ranks.length;i++) if (ranks[i]>=minR&&ranks[i]<=maxR) return true;
-        return false;
+        if (!ranks.length) return false;
+        var minRank = ranks[0]; // getPairRanks 已升序排序，ranks[0] 即最小排名
+        return minRank >= minR && minRank <= maxR;
     });
 }
 
