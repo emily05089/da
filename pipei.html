@@ -285,6 +285,53 @@
             font-family: monospace;
             word-break: break-all;
         }
+        /* 模式三：独立明细框 */
+        .mode3-summary {
+            background: #f0f5fb;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 0.9rem;
+            line-height: 1.9;
+            margin-bottom: 14px;
+        }
+        .mode3-summary strong { color: var(--primary); font-size: 1.05rem; }
+        .mode3-detail-box {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        }
+        .mode3-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .mode3-detail-title {
+            font-weight: 700;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+        .mode3-detail-title .count-num { color: var(--primary); font-size: 1.1rem; }
+        .mode3-detail-content {
+            background: #fafbfd;
+            border: 1px solid #e3eaf2;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            max-height: 320px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text);
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 600px) {
@@ -358,10 +405,8 @@
                 <button class="btn btn-primary btn-lg" onclick="analyzeMode3()">🔍 统计</button>
             </div>
             <div class="results-container" id="resultsContainerMode3">
-                <div id="mode3ResultContent" style="background:#fafbfd;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:'SF Mono','Monaco','Consolas',monospace;white-space:pre-wrap;line-height:1.8;font-size:0.85rem;overflow-x:auto;max-height:600px;overflow-y:auto;"></div>
-                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-outline btn-sm" onclick="copyMode3Result()">📋 一键复制结果</button>
-                </div>
+                <div id="mode3Summary" class="mode3-summary"></div>
+                <div id="mode3GroupsContainer"></div>
             </div>
         </div>
     </div>
@@ -500,7 +545,6 @@
                 return { groupKey, combos, allNums: uniq, danNums: [], tuoNums: uniq, needTuos: 5 };
             }
 
-            // allowEmpty: true 时，后区为空返回空组合（用于模式三）
             function parseBackPart(backStr, allowEmpty) {
                 if (!backStr) {
                     if (allowEmpty) return { combos: [[]], allNums: [], danNums: [], tuoNums: [], needTuos: 0 };
@@ -571,7 +615,6 @@
                 return mergedLines;
             }
 
-            // allowNoBack: true 时允许没有后区（模式三用）
             function parseBetLine(line, allowNoBack) {
                 line = line.trim();
                 if (!line) return { error: '空行' };
@@ -660,6 +703,12 @@
                 let maxHit = danHit + Math.min(tuoHit, needTuos);
                 let minHit = danHit + Math.max(0, needTuos - (tuoNums.length - tuoHit));
                 return { maxHit, minHit };
+            }
+
+            function escapeHtml(str) {
+                return String(str).replace(/[&<>"']/g, s => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                })[s]);
             }
 
             // ===== 模式一 =====
@@ -1001,7 +1050,13 @@
             };
 
             // ===== 模式三：批量开奖匹配 =====
-            let lastMode3ResultText = '';
+            // 复制指定明细框里的内容
+            window.copyMode3Detail = function(boxId) {
+                let el = document.getElementById(boxId);
+                if (!el) { showToast('复制失败', 'error'); return; }
+                let text = el.innerText;
+                navigator.clipboard.writeText(text).then(() => showToast('已复制框内组合', 'success')).catch(() => showToast('复制失败', 'error'));
+            };
 
             // 解析开奖行：只提取前区，要求正好5个不同号码（可带后区也可不带）
             function parseDrawNumbers(line) {
@@ -1067,27 +1122,42 @@
                     groups[count4].push(draw.original);
                 }
 
-                // 构建输出
+                // 汇总文本
                 let totalDraws = parsedDraws.length;
-                let resultText = `你输入的开奖组合有${totalDraws}注\n\n`;
-                if (invalidDraws > 0) resultText += `（其中${invalidDraws}注无效已跳过）\n\n`;
-
-                let sortedKeys = Object.keys(groups).map(Number).sort((a, b) => a - b);
-                for (let k of sortedKeys) {
-                    resultText += `中4个有${k}注的组合有${groups[k].length}注，明细如下：\n`;
-                    groups[k].forEach(line => resultText += line + '\n');
-                    resultText += '\n';
+                let summaryHtml = `<div>📥 你输入的投注号码有 <strong>${parsedBets.length}</strong> 注</div>`;
+                summaryHtml += `<div>🎯 你输入的开奖组合有 <strong>${totalDraws}</strong> 注</div>`;
+                if (invalidDraws > 0 || invalidBets > 0) {
+                    let parts = [];
+                    if (invalidDraws > 0) parts.push(`开奖号码${invalidDraws}注无效`);
+                    if (invalidBets > 0) parts.push(`投注号码${invalidBets}注无效`);
+                    summaryHtml += `<div style="color:#c0392b;">（已跳过：${parts.join('，')}）</div>`;
                 }
+                $('mode3Summary').innerHTML = summaryHtml;
 
-                lastMode3ResultText = resultText;
-                $('mode3ResultContent').textContent = resultText;
+                // 构建每个分组的独立框
+                let groupsHtml = '';
+                let sortedKeys = Object.keys(groups).map(Number).sort((a, b) => a - b);
+                if (sortedKeys.length === 0) {
+                    groupsHtml = `<div class="mode3-detail-box" style="text-align:center;color:#999;">暂无数据</div>`;
+                } else {
+                    for (let k of sortedKeys) {
+                        let boxId = 'm3box_' + k;
+                        let contentId = 'm3content_' + k;
+                        let contentHtml = groups[k].map(l => escapeHtml(l)).join('\n');
+                        groupsHtml += `
+                            <div class="mode3-detail-box">
+                                <div class="mode3-detail-header">
+                                    <div class="mode3-detail-title">中4个有 <span class="count-num">${k}</span> 注的组合有 <span class="count-num">${groups[k].length}</span> 注</div>
+                                    <button class="btn btn-outline btn-sm" onclick="copyMode3Detail('${contentId}')">📋 复制本框</button>
+                                </div>
+                                <div class="mode3-detail-content" id="${contentId}">${contentHtml}</div>
+                            </div>
+                        `;
+                    }
+                }
+                $('mode3GroupsContainer').innerHTML = groupsHtml;
                 $('resultsContainerMode3').classList.add('visible');
                 showToast('✅ 统计完成', 'success');
-            };
-
-            window.copyMode3Result = () => {
-                if (!lastMode3ResultText) { showToast('暂无结果可复制', 'warning'); return; }
-                navigator.clipboard.writeText(lastMode3ResultText).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
             };
         })();
     </script>
