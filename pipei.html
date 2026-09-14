@@ -21,11 +21,7 @@
             --radius-sm: 10px;
             --transition: 0.25s;
         }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             background: linear-gradient(135deg, #e8edf5, #dce3ed);
@@ -44,15 +40,8 @@
             box-shadow: var(--shadow);
             padding: 30px 28px;
         }
-        .app-header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .app-header h1 {
-            font-size: 1.7rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
+        .app-header { text-align: center; margin-bottom: 20px; }
+        .app-header h1 { font-size: 1.7rem; font-weight: 700; color: var(--primary); }
         .tab-bar {
             display: flex;
             gap: 8px;
@@ -79,17 +68,9 @@
             color: #fff;
             box-shadow: 0 2px 8px rgba(74, 108, 247, 0.3);
         }
-        .tab-btn:hover:not(.active) {
-            background: #e3eaf2;
-            color: var(--text);
-        }
-        .mode-panel {
-            display: none;
-        }
-        .mode-panel.active {
-            display: block;
-            animation: fadeIn 0.3s;
-        }
+        .tab-btn:hover:not(.active) { background: #e3eaf2; color: var(--text); }
+        .mode-panel { display: none; }
+        .mode-panel.active { display: block; animation: fadeIn 0.3s; }
         .base-number-display {
             display: none;
             background: #f8fafd;
@@ -99,9 +80,7 @@
             margin-bottom: 20px;
             text-align: center;
         }
-        .base-number-display.visible {
-            display: block;
-        }
+        .base-number-display.visible { display: block; }
         .num-ball {
             display: inline-flex;
             align-items: center;
@@ -117,9 +96,7 @@
             box-shadow: 0 2px 6px rgba(74, 108, 247, 0.35);
             transition: transform 0.2s;
         }
-        .num-ball:hover {
-            transform: scale(1.1);
-        }
+        .num-ball:hover { transform: scale(1.1); }
         .btn {
             display: inline-flex;
             align-items: center;
@@ -134,36 +111,14 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-        .btn:active {
-            transform: scale(0.97);
-        }
-        .btn-primary {
-            background: var(--primary);
-            color: #fff;
-        }
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-        .btn-outline {
-            background: #fff;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-        }
-        .btn-outline:hover {
-            background: #f5f8ff;
-        }
-        .btn-block {
-            width: 100%;
-            justify-content: center;
-        }
-        .btn-lg {
-            padding: 15px 36px;
-            font-size: 1.1rem;
-        }
-        .btn-sm {
-            padding: 6px 16px;
-            font-size: 0.8rem;
-        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: #f5f8ff; }
+        .btn-block { width: 100%; justify-content: center; }
+        .btn-lg { padding: 15px 36px; font-size: 1.1rem; }
+        .btn-sm { padding: 6px 16px; font-size: 0.8rem; }
         .btn-row {
             display: flex;
             gap: 10px;
@@ -172,14 +127,8 @@
             align-items: center;
             justify-content: center;
         }
-        .results-container {
-            display: none;
-            margin-top: 20px;
-        }
-        .results-container.visible {
-            display: block;
-            animation: fadeInUp 0.3s;
-        }
+        .results-container { display: none; margin-top: 20px; }
+        .results-container.visible { display: block; animation: fadeInUp 0.3s; }
         .summary-chip {
             flex: 1 1 auto;
             min-width: 80px;
@@ -193,16 +142,8 @@
             margin: 4px;
             transition: all 0.2s;
         }
-        .summary-chip:hover {
-            border-color: var(--primary);
-            box-shadow: 0 2px 8px rgba(74, 108, 247, 0.15);
-        }
-        .summary-chip strong {
-            display: block;
-            font-size: 1.5rem;
-            color: var(--text);
-            line-height: 1.3;
-        }
+        .summary-chip:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(74, 108, 247, 0.15); }
+        .summary-chip strong { display: block; font-size: 1.5rem; color: var(--text); line-height: 1.3; }
         .group-block {
             background: #fafbfd;
             border: 1px solid #ddd;
@@ -211,9 +152,7 @@
             margin-bottom: 16px;
             transition: box-shadow 0.2s;
         }
-        .group-block:hover {
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-        }
+        .group-block:hover { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06); }
         .group-title {
             font-weight: 700;
             margin-bottom: 10px;
@@ -238,48 +177,20 @@
             border: 1px solid #e3eaf2;
             white-space: nowrap;
         }
-        .group-stat-item strong {
-            color: var(--primary);
-            font-size: 1.1rem;
-            margin-left: 4px;
-        }
-        .detail-list {
-            margin-top: 10px;
-            background: #fff;
-            border-radius: 8px;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 0.8rem;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #e3eaf2;
-        }
-        .detail-item {
-            padding: 4px 0;
-            border-bottom: 1px dashed #eee;
-            display: flex;
-            justify-content: space-between;
-        }
-        .detail-item:last-child {
-            border-bottom: none;
-        }
+        .group-stat-item strong { color: var(--primary); font-size: 1.1rem; margin-left: 4px; }
         .distribution-table {
             margin-top: 10px;
             border-collapse: collapse;
             width: 100%;
             font-size: 0.85rem;
         }
-        .distribution-table th,
-        .distribution-table td {
+        .distribution-table th, .distribution-table td {
             border: 1px solid #ddd;
             padding: 6px 8px;
             text-align: center;
         }
-        .distribution-table th {
-            background: #f1f5fa;
-        }
-        .input-text,
-        .input-textarea {
+        .distribution-table th { background: #f1f5fa; }
+        .input-text, .input-textarea {
             width: 100%;
             padding: 12px 14px;
             border: 2px solid var(--border);
@@ -290,17 +201,13 @@
             transition: border-color 0.25s, box-shadow 0.25s;
             color: var(--text);
         }
-        .input-text:focus,
-        .input-textarea:focus {
+        .input-text:focus, .input-textarea:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
             background: #fff;
         }
-        .input-textarea {
-            min-height: 160px;
-            resize: vertical;
-        }
+        .input-textarea { min-height: 160px; resize: vertical; }
         .toast {
             position: fixed;
             top: 20px;
@@ -317,18 +224,10 @@
             pointer-events: none;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         }
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-        }
-        .toast.warning {
-            background: #e67e22;
-        }
-        .toast.error {
-            background: #c0392b;
-        }
-        .toast.success {
-            background: #27ae60;
-        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.warning { background: #e67e22; }
+        .toast.error { background: #c0392b; }
+        .toast.success { background: #27ae60; }
         .invalid-list {
             background: #fff5f5;
             border: 1px solid #f5c6c6;
@@ -336,27 +235,17 @@
             padding: 12px 14px;
             margin-top: 16px;
         }
-        .invalid-list strong {
-            color: #c0392b;
-        }
+        .invalid-list strong { color: #c0392b; }
         .invalid-item {
             font-size: 0.8rem;
             color: #c0392b;
             margin-bottom: 4px;
             font-family: monospace;
         }
-        .section-label {
-            font-weight: 600;
-            margin-bottom: 8px;
-            display: block;
-            font-size: 0.9rem;
-        }
+        .section-label { font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.9rem; }
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0, 0, 0, 0.5);
             z-index: 1000;
             display: flex;
@@ -367,10 +256,7 @@
             transition: opacity 0.3s;
             padding: 16px;
         }
-        .modal-overlay.open {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
         .modal-card {
             background: #fff;
             border-radius: 18px;
@@ -381,14 +267,8 @@
             transition: transform 0.3s;
             box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
         }
-        .modal-overlay.open .modal-card {
-            transform: translateY(0);
-        }
-        .modal-card h3 {
-            margin-bottom: 14px;
-            font-size: 1.1rem;
-            color: var(--text);
-        }
+        .modal-overlay.open .modal-card { transform: translateY(0); }
+        .modal-card h3 { margin-bottom: 14px; font-size: 1.1rem; color: var(--text); }
         .modal-actions {
             margin-top: 16px;
             display: flex;
@@ -405,14 +285,8 @@
             font-family: monospace;
             word-break: break-all;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(16px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 600px) {
             .app-container { padding: 20px 16px; border-radius: 14px; }
             .tab-btn { padding: 6px 14px; font-size: 0.8rem; }
@@ -428,6 +302,7 @@
         <div class="tab-bar">
             <button class="tab-btn active" onclick="switchMode('match')">模式一：号码匹配分析</button>
             <button class="tab-btn" onclick="switchMode('ssq')">模式二：奖金统计</button>
+            <button class="tab-btn" onclick="switchMode('mode3')">模式三：批量开奖匹配</button>
         </div>
 
         <!-- 模式一 -->
@@ -455,7 +330,7 @@
                 <input type="text" class="input-text" id="ssqDrawInput" placeholder="例如：01,02,03,04,05-06,07">
             </div>
             <div style="margin-bottom:14px;">
-                <label class="section-label">📥 投注号码（每行一组，支持复式/胆拖，胆拖可跨行）</label>
+                <label class="section-label">📥 投注号码（每行一组，支持复式/胆拖，胆拖可跨行；前区-后区）</label>
                 <textarea class="input-textarea" id="ssqInput" placeholder="1,2,3,4,5,6-1,2&#10;前区胆：1 前区拖：10，12，13，15，21 后区胆：6 后区拖：7，8，9&#10;..."></textarea>
             </div>
             <div class="btn-row" style="margin-bottom:10px;">
@@ -466,6 +341,27 @@
                 <div id="ssqResultContent" style="background:#fafbfd;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:'SF Mono','Monaco','Consolas',monospace;white-space:pre-wrap;line-height:1.8;font-size:0.85rem;overflow-x:auto;"></div>
                 <div id="invalidAreaSSQ" style="margin-top:12px;"></div>
                 <button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="copySSQResult()">📋 一键复制结果</button>
+            </div>
+        </div>
+
+        <!-- 模式三：批量开奖匹配 -->
+        <div class="mode-panel" id="mode3">
+            <div style="margin-bottom:16px;">
+                <label class="section-label">📌 开奖号码（每行一组，可只前区或前区-后区）</label>
+                <textarea class="input-textarea" id="mode3DrawInput" style="min-height:200px;" placeholder="每行一组，例如：&#10;01,02,03,04,05&#10;01,02,03,04,05-01,02&#10;1,2,3,4,5&#10;..."></textarea>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label class="section-label">📥 投注号码（每行一组，可只前区或前区-后区，支持复式/胆拖）</label>
+                <textarea class="input-textarea" id="mode3BetInput" style="min-height:200px;" placeholder="1,2,3,4,5,6-1,2&#10;前区胆：1 前区拖：10，12，13，15，21 后区胆：6 后区拖：7，8，9&#10;1,2,3,4,5&#10;..."></textarea>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary btn-lg" onclick="analyzeMode3()">🔍 统计</button>
+            </div>
+            <div class="results-container" id="resultsContainerMode3">
+                <div id="mode3ResultContent" style="background:#fafbfd;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:'SF Mono','Monaco','Consolas',monospace;white-space:pre-wrap;line-height:1.8;font-size:0.85rem;overflow-x:auto;max-height:600px;overflow-y:auto;"></div>
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="copyMode3Result()">📋 一键复制结果</button>
+                </div>
             </div>
         </div>
     </div>
@@ -510,13 +406,10 @@
             window.switchMode = function(m) {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
-                if (m === 'match') {
-                    document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
-                    $('modeMatch').classList.add('active');
-                } else {
-                    document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
-                    $('modeSSQ').classList.add('active');
-                }
+                let btnMap = { 'match': 1, 'ssq': 2, 'mode3': 3 };
+                let panelMap = { 'match': 'modeMatch', 'ssq': 'modeSSQ', 'mode3': 'mode3' };
+                document.querySelector(`.tab-btn:nth-child(${btnMap[m]})`).classList.add('active');
+                $(panelMap[m]).classList.add('active');
             };
 
             // ---------- 解析工具 ----------
@@ -566,7 +459,6 @@
                 return str.replace(/后区.*$/g, '').trim();
             }
 
-            // 解析前区，返回 { groupKey, combos, allNums, danNums, tuoNums, needTuos }
             function parseFrontPart(frontStr) {
                 if (!frontStr) return { error: '前区号码为空' };
                 frontStr = frontStr.trim();
@@ -597,14 +489,7 @@
                     let tuoCombos = needTuos === 0 ? [[]] : combinations(tuoNums, needTuos);
                     let combos = tuoCombos.map(tc => [...danNums, ...tc].sort((a, b) => a - b).map(n => String(n).padStart(2, '0')));
                     let allNums = [...new Set([...danNums, ...tuoNums])].sort((a,b)=>a-b);
-                    return { 
-                        groupKey: `前区胆拖${danNums.length}胆`, 
-                        combos, 
-                        allNums, 
-                        danNums, 
-                        tuoNums, 
-                        needTuos 
-                    };
+                    return { groupKey: `前区胆拖${danNums.length}胆`, combos, allNums, danNums, tuoNums, needTuos };
                 }
 
                 let nums = parseNumList(frontStr);
@@ -612,19 +497,17 @@
                 if (uniq.length < 5) return { error: '前区号码不足5个' };
                 let combos = combinations(uniq, 5).map(c => c.map(n => String(n).padStart(2, '0')));
                 let groupKey = uniq.length === 5 ? '单式5个' : `复式${uniq.length}个`;
-                return { 
-                    groupKey, 
-                    combos, 
-                    allNums: uniq, 
-                    danNums: [], 
-                    tuoNums: uniq, 
-                    needTuos: 5 
-                };
+                return { groupKey, combos, allNums: uniq, danNums: [], tuoNums: uniq, needTuos: 5 };
             }
 
-            function parseBackPart(backStr) {
-                if (!backStr) return { error: '后区号码为空' };
+            // allowEmpty: true 时，后区为空返回空组合（用于模式三）
+            function parseBackPart(backStr, allowEmpty) {
+                if (!backStr) {
+                    if (allowEmpty) return { combos: [[]], allNums: [], danNums: [], tuoNums: [], needTuos: 0 };
+                    return { error: '后区号码为空' };
+                }
                 backStr = backStr.trim();
+                if (!backStr && allowEmpty) return { combos: [[]], allNums: [], danNums: [], tuoNums: [], needTuos: 0 };
 
                 if (backStr.includes('后区胆') || backStr.includes('后区拖') || (backStr.includes('胆') && backStr.includes('拖'))) {
                     let dt = null;
@@ -656,15 +539,12 @@
 
                 let nums = parseNumList(backStr);
                 let uniq = [...new Set(nums)].sort((a, b) => a - b);
-                if (uniq.length < 2) return { error: '后区号码不足2个' };
+                if (uniq.length < 2) {
+                    if (allowEmpty && uniq.length === 0) return { combos: [[]], allNums: [], danNums: [], tuoNums: [], needTuos: 0 };
+                    return { error: '后区号码不足2个' };
+                }
                 let combos = combinations(uniq, 2).map(c => c.map(n => String(n).padStart(2, '0')));
-                return { 
-                    combos, 
-                    allNums: uniq, 
-                    danNums: [], 
-                    tuoNums: uniq, 
-                    needTuos: 2 
-                };
+                return { combos, allNums: uniq, danNums: [], tuoNums: uniq, needTuos: 2 };
             }
 
             function isCompleteLine(line) {
@@ -680,23 +560,19 @@
                 for (let i = 0; i < rawLines.length; i++) {
                     let line = rawLines[i].trim();
                     if (!line) continue;
-                    if (currentLine) {
-                        currentLine += ' ' + line;
-                    } else {
-                        currentLine = line;
-                    }
+                    if (currentLine) currentLine += ' ' + line;
+                    else currentLine = line;
                     if (isCompleteLine(currentLine)) {
                         mergedLines.push(currentLine);
                         currentLine = '';
                     }
                 }
-                if (currentLine) {
-                    mergedLines.push(currentLine);
-                }
+                if (currentLine) mergedLines.push(currentLine);
                 return mergedLines;
             }
 
-            function parseBetLine(line) {
+            // allowNoBack: true 时允许没有后区（模式三用）
+            function parseBetLine(line, allowNoBack) {
                 line = line.trim();
                 if (!line) return { error: '空行' };
                 let frontPart, backPart;
@@ -715,13 +591,18 @@
                         frontPart = line.substring(0, posBack).trim();
                         backPart = line.substring(posBack).trim();
                     } else {
-                        return { error: '缺少后区信息' };
+                        if (allowNoBack) {
+                            frontPart = line;
+                            backPart = '';
+                        } else {
+                            return { error: '缺少后区信息' };
+                        }
                     }
                 }
-                if (!frontPart || !backPart) return { error: '前区或后区为空' };
+                if (!frontPart) return { error: '前区为空' };
                 let frontRes = parseFrontPart(frontPart);
                 if (frontRes.error) return { error: frontRes.error };
-                let backRes = parseBackPart(backPart);
+                let backRes = parseBackPart(backPart, allowNoBack);
                 if (backRes.error) return { error: backRes.error };
 
                 let totalCombinations = frontRes.combos.length * backRes.combos.length;
@@ -771,16 +652,11 @@
                 return html;
             }
 
-            // 模式一使用的胆拖理论命中范围（保留原样）
             function calcHitRange(danNums, tuoNums, needTuos, targetSet) {
                 let danHit = 0;
-                for (let n of danNums) {
-                    if (targetSet.has(n)) danHit++;
-                }
+                for (let n of danNums) { if (targetSet.has(n)) danHit++; }
                 let tuoHit = 0;
-                for (let n of tuoNums) {
-                    if (targetSet.has(n)) tuoHit++;
-                }
+                for (let n of tuoNums) { if (targetSet.has(n)) tuoHit++; }
                 let maxHit = danHit + Math.min(tuoHit, needTuos);
                 let minHit = danHit + Math.max(0, needTuos - (tuoNums.length - tuoHit));
                 return { maxHit, minHit };
@@ -842,7 +718,7 @@
                     let line = lines[idx].trim();
                     if (!line) continue;
                     totalLines++;
-                    let parsed = parseBetLine(line);
+                    let parsed = parseBetLine(line, false);
                     if (parsed.error) {
                         invalidLines++;
                         invalidList.push({ line: idx + 1, content: line.substring(0, 60), reason: parsed.error });
@@ -851,10 +727,8 @@
                     let gkey = parsed.groupKey;
                     if (!groupStats[gkey]) {
                         groupStats[gkey] = {
-                            totalCombinations: 0,
-                            actualCount: 0,
-                            maxHit: -1,
-                            minHit: 99,
+                            totalCombinations: 0, actualCount: 0,
+                            maxHit: -1, minHit: 99,
                             hitDist: {0:0,1:0,2:0,3:0,4:0,5:0},
                             details: []
                         };
@@ -863,18 +737,13 @@
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 计算前区命中范围（胆拖理论，用于模式一）
                     let { maxHit, minHit } = calcHitRange(parsed.frontDanNums, parsed.frontTuoNums, parsed.frontNeedTuos, baseSet);
-                    
                     if (maxHit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = maxHit;
                     if (minHit < groupStats[gkey].minHit) groupStats[gkey].minHit = minHit;
                     groupStats[gkey].hitDist[maxHit] = (groupStats[gkey].hitDist[maxHit] || 0) + 1;
                     groupStats[gkey].details.push({
-                        frontAll: parsed.frontAllNums,
-                        backAll: parsed.backAllNums,
-                        maxHit,
-                        minHit,
-                        line: line
+                        frontAll: parsed.frontAllNums, backAll: parsed.backAllNums,
+                        maxHit, minHit, line: line
                     });
                 }
                 closeModal2();
@@ -904,9 +773,7 @@
                     groupHtml += '</div>';
                     groupHtml += '<table class="distribution-table"><thead><tr><th>命中数</th><th>注数</th></tr></thead><tbody>';
                     for (let m = 5; m >= 0; m--) {
-                        if (g.hitDist[m] > 0) {
-                            groupHtml += `<tr><td>命中 ${m} 个</td><td>${g.hitDist[m]} 注</td></tr>`;
-                        }
+                        if (g.hitDist[m] > 0) groupHtml += `<tr><td>命中 ${m} 个</td><td>${g.hitDist[m]} 注</td></tr>`;
                     }
                     groupHtml += '</tbody></table>';
                     if (g.details.length > 0) {
@@ -944,7 +811,6 @@
             const prizeMapHigh = { '5+2':5000000, '5+1':500000, '5+0':6666, '4+2':6666, '4+1':380, '4+0':200, '3+2':200, '3+1':18, '2+2':18, '3+0':7, '2+1':7, '1+2':7, '0+2':7, '2+0':0, '1+1':0, '0+1':0, '1+0':0, '0+0':0 };
             function currentPrizeMap() { return poolHigh ? prizeMapHigh : prizeMapLow; }
 
-            // 比较等级，返回1表示a>b，-1表示a<b，0相等
             function compareGrade(a, b) {
                 if (a.frontHit !== b.frontHit) return a.frontHit - b.frontHit;
                 return a.backHit - b.backHit;
@@ -956,10 +822,16 @@
                 let totalCombinations = 0;
                 let invalidList = [];
 
+                let globalStats = {
+                    '5': { total: 0, sub: {'5+2':0, '5+1':0, '5+0':0} },
+                    '4': { total: 0, sub: {'4+2':0, '4+1':0, '4+0':0} },
+                    '3': { total: 0, sub: {'3+2':0, '3+1':0, '3+0':0} }
+                };
+
                 for (let idx = 0; idx < lines.length; idx++) {
                     let line = lines[idx].trim();
                     if (!line) continue;
-                    let parsed = parseBetLine(line);
+                    let parsed = parseBetLine(line, false);
                     if (parsed.error) {
                         invalidList.push({ line: idx + 1, content: line.substring(0, 60), reason: parsed.error });
                         continue;
@@ -967,38 +839,28 @@
                     let gkey = parsed.groupKey;
                     if (!groupStats[gkey]) {
                         groupStats[gkey] = {
-                            totalCombinations: 0,
-                            actualCount: 0,
+                            totalCombinations: 0, actualCount: 0,
                             maxGrade: { frontHit: -1, backHit: -1 },
                             minGrade: { frontHit: 99, backHit: 99 },
-                            totalPrize: 0,
-                            dist: {},        // 记录每个最高等级的行数
-                            distPrize: {},   // 新增：记录每个最高等级的实际奖金总和
-                            details: []
+                            totalPrize: 0, dist: {}, distPrize: {}, details: []
                         };
                     }
                     totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].totalCombinations += parsed.totalCombinations;
                     groupStats[gkey].actualCount += parsed.actualCount;
 
-                    // 展开所有组合，计算每个组合的实际中奖等级和奖金
                     let maxGrade = { frontHit: -1, backHit: -1, prize: -1 };
                     let linePrize = 0;
 
                     for (let frontCombo of parsed.frontCombos) {
                         for (let backCombo of parsed.backCombos) {
                             let frontHit = 0;
-                            for (let n of frontCombo) {
-                                if (draw.front.has(parseInt(n, 10))) frontHit++;
-                            }
+                            for (let n of frontCombo) { if (draw.front.has(parseInt(n, 10))) frontHit++; }
                             let backHit = 0;
-                            for (let n of backCombo) {
-                                if (draw.back.has(parseInt(n, 10))) backHit++;
-                            }
+                            for (let n of backCombo) { if (draw.back.has(parseInt(n, 10))) backHit++; }
                             let key = frontHit + '+' + backHit;
                             let prize = prizeMap[key] || 0;
                             linePrize += prize;
-
                             if (maxGrade.frontHit === -1 || compareGrade({frontHit, backHit}, maxGrade) > 0) {
                                 maxGrade = { frontHit, backHit, prize };
                             }
@@ -1007,28 +869,29 @@
 
                     groupStats[gkey].totalPrize += linePrize;
 
-                    // 更新组内最大等级：取所有行的最高等级的最大值
-                    if (compareGrade(maxGrade, groupStats[gkey].maxGrade) > 0) {
-                        groupStats[gkey].maxGrade = maxGrade;
-                    }
-                    // 更新组内最小等级：取所有行的最高等级的最小值
-                    if (compareGrade(maxGrade, groupStats[gkey].minGrade) < 0) {
-                        groupStats[gkey].minGrade = maxGrade;
+                    let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
+                    if (maxGrade.frontHit === 5 && globalStats['5'].sub[maxKey] !== undefined) {
+                        globalStats['5'].total++;
+                        globalStats['5'].sub[maxKey]++;
+                    } else if (maxGrade.frontHit === 4 && globalStats['4'].sub[maxKey] !== undefined) {
+                        globalStats['4'].total++;
+                        globalStats['4'].sub[maxKey]++;
+                    } else if (maxGrade.frontHit === 3 && globalStats['3'].sub[maxKey] !== undefined) {
+                        globalStats['3'].total++;
+                        globalStats['3'].sub[maxKey]++;
                     }
 
-                    let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
+                    if (compareGrade(maxGrade, groupStats[gkey].maxGrade) > 0) groupStats[gkey].maxGrade = maxGrade;
+                    if (compareGrade(maxGrade, groupStats[gkey].minGrade) < 0) groupStats[gkey].minGrade = maxGrade;
+
                     groupStats[gkey].dist[maxKey] = (groupStats[gkey].dist[maxKey] || 0) + 1;
-                    // 累加该行的实际奖金到对应等级
                     groupStats[gkey].distPrize[maxKey] = (groupStats[gkey].distPrize[maxKey] || 0) + linePrize;
 
                     if (maxGrade.frontHit >= 4) {
                         groupStats[gkey].details.push({
-                            frontAll: parsed.frontAllNums,
-                            backAll: parsed.backAllNums,
-                            maxFront: maxGrade.frontHit,
-                            maxBack: maxGrade.backHit,
-                            prize: linePrize,
-                            key: maxKey
+                            frontAll: parsed.frontAllNums, backAll: parsed.backAllNums,
+                            maxFront: maxGrade.frontHit, maxBack: maxGrade.backHit,
+                            prize: linePrize, key: maxKey
                         });
                     }
                 }
@@ -1036,13 +899,49 @@
                 let globalMaxGrade = { frontHit: 0, backHit: 0 };
                 for (let gkey in groupStats) {
                     let g = groupStats[gkey];
-                    if (compareGrade(g.maxGrade, globalMaxGrade) > 0) {
-                        globalMaxGrade = g.maxGrade;
-                    }
+                    if (compareGrade(g.maxGrade, globalMaxGrade) > 0) globalMaxGrade = g.maxGrade;
                 }
 
-                let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n\n`;
-                resultText += `===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
+                let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
+
+                let statsLines = [];
+                let maxFront = globalMaxGrade.frontHit;
+
+                function buildStatLine(level) {
+                    let gs = globalStats[level];
+                    if (gs.total === 0) return null;
+                    let subParts = [];
+                    let subKeys = level === '5' ? ['5+2','5+1','5+0'] : level === '4' ? ['4+2','4+1','4+0'] : ['3+2','3+1','3+0'];
+                    for (let k of subKeys) {
+                        if (gs.sub[k] > 0) {
+                            subParts.push(`${k.replace('+','➕')}的有${gs.sub[k]}注`);
+                        }
+                    }
+                    return `中${level}个的有${gs.total}注${subParts.length > 0 ? '，其中' + subParts.join('，') : ''}。`;
+                }
+
+                if (maxFront >= 5) {
+                    let l5 = buildStatLine('5');
+                    let l4 = buildStatLine('4');
+                    let l3 = buildStatLine('3');
+                    if (l5) statsLines.push(l5);
+                    if (l4) statsLines.push(l4);
+                    if (l3) statsLines.push(l3);
+                } else if (maxFront >= 4) {
+                    let l4 = buildStatLine('4');
+                    let l3 = buildStatLine('3');
+                    if (l4) statsLines.push(l4);
+                    if (l3) statsLines.push(l3);
+                } else if (maxFront >= 3) {
+                    let l3 = buildStatLine('3');
+                    if (l3) statsLines.push(l3);
+                }
+
+                if (statsLines.length > 0) {
+                    resultText += '\n' + statsLines.join('\n') + '\n';
+                }
+
+                resultText += `\n===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
                 let grandTotalPrize = 0;
                 for (let gkey in groupStats) grandTotalPrize += groupStats[gkey].totalPrize;
                 resultText += `💰 总奖金：${grandTotalPrize.toLocaleString()}元\n\n`;
@@ -1058,7 +957,7 @@
                     const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
                     for (let k of order) {
                         if (g.dist[k]) {
-                            let subtotal = g.distPrize[k] || 0; // 使用实际奖金累加
+                            let subtotal = g.distPrize[k] || 0;
                             resultText += `${k} ： ${g.dist[k]} 注（行），小计：${subtotal.toLocaleString()}元\n`;
                         }
                     }
@@ -1077,15 +976,9 @@
                 let drawRaw = $('ssqDrawInput').value.trim();
                 let inputRaw = $('ssqInput').value.trim();
                 if (!drawRaw || !inputRaw) { showToast('⚠️ 请输入开奖号码和投注号码', 'warning'); return; }
-                let drawParsed = parseBetLine(drawRaw);
-                if (drawParsed.error) {
-                    showToast('⚠️ 开奖号码格式错误', 'warning');
-                    return;
-                }
-                let draw = { 
-                    front: new Set(drawParsed.frontAllNums), 
-                    back: new Set(drawParsed.backAllNums) 
-                };
+                let drawParsed = parseBetLine(drawRaw, false);
+                if (drawParsed.error) { showToast('⚠️ 开奖号码格式错误', 'warning'); return; }
+                let draw = { front: new Set(drawParsed.frontAllNums), back: new Set(drawParsed.backAllNums) };
                 let lines = mergeMultilineBets(inputRaw);
                 let result = generateSSQResultText(draw, lines);
                 lastSSQResultText = result.text;
@@ -1105,6 +998,96 @@
             window.copySSQResult = () => {
                 if (!lastSSQResultText) { showToast('暂无结果可复制', 'warning'); return; }
                 navigator.clipboard.writeText(lastSSQResultText).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
+            };
+
+            // ===== 模式三：批量开奖匹配 =====
+            let lastMode3ResultText = '';
+
+            // 解析开奖行：只提取前区，要求正好5个不同号码（可带后区也可不带）
+            function parseDrawNumbers(line) {
+                line = line.trim();
+                if (!line) return null;
+                let lastDash = line.lastIndexOf('-');
+                let frontPart = lastDash !== -1 ? line.substring(0, lastDash).trim() : line;
+                let nums = parseNumList(frontPart);
+                let uniq = [...new Set(nums)].sort((a, b) => a - b);
+                if (uniq.length !== 5) return null;
+                return { frontNums: new Set(uniq), original: line };
+            }
+
+            window.analyzeMode3 = function() {
+                let drawRaw = $('mode3DrawInput').value.trim();
+                let betRaw = $('mode3BetInput').value.trim();
+                if (!drawRaw || !betRaw) { showToast('⚠️ 请输入开奖号码和投注号码', 'warning'); return; }
+
+                // 解析投注号码（允许无后区）
+                let betLines = mergeMultilineBets(betRaw);
+                let parsedBets = [];
+                let invalidBets = 0;
+                for (let line of betLines) {
+                    let parsed = parseBetLine(line, true);
+                    if (parsed.error) { invalidBets++; continue; }
+                    parsedBets.push(parsed);
+                }
+                if (parsedBets.length === 0) {
+                    showToast('⚠️ 没有有效的投注号码', 'warning');
+                    return;
+                }
+
+                // 解析开奖号码
+                let drawLines = drawRaw.split(/\n|\r\n|\r/).map(l => l.trim()).filter(l => l);
+                let parsedDraws = [];
+                let invalidDraws = 0;
+                for (let line of drawLines) {
+                    let parsed = parseDrawNumbers(line);
+                    if (!parsed) { invalidDraws++; continue; }
+                    parsedDraws.push(parsed);
+                }
+                if (parsedDraws.length === 0) {
+                    showToast('⚠️ 没有有效的开奖号码', 'warning');
+                    return;
+                }
+
+                // 对每个开奖号码，计算命中4个前区的投注行数
+                let groups = {};
+                for (let draw of parsedDraws) {
+                    let count4 = 0;
+                    for (let bet of parsedBets) {
+                        let maxFront = -1;
+                        for (let frontCombo of bet.frontCombos) {
+                            let frontHit = 0;
+                            for (let n of frontCombo) {
+                                if (draw.frontNums.has(parseInt(n, 10))) frontHit++;
+                            }
+                            if (frontHit > maxFront) maxFront = frontHit;
+                        }
+                        if (maxFront === 4) count4++;
+                    }
+                    if (!groups[count4]) groups[count4] = [];
+                    groups[count4].push(draw.original);
+                }
+
+                // 构建输出
+                let totalDraws = parsedDraws.length;
+                let resultText = `你输入的开奖组合有${totalDraws}注\n\n`;
+                if (invalidDraws > 0) resultText += `（其中${invalidDraws}注无效已跳过）\n\n`;
+
+                let sortedKeys = Object.keys(groups).map(Number).sort((a, b) => a - b);
+                for (let k of sortedKeys) {
+                    resultText += `中4个有${k}注的组合有${groups[k].length}注，明细如下：\n`;
+                    groups[k].forEach(line => resultText += line + '\n');
+                    resultText += '\n';
+                }
+
+                lastMode3ResultText = resultText;
+                $('mode3ResultContent').textContent = resultText;
+                $('resultsContainerMode3').classList.add('visible');
+                showToast('✅ 统计完成', 'success');
+            };
+
+            window.copyMode3Result = () => {
+                if (!lastMode3ResultText) { showToast('暂无结果可复制', 'warning'); return; }
+                navigator.clipboard.writeText(lastMode3ResultText).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
             };
         })();
     </script>
