@@ -331,6 +331,25 @@
             word-break: break-all;
             color: var(--text);
         }
+        /* ===== 模式一新增样式（来自第二段代码） ===== */
+        .stats-table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 20px; }
+        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .stats-table th { background: #f1f5fa; padding: 8px 10px; font-weight: 600; }
+        .stats-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid #eef2f7; }
+        .hit-detail-block { background: #f9fbfd; border: 1px solid #e3eaf2; border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+        .hit-detail-header { display: flex; justify-content: space-between; padding: 10px 14px; background: #f0f5fb; }
+        .hit-detail-body { padding: 10px 14px; max-height: 200px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+        .combo-tag { background: #fff; border: 1px solid #ddd; border-radius: 20px; padding: 3px 10px; font-family: monospace; font-size: 0.78rem; }
+        .copy-btn { background: #fff; border: 1px solid #d0dae6; border-radius: 20px; padding: 4px 12px; font-size: 0.75rem; color: #4A6CF7; cursor: pointer; }
+        .match-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; }
+        .badge-5 { background: #ffe0e0; color: #c0392b; }
+        .badge-4 { background: #ffeacc; color: #d35400; }
+        .badge-3 { background: #fff7cc; color: #b7950b; }
+        .badge-2 { background: #e3f2fd; color: #2980b9; }
+        .badge-1 { background: #eef2f7; color: #7f8c8d; }
+        .badge-0 { background: #f5f5f5; color: #95a5a6; }
+        .switch-btn { background: #f1f5fa; border: none; border-radius: 20px; padding: 6px 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .switch-btn.active { background: var(--warning); color: #fff; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 600px) {
@@ -351,7 +370,7 @@
             <button class="tab-btn" onclick="switchMode('mode3')">模式三：批量开奖匹配</button>
         </div>
 
-        <!-- 模式一 -->
+        <!-- 模式一：号码匹配分析（新） -->
         <div class="mode-panel active" id="modeMatch">
             <div class="base-number-display" id="baseNumberDisplay">
                 <div style="font-size:0.75rem;margin-bottom:8px;">📌 当前基准号码（前区5码）</div>
@@ -362,14 +381,19 @@
                 <button class="btn btn-outline btn-sm" id="btnReset" style="display:none;" onclick="resetAll()">🔄 重新开始</button>
             </div>
             <div class="results-container" id="resultsContainer">
-                <div id="globalMaxHitMatch" style="font-size:1.2rem;font-weight:700;margin-bottom:12px;color:var(--primary);"></div>
                 <div id="resultsSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
-                <div id="groupMatchArea"></div>
-                <div id="invalidAreaMatch"></div>
+                <div class="stats-table-wrap">
+                    <table class="stats-table">
+                        <thead><tr><th>命中数</th><th>组数</th><th>占比</th></tr></thead>
+                        <tbody id="statsTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="hitDetailsArea"></div>
+                <div id="groupMatchArea" style="margin-top:20px;"></div>
             </div>
         </div>
 
-        <!-- 模式二 -->
+        <!-- 模式二：奖金统计（原版，仅改统计说明格式） -->
         <div class="mode-panel" id="modeSSQ">
             <div style="margin-bottom:16px;">
                 <label class="section-label">📌 开奖号码（前区5码-后区2码）</label>
@@ -390,7 +414,7 @@
             </div>
         </div>
 
-        <!-- 模式三：批量开奖匹配 -->
+        <!-- 模式三：批量开奖匹配（原版不变） -->
         <div class="mode-panel" id="mode3">
             <div style="margin-bottom:16px;">
                 <label class="section-label">📌 开奖号码（每行一组，可只前区或前区-后区）</label>
@@ -426,7 +450,7 @@
         <div class="modal-card" style="max-width:580px;">
             <h3>📝 对比号码</h3>
             <div class="modal-ref">基准：<strong id="modal2BaseRef"></strong></div>
-            <textarea class="input-textarea" id="bulkInput" style="min-height:200px;" placeholder="每行一组前区号码（只需前区，支持复式/胆拖，胆拖可跨行）&#10;例如：&#10;1,2,3,4,5&#10;1,2,3,4,5,6&#10;前区胆：1 前区拖：2,3,4,5,6&#10;（如果带了后区也会被忽略）"></textarea>
+            <textarea class="input-textarea" id="bulkInput" style="min-height:200px;" placeholder="每行一组前区号码（只需前区，支持复式/胆拖）&#10;例如：&#10;1,2,3,4,5&#10;1,2,3,4,5,6&#10;前区胆：1 前区拖：2,3,4,5,6&#10;（如果带了后区也会被忽略）"></textarea>
             <div class="modal-actions">
                 <button class="btn btn-outline btn-sm" onclick="closeModal2()">取消</button>
                 <button class="btn btn-primary btn-sm" onclick="confirmBulkData()">分析</button>
@@ -434,8 +458,7 @@
         </div>
     </div>
     <div class="toast" id="toast"></div>
-
-    <script>
+        <script>
         (function() {
             const $ = id => document.getElementById(id);
 
@@ -456,7 +479,7 @@
                 $(panelMap[m]).classList.add('active');
             };
 
-            // ---------- 解析工具 ----------
+            // ---------- 通用解析工具 ----------
             function parseNumList(str) {
                 if (!str) return [];
                 let cleaned = str.replace(/，/g, ',').replace(/[\s\u3000]+/g, '').replace(/[;；]/g, ',');
@@ -712,7 +735,7 @@
                 })[s]);
             }
 
-            // ===== 模式一 =====
+            // ===== 模式一：号码匹配分析（新，来自第二段代码） =====
             let baseSet = null, baseDisp = [];
 
             function updateBaseDisplay() {
@@ -755,94 +778,101 @@
             }
             window.closeModal2 = () => $('modalOverlay2').classList.remove('open');
 
+            window.copyList = (id) => {
+                let el = document.getElementById(id);
+                if (!el) return;
+                let txt = Array.from(el.querySelectorAll('.combo-tag')).map(s => s.textContent).join('\n');
+                navigator.clipboard.writeText(txt).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
+            };
+
             window.confirmBulkData = () => {
                 let raw = $('bulkInput').value;
                 if (!raw.trim()) { showToast('⚠️ 请输入号码', 'warning'); return; }
-                let lines = mergeMultilineBets(raw);
+                let lines = raw.split(/\n|\r\n|\r/);
+                let totalCounts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
                 let groupStats = {};
-                let totalCombinations = 0;
-                let totalLines = 0, invalidLines = 0;
-                let invalidList = [];
+                let totalValid = 0, totalLines = 0, invalidLines = 0;
+                let invalidEx = [];
+                let seenCombos = new Set();
+                let hit3 = [], hit4 = [], hit5 = [];
 
-                for (let idx = 0; idx < lines.length; idx++) {
-                    let line = lines[idx].trim();
-                    if (!line) continue;
+                for (let line of lines) {
+                    let t = line.trim();
+                    if (!t) continue;
                     totalLines++;
-                    // 模式一：允许无后区（只看前区）
-                    let parsed = parseBetLine(line, true);
-                    if (parsed.error) {
+                    // 模式一只关心前区，如果行内含有“-”，只取前半部分
+                    let frontStr = t;
+                    if (t.includes('-')) frontStr = t.split('-')[0].trim();
+                    let parsed = parseFrontPart(frontStr);
+                    if (parsed.error || !parsed.combos || parsed.combos.length === 0) {
                         invalidLines++;
-                        invalidList.push({ line: idx + 1, content: line.substring(0, 60), reason: parsed.error });
+                        if (invalidEx.length < 5) invalidEx.push({ line: t.substring(0, 40), reason: parsed.error || '无法生成组合' });
                         continue;
                     }
                     let gkey = parsed.groupKey;
-                    if (!groupStats[gkey]) {
-                        groupStats[gkey] = {
-                            totalCombinations: 0, actualCount: 0,
-                            maxHit: -1, minHit: 99,
-                            hitDist: {0:0,1:0,2:0,3:0,4:0,5:0},
-                            details: []
-                        };
+                    if (!groupStats[gkey]) groupStats[gkey] = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, total: 0 };
+                    for (let combo of parsed.combos) {
+                        totalValid++;
+                        groupStats[gkey].total++;
+                        let hit = 0;
+                        for (let n of combo) if (baseSet.has(parseInt(n))) hit++;
+                        totalCounts[hit]++;
+                        groupStats[gkey][hit]++;
+                        let comboStr = combo.join(',');
+                        if (!seenCombos.has(comboStr)) {
+                            seenCombos.add(comboStr);
+                            if (hit === 3) hit3.push(comboStr);
+                            else if (hit === 4) hit4.push(comboStr);
+                            else if (hit === 5) hit5.push(comboStr);
+                        }
                     }
-                    totalCombinations += parsed.totalCombinations;
-                    groupStats[gkey].totalCombinations += parsed.totalCombinations;
-                    groupStats[gkey].actualCount += parsed.actualCount;
-
-                    let { maxHit, minHit } = calcHitRange(parsed.frontDanNums, parsed.frontTuoNums, parsed.frontNeedTuos, baseSet);
-                    if (maxHit > groupStats[gkey].maxHit) groupStats[gkey].maxHit = maxHit;
-                    if (minHit < groupStats[gkey].minHit) groupStats[gkey].minHit = minHit;
-                    groupStats[gkey].hitDist[maxHit] = (groupStats[gkey].hitDist[maxHit] || 0) + 1;
-                    groupStats[gkey].details.push({
-                        frontAll: parsed.frontAllNums, backAll: parsed.backAllNums,
-                        maxHit, minHit, line: line
-                    });
                 }
                 closeModal2();
 
-                let globalMaxHit = 0;
-                for (let key in groupStats) {
-                    if (groupStats[key].maxHit > globalMaxHit) globalMaxHit = groupStats[key].maxHit;
-                }
-                $('globalMaxHitMatch').textContent = `🎯 全部最多中 ${globalMaxHit} 个`;
-
-                let summaryHTML = `
+                // 总摘要
+                $('resultsSummary').innerHTML = `
                     <div class="summary-chip"><strong>${totalLines}</strong>输入行</div>
-                    <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalCombinations}</strong>总注数(组合)</div>
-                    <div class="summary-chip" style="${invalidLines?'border-color:#e74c3c;':''}"><strong>${invalidLines}</strong>无效行</div>
+                    <div class="summary-chip" style="border-color:#27ae60;"><strong style="color:#27ae60;">${totalValid}</strong>有效单注</div>
+                    <div class="summary-chip" style="${invalidLines ? 'border-color:#e74c3c;' : ''}"><strong>${invalidLines}</strong>无效行</div>
                     <div class="summary-chip"><strong>${baseDisp.join(',')}</strong>基准</div>`;
-                $('resultsSummary').innerHTML = summaryHTML;
 
-                let groupHtml = '<h3 style="margin-bottom:12px;">📊 按投注类型统计（每行算1注）</h3>';
+                // 总统计表
+                let rows = '';
+                for (let m = 5; m >= 0; m--) {
+                    let cnt = totalCounts[m], pct = totalValid ? ((cnt / totalValid) * 100).toFixed(2) : '0.00';
+                    let label = m === 5 ? '🎯全中' : m === 4 ? '🔥中4' : m === 3 ? '⭐中3' : `中${m}`;
+                    rows += `<tr><td><span class="match-badge badge-${m}">${label}</span></td><td><strong>${cnt}</strong></td><td>${pct}%</td></tr>`;
+                }
+                $('statsTableBody').innerHTML = rows;
+
+                // 命中详情
+                let detail = '';
+                [{ l: '🎯全中5', d: hit5 }, { l: '🔥中4', d: hit4 }, { l: '⭐中3', d: hit3 }].forEach(b => {
+                    if (b.d.length) {
+                        let uid = 'mlist_' + b.l;
+                        detail += `<div class="hit-detail-block"><div class="hit-detail-header"><span>${b.l} (${b.d.length}种)</span><button class="copy-btn" onclick="copyList('${uid}')">复制</button></div><div class="hit-detail-body" id="${uid}">${b.d.map(c => `<span class="combo-tag">${c}</span>`).join('')}</div></div>`;
+                    }
+                });
+                $('hitDetailsArea').innerHTML = detail;
+
+                // 分组统计
+                let groupHtml = '<h3 style="margin-bottom:10px;">📊 按投注类型分组统计</h3>';
                 let sortedKeys = sortGroupKeys(Object.keys(groupStats));
                 for (let key of sortedKeys) {
                     let g = groupStats[key];
-                    groupHtml += `<div class="group-block"><div class="group-title">🔹 ${key} (共${g.actualCount}注)</div>`;
-                    groupHtml += '<div class="group-stats">';
-                    groupHtml += `<div class="group-stat-item">注数 <strong>${g.actualCount}</strong></div>`;
-                    groupHtml += `<div class="group-stat-item">最多命中 <strong>${g.maxHit}</strong></div>`;
-                    groupHtml += `<div class="group-stat-item">最少命中 <strong>${g.minHit}</strong></div>`;
-                    groupHtml += '</div>';
-                    groupHtml += '<table class="distribution-table"><thead><tr><th>命中数</th><th>注数</th></tr></thead><tbody>';
+                    groupHtml += `<div class="group-block"><div class="group-title">🔹 ${key} （共${g.total}注）</div>`;
+                    groupHtml += '<table class="stats-table" style="margin-bottom:0;"><thead><tr><th>命中数</th><th>注数</th><th>占比</th></tr></thead><tbody>';
                     for (let m = 5; m >= 0; m--) {
-                        if (g.hitDist[m] > 0) groupHtml += `<tr><td>命中 ${m} 个</td><td>${g.hitDist[m]} 注</td></tr>`;
+                        let cnt = g[m] || 0;
+                        let pct = g.total ? ((cnt / g.total) * 100).toFixed(2) : '0.00';
+                        groupHtml += `<tr><td>中${m}个</td><td>${cnt}</td><td>${pct}%</td></tr>`;
                     }
-                    groupHtml += '</tbody></table>';
-                    if (g.details.length > 0) {
-                        let highHits = g.details.filter(d => d.maxHit >= 4);
-                        if (highHits.length > 0) {
-                            groupHtml += '<div style="margin-top:10px;font-weight:600;">🎯 中高命中详情：</div>';
-                            highHits.forEach(item => {
-                                groupHtml += `<div style="margin:4px 0;">最多中 ${item.maxHit} 个，号码范围：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}</div>`;
-                            });
-                        }
-                    }
-                    groupHtml += '</div>';
+                    groupHtml += '</tbody></table></div>';
                 }
-                if (sortedKeys.length === 0) groupHtml += '<p style="text-align:center;color:#999;">暂无有效数据</p>';
                 $('groupMatchArea').innerHTML = groupHtml;
-                $('invalidAreaMatch').innerHTML = renderInvalidList(invalidList);
+
                 $('resultsContainer').classList.add('visible');
-                showToast(`✅ 共 ${totalLines} 行参与对比`, 'success');
+                showToast(`✅ 共 ${totalValid} 注参与对比`, 'success');
             };
 
             window.resetAll = () => {
@@ -854,8 +884,7 @@
                 setTimeout(openModal1, 300);
             };
             updateBtn();
-
-            // ===== 模式二 =====
+                        // ===== 模式二：奖金统计（原版，仅改最前面统计说明格式） =====
             let lastSSQResultText = '';
             let poolHigh = false;
             const prizeMapLow = { '5+2':5000000, '5+1':500000, '5+0':5000, '4+2':5000, '4+1':300, '4+0':150, '3+2':150, '3+1':15, '2+2':15, '3+0':5, '2+1':5, '1+2':5, '0+2':5, '2+0':0, '1+1':0, '0+1':0, '1+0':0, '0+0':0 };
@@ -873,10 +902,12 @@
                 let totalCombinations = 0;
                 let invalidList = [];
 
-                let globalStats = {
-                    '5': { total: 0, sub: {'5+2':0, '5+1':0, '5+0':0} },
-                    '4': { total: 0, sub: {'4+2':0, '4+1':0, '4+0':0} },
-                    '3': { total: 0, sub: {'3+2':0, '3+1':0, '3+0':0} }
+                // 全局统计：每个前区命中数下，各后区命中的注数
+                // 结构：globalByFront[frontHit][backHit] = 注数，同时记录该前区命中的分组明细
+                let globalByFront = {
+                    5: { total: 0, sub: {}, groupDetail: {} },
+                    4: { total: 0, sub: {}, groupDetail: {} },
+                    3: { total: 0, sub: {}, groupDetail: {} }
                 };
 
                 for (let idx = 0; idx < lines.length; idx++) {
@@ -912,7 +943,7 @@
                             let key = frontHit + '+' + backHit;
                             let prize = prizeMap[key] || 0;
                             linePrize += prize;
-                            if (maxGrade.frontHit === -1 || compareGrade({frontHit, backHit}, maxGrade) > 0) {
+                            if (maxGrade.frontHit === -1 || compareGrade({ frontHit, backHit }, maxGrade) > 0) {
                                 maxGrade = { frontHit, backHit, prize };
                             }
                         }
@@ -920,16 +951,14 @@
 
                     groupStats[gkey].totalPrize += linePrize;
 
+                    // 全局统计：按每行的最高等级归类（前区命中数 + 后区命中数）
                     let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
-                    if (maxGrade.frontHit === 5 && globalStats['5'].sub[maxKey] !== undefined) {
-                        globalStats['5'].total++;
-                        globalStats['5'].sub[maxKey]++;
-                    } else if (maxGrade.frontHit === 4 && globalStats['4'].sub[maxKey] !== undefined) {
-                        globalStats['4'].total++;
-                        globalStats['4'].sub[maxKey]++;
-                    } else if (maxGrade.frontHit === 3 && globalStats['3'].sub[maxKey] !== undefined) {
-                        globalStats['3'].total++;
-                        globalStats['3'].sub[maxKey]++;
+                    if (globalByFront[maxGrade.frontHit]) {
+                        let gf = globalByFront[maxGrade.frontHit];
+                        gf.total++;
+                        gf.sub[maxKey] = (gf.sub[maxKey] || 0) + 1;
+                        if (!gf.groupDetail[maxKey]) gf.groupDetail[maxKey] = {};
+                        gf.groupDetail[maxKey][gkey] = (gf.groupDetail[maxKey][gkey] || 0) + 1;
                     }
 
                     if (compareGrade(maxGrade, groupStats[gkey].maxGrade) > 0) groupStats[gkey].maxGrade = maxGrade;
@@ -955,43 +984,54 @@
 
                 let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
 
-                let statsLines = [];
-                let maxFront = globalMaxGrade.frontHit;
-
-                function buildStatLine(level) {
-                    let gs = globalStats[level];
-                    if (gs.total === 0) return null;
-                    let subParts = [];
-                    let subKeys = level === '5' ? ['5+2','5+1','5+0'] : level === '4' ? ['4+2','4+1','4+0'] : ['3+2','3+1','3+0'];
+                // ===== 新的统计说明格式 =====
+                // 第一行：先总述中4个、中3个各多少注
+                // 后面每行：某奖级X+Y有N注，投注类型A有n1注，投注类型B有n2注。
+                function buildFrontSummary(frontLevel) {
+                    let gf = globalByFront[frontLevel];
+                    if (!gf || gf.total === 0) return null;
+                    let subKeys = frontLevel === 5 ? ['5+2','5+1','5+0'] : frontLevel === 4 ? ['4+2','4+1','4+0'] : ['3+2','3+1','3+0'];
+                    let lines = [];
                     for (let k of subKeys) {
-                        if (gs.sub[k] > 0) {
-                            subParts.push(`${k.replace('+','➕')}的有${gs.sub[k]}注`);
-                        }
+                        let cnt = gf.sub[k] || 0;
+                        if (cnt === 0) continue;
+                        let detailMap = gf.groupDetail[k] || {};
+                        // 按分组名排序
+                        let gkeys = sortGroupKeys(Object.keys(detailMap));
+                        let parts = gkeys.map(gk => `${gk}有${detailMap[gk]}注`);
+                        lines.push(`${k.replace('+', '+')}有${cnt}注，${parts.join('，')}。`);
                     }
-                    return `中${level}个的有${gs.total}注${subParts.length > 0 ? '，其中' + subParts.join('，') : ''}。`;
+                    return lines;
                 }
 
-                if (maxFront >= 5) {
-                    let l5 = buildStatLine('5');
-                    let l4 = buildStatLine('4');
-                    let l3 = buildStatLine('3');
-                    if (l5) statsLines.push(l5);
-                    if (l4) statsLines.push(l4);
-                    if (l3) statsLines.push(l3);
-                } else if (maxFront >= 4) {
-                    let l4 = buildStatLine('4');
-                    let l3 = buildStatLine('3');
-                    if (l4) statsLines.push(l4);
-                    if (l3) statsLines.push(l3);
-                } else if (maxFront >= 3) {
-                    let l3 = buildStatLine('3');
-                    if (l3) statsLines.push(l3);
+                // 总述行：中X个的有N注
+                let overviewParts = [];
+                let detailLines = [];
+
+                if (globalByFront[5] && globalByFront[5].total > 0) {
+                    overviewParts.push(`中5个的有${globalByFront[5].total}注`);
+                    let l = buildFrontSummary(5);
+                    if (l) detailLines.push(...l);
+                }
+                if (globalByFront[4] && globalByFront[4].total > 0) {
+                    overviewParts.push(`中4个的有${globalByFront[4].total}注`);
+                    let l = buildFrontSummary(4);
+                    if (l) detailLines.push(...l);
+                }
+                if (globalByFront[3] && globalByFront[3].total > 0) {
+                    overviewParts.push(`中3个的有${globalByFront[3].total}注`);
+                    let l = buildFrontSummary(3);
+                    if (l) detailLines.push(...l);
                 }
 
-                if (statsLines.length > 0) {
-                    resultText += '\n' + statsLines.join('\n') + '\n';
+                if (overviewParts.length > 0) {
+                    resultText += '\n' + overviewParts.join('，') + '。\n';
+                }
+                if (detailLines.length > 0) {
+                    resultText += detailLines.join('\n') + '\n';
                 }
 
+                // 全部总计
                 resultText += `\n===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
                 let grandTotalPrize = 0;
                 for (let gkey in groupStats) grandTotalPrize += groupStats[gkey].totalPrize;
@@ -1051,7 +1091,7 @@
                 navigator.clipboard.writeText(lastSSQResultText).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
             };
 
-            // ===== 模式三：批量开奖匹配 =====
+            // ===== 模式三：批量开奖匹配（原版不变） =====
             window.copyMode3Detail = function(boxId) {
                 let el = document.getElementById(boxId);
                 if (!el) { showToast('复制失败', 'error'); return; }
