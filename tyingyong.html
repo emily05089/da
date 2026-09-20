@@ -362,34 +362,23 @@ hr{margin:10px 0;border-color:#eee;}
 <!-- 重复组合中奖统计（含清空 + 自动填充） -->
 <div class="modal-overlay" id="repeatPrizeModalOverlay"><div class="modal-box" style="max-width:600px;"><div class="modal-title">📈 选择中奖组合（仅前区）</div><div class="number-grid" id="repeatPrizeGridFront"><div class="zone-row" id="rpZoneF1"></div><div class="zone-row" id="rpZoneF2"></div><div class="zone-row" id="rpZoneF3"></div></div><div class="tag" style="margin-top:8px;">前区已选 <span id="repeatPrizeCount">0</span> 个（需选5个）</div><div class="modal-buttons"><button class="btn btn-outline" id="btnRepeatPrizeClear">🗑️ 清空</button><button class="btn btn-outline" id="btnRepeatPrizeCancel">取消</button><button class="btn btn-verify" id="btnRepeatPrizeConfirm">开始统计</button></div><div id="repeatPrizeResult" style="margin-top:12px;max-height:400px;overflow-y:auto;display:none;"></div></div></div>
 
-<!-- 固定2 中N筛选（打开即列出所有剩余组合供勾选） -->
+<!-- 固定2 中N筛选（中3/中4共用，含勾选框） -->
 <div class="modal-overlay" id="fix2MidNModalOverlay">
   <div class="modal-box" style="max-width:900px;">
     <div class="modal-title" id="fix2MidNTitle">🎯 固定2：中3筛选</div>
     <div id="fix2Info" style="font-size:12px;color:#555;margin-bottom:8px;"></div>
     <div style="font-weight:600;margin-top:6px;">勾选要统计的注数类型（不勾=全部）：</div>
     <div class="f2-row" id="fix2TypeRow"></div>
-    <div style="font-weight:600;margin-top:8px;">命中注数区间（仅用于默认勾选，可手动调整）：</div>
+    <div style="font-weight:600;margin-top:8px;">填写命中注数区间（含端点）：</div>
     <div class="flex-row" style="margin-top:4px;">
       <input type="number" class="modal-input" id="fix2Min" placeholder="最小注数" style="flex:1;margin-bottom:0;" value="1">
       <span style="align-self:center;">～</span>
       <input type="number" class="modal-input" id="fix2Max" placeholder="最大注数" style="flex:1;margin-bottom:0;" value="99999">
     </div>
-    <div style="margin-top:10px;">
-checkbox      <label class="select-all-label"><"input type=" id="fix2SelectAll"> 全选/取消全选</label>
-      <span id="fix2CountInfo" style="margin-left:12px;font-size:12px;color:#888;"></span>
-    </div>
-    <div id="fix2ListWrap" style="max-height:45vh;overflow-y:auto;margin-top:8px;border:1px solid var(--border);border-radius:10px;padding:6px;">
-      <div id="fix2ListLoading" style="text-align:center;color:#999;padding:20px;">正在生成列表...</div>
-      <table class="content-table" id="fix2ListTable" style="display:none;">
-        <thead><tr><th class="cb-cell">选</th><th>剩余组合</th><th>命中注数</th><th>明细</th></tr></thead>
-        <tbody id="fix2ListBody"></tbody>
-      </table>
-    </div>
     <div class="modal-buttons">
       <button class="btn btn-outline" id="btnFix2MidNCancel">取消</button>
-      <button class="btn btn-danger" id="btnFix2MidNExclude">❌ 删除勾选</button>
-      <button class="btn btn-verify" id="btnFix2MidNKeep">⭐ 保留勾选</button>
+      <button class="btn btn-danger" id="btnFix2MidNExclude">❌ 删除</button>
+      <button class="btn btn-verify" id="btnFix2MidNKeep">⭐ 保留</button>
     </div>
   </div>
 </div>
@@ -401,7 +390,7 @@ checkbox      <label class="select-all-label"><"input type=" id="fix2SelectAll">
 </div>
 <script>
 (function(){
-// ========== 历史数据（第一组 02,05,07,14,22） ==========
+    // ========== 历史数据（第一组 02,05,07,14,22） ==========
 var HISTORY_LINES = [
 "02,05,07,14,22",
 "14,17,21,25,28",
@@ -999,9 +988,9 @@ var HISTORY_LINES = [
 "3,12,15,29,34","29,32,33,34,35","6,8,18,29,34","1,3,9,19,34","2,8,11,21,23",
 "14,16,25,26,35","1,16,20,23,28","1,9,19,20,30","6,10,16,17,25","3,4,18,23,32",
 "15,22,31,34,35","22,24,29,31,35"
-// ==== 如需更多历史组合，请继续在此行下方追加，格式："01,02,03,04,05", ====
 ];
 
+// ========== 解析历史 ==========
 var HISTORY_SET=new Set();
 var HISTORY_ARRAYS=[];
 for(var i=0;i<HISTORY_LINES.length;i++){
@@ -2706,7 +2695,7 @@ function confirmVerify(){
     document.getElementById('verifyResult').style.display='block';
 }
 
-// ========== 固定2：中N 筛选（打开即列出所有剩余组合供勾选） ==========
+// ========== 固定2：中N 筛选（中3/中4 通用，无预览，直接生效） ==========
 var fix2MidNMode=3;
 var fix2MidNAction='keep';
 
@@ -2731,101 +2720,52 @@ function openFix2MidNModal(mode,action){
     }
     document.getElementById('fix2Min').value=1;
     document.getElementById('fix2Max').value=99999;
-    document.getElementById('fix2SelectAll').checked=false;
-    document.getElementById('fix2ListBody').innerHTML='';
-    document.getElementById('fix2ListLoading').style.display='block';
-    document.getElementById('fix2ListLoading').textContent='正在生成列表...';
-    document.getElementById('fix2ListTable').style.display='none';
-    document.getElementById('fix2CountInfo').textContent='';
     document.getElementById('fix2MidNModalOverlay').style.display='flex';
-    setTimeout(function(){ buildFix2List(); }, 30);
 }
+function closeFix2MidNModal(){document.getElementById('fix2MidNModalOverlay').style.display='none';}
 
-function closeFix2MidNModal(){
-    document.getElementById('fix2MidNModalOverlay').style.display='none';
-}
-
-// 生成勾选列表（分批渲染，避免卡顿）
-function buildFix2List(){
+function computeFix2MidNSet(){
     var minN=parseInt(document.getElementById('fix2Min').value,10);
     var maxN=parseInt(document.getElementById('fix2Max').value,10);
-    if(isNaN(minN))minN=0;
-    if(isNaN(maxN))maxN=999999;
+    if(isNaN(minN)||isNaN(maxN)||minN<0||maxN<minN){alert('请输入有效区间');return null;}
     var selTypes=[];
     document.querySelectorAll('.f2-type-cb:checked').forEach(function(cb){selTypes.push(cb.value);});
-
-    var aliveList=[];
-    for(var i=0;i<TOTAL;i++) if(filteredAlive[i]) aliveList.push(i);
-
-    var body=document.getElementById('fix2ListBody');
-    body.innerHTML='';
-    var rowHtmls=[];
-    var checkedCount=0;
-    var totalCount=0;
-
-    for(var p=0;p<aliveList.length;p++){
-        var ci=aliveList[p];
-        var nums=unmaskFront(masksLow[ci],masksHigh[ci]);
-        var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',');
+    var useTypes=selTypes.length>0;
+    var idxSet=new Set();
+    var listLen=fixed2List.length;
+    for(var i=0;i<TOTAL;i++){
+        if(!filteredAlive[i])continue;
+        var nums=unmaskFront(masksLow[i],masksHigh[i]);
         var hitCount=0;
-        var detail={};
-        for(var j=0;j<fixed2List.length;j++){
+        for(var j=0;j<listLen;j++){
             var f2=fixed2List[j];
-            if(selTypes.length && selTypes.indexOf(f2.type)===-1) continue;
+            if(useTypes&&selTypes.indexOf(f2.type)===-1)continue;
             var mf=0,f2arr=f2.front;
-            for(var x=0;x<nums.length;x++) if(f2arr.indexOf(nums[x])!==-1) mf++;
-            if(mf===fix2MidNMode){ hitCount++; detail[f2.type]=(detail[f2.type]||0)+1; }
+            for(var x=0;x<nums.length;x++)if(f2arr.indexOf(nums[x])!==-1)mf++;
+            if(mf===fix2MidNMode)hitCount++;
         }
-        var isMatch=(hitCount>=minN && hitCount<=maxN);
-        if(isMatch) checkedCount++;
-        totalCount++;
-        var detailStr='';
-        for(var k in detail) detailStr+=(detailStr?', ':'')+k+'有'+detail[k]+'注';
-        var checkedAttr = isMatch ? 'checked' : '';
-        rowHtmls.push('<tr><td class="cb-cell"><input type="checkbox" class="fix2-list-cb" data-idx="'+ci+'" '+checkedAttr+'></td><td>'+comboStr+'</td><td>'+hitCount+'</td><td style="text-align:left;">'+(detailStr||'—')+'</td></tr>');
+        if(hitCount>=minN&&hitCount<=maxN)idxSet.add(i);
     }
-
-    document.getElementById('fix2ListLoading').style.display='none';
-    document.getElementById('fix2ListTable').style.display='table';
-    document.getElementById('fix2CountInfo').textContent='共 '+totalCount+' 组，默认勾选 '+checkedCount+' 组';
-
-    var batchSize=300;
-    var idx=0;
-    function renderBatch(){
-        var end=Math.min(idx+batchSize,rowHtmls.length);
-        var html='';
-        for(var i=idx;i<end;i++) html+=rowHtmls[i];
-        body.insertAdjacentHTML('beforeend', html);
-        idx=end;
-        if(idx<rowHtmls.length) setTimeout(renderBatch, 10);
-        else{
-            var cbs=document.querySelectorAll('.fix2-list-cb');
-            var selectAll=document.getElementById('fix2SelectAll');
-            selectAll.checked = (cbs.length>0 && checkedCount===cbs.length);
-        }
-    }
-    renderBatch();
+    return idxSet;
 }
 
 function executeFix2MidN(action){
     if(!fixed2List.length){alert('请先固定2');return;}
-    var cbs=document.querySelectorAll('.fix2-list-cb');
-    if(!cbs.length){alert('列表尚未生成，请稍候');return;}
-    var checkedIdxSet=new Set();
-    for(var i=0;i<cbs.length;i++) if(cbs[i].checked) checkedIdxSet.add(parseInt(cbs[i].dataset.idx,10));
-    if(!checkedIdxSet.size){alert('请至少勾选一项');return;}
+    if(busy)return alert('处理中');
+    var idxSet=computeFix2MidNSet();
+    if(!idxSet)return;
+    if(!idxSet.size){alert('没有符合当前条件的组合');return;}
     var actLabel=(action==='keep'?'保留':'删除');
-    if(!confirm('确认对勾选的 '+checkedIdxSet.size.toLocaleString()+' 组执行【'+actLabel+'】？'))return;
+    if(!confirm('共匹配 '+idxSet.size.toLocaleString()+' 组，确认执行【'+actLabel+'】？'))return;
     closeFix2MidNModal();
     saveUndoState();
     var removed=0,kept=0;
     for(var i=0;i<TOTAL;i++){
         if(!filteredAlive[i])continue;
-        var isChecked=checkedIdxSet.has(i);
         if(action==='keep'){
-            if(isChecked){kept++;}else{filteredAlive[i]=0;removed++;}
+            if(idxSet.has(i)){kept++;}else{filteredAlive[i]=0;removed++;}
         }else{
-            if(isChecked){filteredAlive[i]=0;removed++;}else{kept++;}
+            if(idxSet.has(i)){filteredAlive[i]=0;removed++;}else{kept++;}
         }
     }
     filteredCount=kept;
@@ -3019,8 +2959,7 @@ function updateBlueStatus(){
     }
 }
 function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('💰 已切换：'+(prizeModeHigh?'奖池高于8亿模式':'奖池低于8亿模式'));}
-
-// ========== 初始化 ==========
+    // ========== 初始化 ==========
 function init(){
     try{
         buildAll();buildHistMasks();buildPairRankings();
@@ -3165,7 +3104,7 @@ function init(){
         bind('btnExcludeMulti',function(){document.getElementById('multiModalTextarea').value='';document.getElementById('multiModalOverlay').style.display='flex';});
         bind('btnExcludeMultiHit',function(){document.getElementById('multiHitModalTextarea').value='';document.querySelectorAll('#multiHitCheckboxes input').forEach(function(cb){cb.checked=false;});document.getElementById('multiHitModalOverlay').style.display='flex';});
 
-        // 固定2 中3/中4 事件
+        // 固定2 中3/中4 事件（无预览/无全选）
         bind('btnFix2Mid3Keep',function(){openFix2MidNModal(3,'keep');});
         bind('btnFix2Mid3Exclude',function(){openFix2MidNModal(3,'exclude');});
         bind('btnFix2Mid4Keep',function(){openFix2MidNModal(4,'keep');});
@@ -3173,31 +3112,6 @@ function init(){
         bind('btnFix2MidNCancel',closeFix2MidNModal);
         bind('btnFix2MidNKeep',function(){executeFix2MidN('keep');});
         bind('btnFix2MidNExclude',function(){executeFix2MidN('exclude');});
-        var sa=document.getElementById('fix2SelectAll');
-        if(sa)sa.addEventListener('change',function(){
-            var cbs=document.querySelectorAll('.fix2-list-cb');
-            for(var i=0;i<cbs.length;i++)cbs[i].checked=this.checked;
-        });
-        var f2TypeRow=document.getElementById('fix2TypeRow');
-        if(f2TypeRow)f2TypeRow.addEventListener('change',function(e){
-            if(e.target && e.target.classList.contains('f2-type-cb')){
-                document.getElementById('fix2ListBody').innerHTML='';
-                document.getElementById('fix2ListLoading').style.display='block';
-                document.getElementById('fix2ListLoading').textContent='正在生成列表...';
-                document.getElementById('fix2ListTable').style.display='none';
-                setTimeout(function(){ buildFix2List(); }, 30);
-            }
-        });
-        ['fix2Min','fix2Max'].forEach(function(id){
-            var el=document.getElementById(id);
-            if(el)el.addEventListener('change',function(){
-                document.getElementById('fix2ListBody').innerHTML='';
-                document.getElementById('fix2ListLoading').style.display='block';
-                document.getElementById('fix2ListLoading').textContent='正在生成列表...';
-                document.getElementById('fix2ListTable').style.display='none';
-                setTimeout(function(){ buildFix2List(); }, 30);
-            });
-        });
         bind('btnFix2ShowMid',showFix2ShowMid);
         bind('btnFix2ShowClose',function(){document.getElementById('fix2ShowMidOverlay').style.display='none';});
 
