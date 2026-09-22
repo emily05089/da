@@ -431,8 +431,6 @@ hr{margin:10px 0;border-color:#eee;}
 
 <button class="cancel-float-btn" id="btnGlobalCancel" style="display:none;">❌ 取消当前计算</button>
 </div>
-<script>
-(function(){
 var HISTORY_LINES = [
 "01,05,07,21,35","02,05,07,14,22","14,17,21,25,28","10,14,30,33,34","01,06,14,15,26",
 "03,16,17,32,35","01,03,07,27,28","09,11,18,26,33","02,06,11,15,31","02,17,20,29,33",
@@ -1021,8 +1019,7 @@ var HISTORY_LINES = [
 "1,16,20,23,28","1,9,19,20,30","6,10,16,17,25","3,4,18,23,32","15,22,31,34,35",
 "22,24,29,31,35"
 ];
-
-var HISTORY_SET=new Set();
+    var HISTORY_SET=new Set();
 var HISTORY_ARRAYS=[];
 for(var i=0;i<HISTORY_LINES.length;i++){
     var line=HISTORY_LINES[i];
@@ -1330,7 +1327,7 @@ function fixHistory2(){
     for(var k in fixed2Stats)s+=k+':'+fixed2Stats[k]+'注 ';
     log('📌 已固定2：共 '+list.length+' 注（'+s.trim()+'）');
 }
-    function genHit(cm,k){
+function genHit(cm,k){
     var nums=unmaskFront(cm.l,cm.h);
     if(k===5)return[cm];
     var others=[];
@@ -1416,7 +1413,7 @@ function doFilterPure(condMasks,opts){
         step(0);
     });
 }
-function applyFilterCore(mode){
+                            function applyFilterCore(mode){
     if(busy)return alert('处理中');
     var opts={zero:document.getElementById('chk0').checked,one:document.getElementById('chk1').checked,two:document.getElementById('chk2').checked,three:document.getElementById('chk3').checked,four:document.getElementById('chk4').checked,five:document.getElementById('chk5').checked};
     if(!opts.zero&&!opts.one&&!opts.two&&!opts.three&&!opts.four&&!opts.five)return alert('请勾选至少一个条件');
@@ -2097,7 +2094,7 @@ function confirmKeepTailCount(){
     for(var i=0;i<btns.length;i++){btns[i].classList.remove('selected');}
     applyKeepFilter('保留尾数模式'+targetPatterns.join('或'),function(arr){return targetPatterns.indexOf(getTailPattern(arr))!==-1;});
 }
-    function exportXLSX(){
+        function exportXLSX(){
     if(busy)return alert('处理中');
     if(!filteredCount)return alert('无组合');
     var startTime=Date.now();
@@ -2139,9 +2136,9 @@ function confirmKeepTailCount(){
                 if(hasFixed){
                     for(var ci=0;ci<repeatSortedCounts.length;ci++){
                         var cnt=repeatSortedCounts[ci];
-                        var combos=repeatMap.get(cnt);
+                        var combos2=repeatMap.get(cnt);
                         var maxFront=0;
-                        for(var k=0;k<combos.length;k++){var mf=0;for(var jj=0;jj<nums.length;jj++)if(combos[k].indexOf(nums[jj])!==-1)mf++;if(mf>maxFront)maxFront=mf;}
+                        for(var k=0;k<combos2.length;k++){var mf=0;for(var jj=0;jj<nums.length;jj++)if(combos2[k].indexOf(nums[jj])!==-1)mf++;if(mf>maxFront)maxFront=mf;}
                         row['repeat_'+cnt]=maxFront;
                     }
                 }
@@ -2349,6 +2346,33 @@ function closeViewPrizeModal(){
     if(viewPrizeRunning){viewPrizeRunning=false;return;}
     document.getElementById('viewPrizeModalOverlay').style.display='none';
 }
+function renderViewPrizeResult(top, bkSrc, totalFront, totalBack){
+    var html='<div style="margin-bottom:8px;"><b>共 '+(totalFront*totalBack).toLocaleString()+' 组合，显示奖金最少的前 '+top.length+' 组（后区来源：'+(bkSrc==='remain'?'当前剩余':'全部66组')+'）</b> <button class="btn btn-outline btn-sm" id="btnViewPrizeCopyAll">📋 全部复制</button> <button class="btn btn-outline btn-sm" id="btnViewPrizeCopyChecked">📋 复制勾选</button></div>';
+    html+='<table class="content-table"><thead><tr><th class="cb-cell">选</th><th>组合（前区+后区）</th><th>奖金（元）</th></tr></thead><tbody>';
+    for(var r=0;r<top.length;r++){
+        var nums=unmaskFront(masksLow[top[r].idx],masksHigh[top[r].idx]);
+        var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',')+'-'+String(top[r].b0).padStart(2,'0')+','+String(top[r].b1).padStart(2,'0');
+        html+='<tr><td class="cb-cell"><input type="checkbox" class="view-prize-cb" data-combo="'+comboStr+'"></td><td>'+comboStr+'</td><td>'+top[r].prize.toLocaleString()+'</td></tr>';
+    }
+    html+='</tbody></table>';
+    document.getElementById('viewPrizeResult').innerHTML=html;
+    document.getElementById('viewPrizeStatus').textContent='✅ 计算完成';
+    document.getElementById('btnViewPrizeCopyAll').onclick=function(){
+        var arr=[];
+        for(var i=0;i<top.length;i++){
+            var nums=unmaskFront(masksLow[top[i].idx],masksHigh[top[i].idx]);
+            arr.push(nums.map(function(n){return String(n).padStart(2,'0');}).join(',')+'-'+String(top[i].b0).padStart(2,'0')+','+String(top[i].b1).padStart(2,'0'));
+        }
+        copyText(arr.join('\n'),arr.length);
+    };
+    document.getElementById('btnViewPrizeCopyChecked').onclick=function(){
+        var arr=[];
+        document.querySelectorAll('.view-prize-cb:checked').forEach(function(cb){arr.push(cb.dataset.combo);});
+        if(!arr.length){alert('请先勾选');return;}
+        copyText(arr.join('\n'),arr.length);
+    };
+}
+// 修改3：查看奖金 高性能重写
 function confirmViewPrize(){
     if(viewPrizeRunning)return;
     var src=fixedHistoryRedBlue.slice();
@@ -2360,83 +2384,105 @@ function confirmViewPrize(){
     var frontList=[];
     for(var i=0;i<TOTAL;i++)if(filteredAlive[i])frontList.push({idx:i,l:masksLow[i],h:masksHigh[i]});
     if(!frontList.length){alert('无剩余前区');return;}
-    var hist=[];
+    // 1) 历史票去重（同前区掩码+同后区掩码合并，记录出现次数）
+    var histMap=new Map();
     for(var j=0;j<src.length;j++){
         var t=src[j];
         if(t.back===null||t.back===undefined)continue;
         var tm=maskFromFront(t.front);
         var bm=0;
         for(var k=0;k<t.back.length;k++) bm|=(1<<(t.back[k]-1));
-        hist.push({l:tm.l,h:tm.h,bm:bm});
+        var key=tm.l+'_'+tm.h+'_'+bm;
+        var e=histMap.get(key);
+        if(e){e.count++;}else{histMap.set(key,{fl:tm.l,fh:tm.h,bm:bm,count:1});}
     }
+    var hist=[];
+    histMap.forEach(function(v){hist.push(v);});
+    var U=hist.length;
+    if(!U){alert('历史票无后区数据');return;}
+    // 2) 后区掩码
     var bluesMasked=[];
     for(var bi=0;bi<blues.length;bi++){
         var bb=blues[bi],bm2=0;
         for(var k=0;k<bb.length;k++) bm2|=(1<<(bb[k]-1));
         bluesMasked.push({arr:bb,bm:bm2});
     }
+    var NB=bluesMasked.length;
+    // 3) 预计算每对(后区, 历史票)的后区命中数
+    var mbArr=new Array(NB);
+    for(var bi=0;bi<NB;bi++){
+        var arr=new Uint8Array(U);
+        var bm2=bluesMasked[bi].bm;
+        for(var i=0;i<U;i++) arr[i]=popcount32(bm2&hist[i].bm);
+        mbArr[bi]=arr;
+    }
+    // 4) 奖金查找表 [mf*3+mb]
+    var prizeLookup=new Float64Array(18);
+    for(var mf=0;mf<=5;mf++)for(var mb=0;mb<=2;mb++)prizeLookup[mf*3+mb]=prizeAmount(mf,mb);
+    // 5) 用最大堆只保留最小的500个
+    var HEAP_MAX=500;
+    var heap=[];
+    function heapPush(item){
+        if(heap.length<HEAP_MAX){
+            heap.push(item);
+            var i=heap.length-1;
+            while(i>0){
+                var p=(i-1)>>1;
+                if(heap[p].prize<heap[i].prize){var t=heap[p];heap[p]=heap[i];heap[i]=t;i=p;}else break;
+            }
+        }else if(item.prize<heap[0].prize){
+            heap[0]=item;
+            var i=0;
+            while(true){
+                var l=2*i+1,r=2*i+2,lg=i;
+                if(l<heap.length&&heap[l].prize>heap[lg].prize) lg=l;
+                if(r<heap.length&&heap[r].prize>heap[lg].prize) lg=r;
+                if(lg===i) break;
+                var t=heap[lg];heap[lg]=heap[i];heap[i]=t;i=lg;
+            }
+        }
+    }
+    // 6) 逐前区处理
     viewPrizeRunning=true;
     document.getElementById('viewPrizeProgress').style.display='block';
     document.getElementById('viewPrizeProgressBar').style.width='0%';
     document.getElementById('viewPrizeStatus').textContent='计算中...';
     document.getElementById('viewPrizeResult').innerHTML='';
-    var allResults=[];
+    var mfArr=new Int8Array(U);
     var hi=0;
-    var BATCH=500;
-    function processHist(){
+    var BATCH=Math.max(20,Math.min(2000,Math.floor(300000/(NB*U))));
+    var startTime=Date.now();
+    function processBatch(){
         if(!viewPrizeRunning)return;
         var end=Math.min(hi+BATCH,frontList.length);
         for(;hi<end;hi++){
             var fm=frontList[hi];
-            for(var bi=0;bi<bluesMasked.length;bi++){
-                var b=bluesMasked[bi];
-                var totalPrize=0;
-                for(var t=0;t<hist.length;t++){
-                    var interLow=fm.l&hist[t].l;
-                    var interHigh=fm.h&hist[t].h;
-                    var mf=popcount32(interLow)+popcount32(interHigh);
-                    var mb=popcount32(b.bm&hist[t].bm);
-                    var p=prizeAmount(mf,mb);
-                    if(p>0) totalPrize+=p;
+            var fl=fm.l,fh=fm.h;
+            for(var i=0;i<U;i++){
+                var h=hist[i];
+                mfArr[i]=popcount32(fl&h.fl)+popcount32(fh&h.fh);
+            }
+            for(var bi=0;bi<NB;bi++){
+                var mbA=mbArr[bi];
+                var prize=0;
+                for(var i=0;i<U;i++){
+                    prize+=hist[i].count*prizeLookup[mfArr[i]*3+mbA[i]];
                 }
-                allResults.push({idx:fm.idx,b0:b.arr[0],b1:b.arr[1],prize:totalPrize});
+                heapPush({prize:prize,idx:fm.idx,b0:bluesMasked[bi].arr[0],b1:bluesMasked[bi].arr[1]});
             }
         }
         var pct=Math.round(hi/frontList.length*100);
         document.getElementById('viewPrizeProgressBar').style.width=pct+'%';
-        document.getElementById('viewPrizeStatus').textContent='计算中... '+hi.toLocaleString()+' / '+frontList.length.toLocaleString();
-        if(hi<frontList.length){setTimeout(processHist,1);}
-        else{
-            allResults.sort(function(a,b){return a.prize-b.prize;});
-            var top=allResults.slice(0,500);
-            var html='<div style="margin-bottom:8px;"><b>共 '+allResults.length.toLocaleString()+' 组合，显示奖金最少的前 '+top.length+' 组（后区来源：'+(bkSrc==='remain'?'当前剩余':'全部66组')+'）</b> <button class="btn btn-outline btn-sm" id="btnViewPrizeCopyAll">📋 全部复制</button> <button class="btn btn-outline btn-sm" id="btnViewPrizeCopyChecked">📋 复制勾选</button></div>';
-            html+='<table class="content-table"><thead><tr><th class="cb-cell">选</th><th>组合（前区+后区）</th><th>奖金（元）</th></tr></thead><tbody>';
-            for(var r=0;r<top.length;r++){
-                var nums=unmaskFront(masksLow[top[r].idx],masksHigh[top[r].idx]);
-                var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',')+'-'+String(top[r].b0).padStart(2,'0')+','+String(top[r].b1).padStart(2,'0');
-                html+='<tr><td class="cb-cell"><input type="checkbox" class="view-prize-cb" data-combo="'+comboStr+'"></td><td>'+comboStr+'</td><td>'+top[r].prize.toLocaleString()+'</td></tr>';
-            }
-            html+='</tbody></table>';
-            document.getElementById('viewPrizeResult').innerHTML=html;
-            document.getElementById('viewPrizeStatus').textContent='✅ 计算完成';
+        document.getElementById('viewPrizeStatus').textContent='计算中... '+hi.toLocaleString()+' / '+frontList.length.toLocaleString()+'（'+((Date.now()-startTime)/1000).toFixed(1)+'秒）';
+        if(hi<frontList.length){
+            setTimeout(processBatch,0);
+        }else{
+            heap.sort(function(a,b){return a.prize-b.prize;});
+            renderViewPrizeResult(heap,bkSrc,frontList.length,NB);
             viewPrizeRunning=false;
-            document.getElementById('btnViewPrizeCopyAll').onclick=function(){
-                var arr=[];
-                for(var i=0;i<top.length;i++){
-                    var nums=unmaskFront(masksLow[top[i].idx],masksHigh[top[i].idx]);
-                    arr.push(nums.map(function(n){return String(n).padStart(2,'0');}).join(',')+'-'+String(top[i].b0).padStart(2,'0')+','+String(top[i].b1).padStart(2,'0'));
-                }
-                copyText(arr.join('\n'),arr.length);
-            };
-            document.getElementById('btnViewPrizeCopyChecked').onclick=function(){
-                var arr=[];
-                document.querySelectorAll('.view-prize-cb:checked').forEach(function(cb){arr.push(cb.dataset.combo);});
-                if(!arr.length){alert('请先勾选');return;}
-                copyText(arr.join('\n'),arr.length);
-            };
         }
     }
-    setTimeout(processHist,1);
+    setTimeout(processBatch,1);
 }
 function openBackFilterModal(action){
     if(!fixed2List.length){alert('请先点击"📌 固定2"');return;}
@@ -2460,6 +2506,7 @@ function openBackFilterModal(action){
     document.getElementById('backFilterModalOverlay').style.display='flex';
 }
 function closeBackFilterModal(){document.getElementById('backFilterModalOverlay').style.display='none';}
+// 修改2：后区筛选判定逻辑改为 OR（候选后区含任一命中号即计数）
 function executeBackFilter(action){
     if(!fixed2List.length){alert('请先固定2');return;}
     if(!remainingBackCombos.length){alert('后区已为空');return;}
@@ -2503,14 +2550,8 @@ function executeBackFilter(action){
             var hitCount=0;
             for(var j=0;j<pre.length;j++){
                 var item=pre[j];
-                var f=item.fix2;
-                var fm=maskFromFront(f.front);
-                var bm=0;bm|=(1<<(bb[0]-1));bm|=(1<<(bb[1]-1));
-                // 固定2该票的前区与当前 bb 后区"命中几个前区数字"：用固定2全前区作为中奖号码，用固定2全前区本身 => 5个
-                // 这里按需求：固定2的每张票，看其5个前区+自己的后区组合中，是否包含 bb；若包含则算 1 注
-                // bb 与 fix2 的 backAll 完全匹配（两者都在 fix2 的后区池中）
-                var bAll=[bb[0],bb[1]].sort(function(a,b){return a-b;});
-                var hit = (item.backSet[bb[0]] && item.backSet[bb[1]]);
+                // 修改：OR —— 候选后区任意一个号出现在该固定2票的后区池里即算命中
+                var hit = (item.backSet[bb[0]] || item.backSet[bb[1]]);
                 if(hit)hitCount++;
             }
             if(hitCount<minN || hitCount>maxN){ allMatch=false; }
@@ -2832,6 +2873,7 @@ function confirmVerify(){
     document.getElementById('verifyResult').style.display='block';
 }
 function openSmartRepeatModal(){document.getElementById('smartRepeatModalOverlay').style.display='flex';}
+// 修改1：智能重复排除 —— 基于固定1
 function _buildSmartRepeatData(){
     var minRepeat=parseInt(document.getElementById('smartRepeatMin').value);
     var maxRepeat=parseInt(document.getElementById('smartRepeatMax').value);
@@ -2839,11 +2881,18 @@ function _buildSmartRepeatData(){
     var selectedHits=[];
     document.querySelectorAll('#smartRepeatHits input:checked').forEach(function(cb){selectedHits.push(parseInt(cb.value));});
     if(!selectedHits.length){alert('请勾选命中个数');return null;}
+    // 改为使用固定1（fixedHistoryRedBlue）作为统计来源
+    if(!isPrizeHistoryFixed||!fixedHistoryRedBlue.length){alert('请先点击"📌 固定1"，智能重复排除基于固定1统计');return null;}
     var freqMap=new Map();
-    for(var i=0;i<historyCombos.length;i++){var key=historyCombos[i].map(function(n){return String(n).padStart(2,'0');}).join(',');freqMap.set(key,(freqMap.get(key)||0)+1);}
+    for(var i=0;i<fixedHistoryRedBlue.length;i++){
+        var f=fixedHistoryRedBlue[i].front;
+        if(!f||f.length!==5)continue;
+        var key=f.slice().sort(function(a,b){return a-b;}).map(function(n){return String(n).padStart(2,'0');}).join(',');
+        freqMap.set(key,(freqMap.get(key)||0)+1);
+    }
     var targetCombos=[];
     freqMap.forEach(function(cnt,key){if(cnt>=minRepeat&&cnt<=maxRepeat){var nums=key.split(',').map(Number);if(nums.length===5)targetCombos.push(nums);}});
-    if(!targetCombos.length){alert('没有符合条件的组合');return null;}
+    if(!targetCombos.length){alert('固定1中没有符合条件的重复组合');return null;}
     return {targetCombos:targetCombos,selectedHits:selectedHits};
 }
 function confirmSmartRepeat(){
@@ -3200,7 +3249,7 @@ function updateBlueStatus(){
     }
 }
 function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('💰 已切换：'+(prizeModeHigh?'奖池高于8亿模式':'奖池低于8亿模式'));}
-    function init(){
+function init(){
     try{
         initRemainingBackCombos();
         buildAll();buildHistMasks();buildPairRankings();
