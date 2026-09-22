@@ -3038,8 +3038,7 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
             prizeModeHigh=false;selectedBlues=null;pairRankMap=null;digitRankMap=null;
             pairRankContentCache=null;contentModalCache=null;headCountSelSet.clear();tailCountSelSet.clear();
             invertMode=false;fixed2List=[];fixed2Stats={};fix2SelTypes.clear();fix2ShowCache=[];
-            remainingBackCombos=[];remainingBackSet=new Set();
-            initRemainingBackCombos();
+            resetBackCombos();
             updateDisplay();updateBlueStatus();
             document.getElementById('inputArea').value='';
             document.getElementById('resultArea').style.display='none';
@@ -3088,26 +3087,12 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
         bind('btnContentModalClose',closeContentModal);
         bind('btnContentModalCloseTop',closeContentModal);
         bind('btnContentDeleteSelected',deleteCheckedFromContentModal);
-        bind('btnCopySelected',function(){
-            var ct=document.getElementById('contentModalOverlay').dataset.contentType;
-            if(ct==='backview'){
-                var arr=[];
-                document.querySelectorAll('.back-view-cb:checked').forEach(function(cb){
-                    var idx=parseInt(cb.dataset.idx,10);
-                    var bb=remainingBackCombos[idx];
-                    if(bb)arr.push(String(bb[0]).padStart(2,'0')+','+String(bb[1]).padStart(2,'0'));
-                });
-                if(!arr.length){alert('请先勾选');return;}
-                copyText(arr.join('\n'),arr.length);
-            }else{
-                copyCheckedFromContentModal();
-            }
-        });
+        bind('btnCopySelected',copyCheckedFromContentModal);
         bind('btnCopyAllDigits',function(){
             var ct=document.getElementById('contentModalOverlay').dataset.contentType;
-            if(ct==='backview'){copyBackCombosAll();return;}
             if(ct==='pairrank'&&pairRankContentCache){var all=pairRankContentCache.map(function(r){return r.combo;});copyText(all.join('\n'),all.length);}
             else if(ct==='digitstats'&&contentModalCache){var all=contentModalCache.map(function(r){return String(r.n).padStart(2,'0');});copyText(all.join('\n'),all.length);}
+            else if(ct==='backview'){copyBackCombosAll();}
             else alert('当前内容不支持复制全部');
         });
         bind('contentModalSelectAll',function(){var cbs=document.querySelectorAll('#contentModalBody input[type="checkbox"]');for(var i=0;i<cbs.length;i++)cbs[i].checked=this.checked;});
@@ -3186,7 +3171,6 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
         bind('btnRepeatPrizeClear',function(){repeatPrizeSel.clear();lastRepeatPrizeSel=[];drawRepeatPrizeGrid();document.getElementById('repeatPrizeCount').textContent='0';document.getElementById('repeatPrizeResult').style.display='none';});
         bind('btnExcludeMulti',function(){document.getElementById('multiModalTextarea').value='';document.getElementById('multiModalOverlay').style.display='flex';});
         bind('btnExcludeMultiHit',function(){document.getElementById('multiHitModalTextarea').value='';document.querySelectorAll('#multiHitCheckboxes input').forEach(function(cb){cb.checked=false;});document.getElementById('multiHitModalOverlay').style.display='flex';});
-        // 固定2 中N
         bind('btnFix2Mid3Keep',function(){openFix2MidNModal(3,'keep');});
         bind('btnFix2Mid3Exclude',function(){openFix2MidNModal(3,'exclude');});
         bind('btnFix2Mid4Keep',function(){openFix2MidNModal(4,'keep');});
@@ -3203,16 +3187,14 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
             var cbs=document.querySelectorAll('.fix2-show-cb');
             for(var i=0;i<cbs.length;i++)cbs[i].checked=this.checked;
         });
-        // 后区相关
         bind('btnKeepBackFilter',function(){openBackFilterModal('keep');});
-        bind('btnViewBackCombos',openViewBackCombosModal);
-        bind('btnViewPrize',openViewPrizeModal);
         bind('btnBackFilterCancel',closeBackFilterModal);
         bind('btnBackFilterKeep',function(){executeBackFilter('keep');});
         bind('btnBackFilterExclude',function(){executeBackFilter('exclude');});
-        bind('btnViewPrizeCancel',function(){viewPrizeRunning=false;document.getElementById('viewPrizeModalOverlay').style.display='none';});
+        bind('btnViewBackCombos',openViewBackCombosModal);
+        bind('btnViewPrize',openViewPrizeModal);
+        bind('btnViewPrizeCancel',closeViewPrizeModal);
         bind('btnViewPrizeConfirm',confirmViewPrize);
-        // 弹窗关闭
         bind('btnMatchModalCancelTop',function(){document.getElementById('matchModalOverlay').style.display='none';});
         bind('btnMatchModalCancel',function(){document.getElementById('matchModalOverlay').style.display='none';});
         bind('btnMatchModalConfirm',confirmMatchAnalysis);
@@ -3243,7 +3225,6 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
         bind('btnMultiHitModalConfirm',confirmMultiHitExclusion);
         bind('btnRepeatPrizeCancel',hideRepeatPrizeModal);
         bind('btnRepeatPrizeConfirm',confirmRepeatPrizeStats);
-        // 相反模式
         bind('btnInvertMode',function(){
             var target=!invertMode;
             document.getElementById('invertTitle').textContent=target?'开启相反模式':'关闭相反模式';
@@ -3259,31 +3240,39 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
             };
         });
         bind('btnInvertCancel',function(){document.getElementById('invertConfirmOverlay').style.display='none';});
-        document.querySelectorAll('.odd-even-btn').forEach(function(btn){
-            btn.addEventListener('click',function(){
-                var o=parseInt(this.dataset.odd),e=parseInt(this.dataset.even);
-                applyCustomFilter(o+'奇'+e+'偶',function(arr){var oe=countOddEven(arr);return oe.odd===o&&oe.even===e;});
-            });
-        });
-        document.querySelectorAll('.zone-btn').forEach(function(btn){
-            btn.addEventListener('click',function(){
-                var zone=parseInt(this.dataset.zone),count=parseInt(this.dataset.count);
-                var zoneName=zone===1?'第一区':(zone===2?'第二区':'第三区');
-                applyCustomFilter(zoneName+'恰好'+count+'个',function(arr){return countInZone(arr,zone)===count;});
-            });
-        });
-        document.querySelectorAll('#sortBtns .sort-btn').forEach(function(btn){
-            btn.addEventListener('click',function(){
-                currentSortMode=this.dataset.sort;
-                document.querySelectorAll('#sortBtns .sort-btn').forEach(function(b){b.classList.remove('active');});
-                this.classList.add('active');
-                if(statsGroups)renderStatsBatched();
-            });
-        });
+        var oddBtns=document.querySelectorAll('.odd-even-btn');
+        for(var oi=0;oi<oddBtns.length;oi++){
+            (function(b){
+                b.addEventListener('click',function(){
+                    var o=parseInt(b.getAttribute('data-odd'),10),e=parseInt(b.getAttribute('data-even'),10);
+                    applyCustomFilter(o+'奇'+e+'偶',function(arr){var oe=countOddEven(arr);return oe.odd===o&&oe.even===e;});
+                });
+            })(oddBtns[oi]);
+        }
+        var zoneBtns=document.querySelectorAll('.zone-btn');
+        for(var zi=0;zi<zoneBtns.length;zi++){
+            (function(b){
+                b.addEventListener('click',function(){
+                    var zone=parseInt(b.getAttribute('data-zone'),10),count=parseInt(b.getAttribute('data-count'),10);
+                    var zoneName=zone===1?'第一区':(zone===2?'第二区':'第三区');
+                    applyCustomFilter(zoneName+'恰好'+count+'个',function(arr){return countInZone(arr,zone)===count;});
+                });
+            })(zoneBtns[zi]);
+        }
+        var sortBtns=document.querySelectorAll('#sortBtns .sort-btn');
+        for(var si=0;si<sortBtns.length;si++){
+            (function(b){
+                b.addEventListener('click',function(){
+                    currentSortMode=b.dataset.sort;
+                    document.querySelectorAll('#sortBtns .sort-btn').forEach(function(x){x.classList.remove('active');});
+                    b.classList.add('active');
+                    if(statsGroups)renderStatsBatched();
+                });
+            })(sortBtns[si]);
+        }
         updateDisplay();updateBlueStatus();
         log('✅ 工具就绪，共 '+TOTAL.toLocaleString()+' 注前区组合');
         log('📌 历史数据已导入：'+HISTORY_ARRAYS.length+' 条');
-        log('🔵 后区初始：66 组');
     }catch(e){
         alert('初始化失败：'+e.message);
         console.error(e);
