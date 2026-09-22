@@ -282,6 +282,14 @@ hr{margin:10px 0;border-color:#eee;}
         <button class="btn btn-danger btn-sm" id="btnFix2Mid4Exclude">❌ 删除(按固定2中4)</button>
         <button class="btn btn-verify btn-sm" id="btnFix2ShowMid">📊 显示中3/中4情况</button>
     </div>
+    <hr>
+    <div style="font-weight:600;margin-bottom:4px;">🔵 后区相关</div>
+    <div class="flex-row">
+        <button class="btn btn-fixed btn-sm" id="btnKeepBackFilter">🎯 保留/删除后区</button>
+        <button class="btn btn-outline btn-sm" id="btnViewBackCombos">📋 查看后区情况</button>
+        <button class="btn btn-smart btn-sm" id="btnViewPrize">💰 查看奖金</button>
+    </div>
+    <div class="tag" id="backCountStatus" style="margin-top:4px;">（后区：66组）</div>
     <div id="exportHint" style="font-size:11px;color:#888;margin-top:4px;"></div>
     <div class="bottom-remain">当前剩余组合：<span class="badge" id="filteredBadgeBottom">0</span></div>
 </div>
@@ -381,11 +389,52 @@ hr{margin:10px 0;border-color:#eee;}
   </div>
 </div>
 
+<div class="modal-overlay" id="backFilterModalOverlay">
+  <div class="modal-box" style="max-width:700px;">
+    <div class="modal-title" id="backFilterTitle">🎯 后区筛选</div>
+    <div id="backFilterInfo" style="font-size:12px;color:#555;margin-bottom:8px;"></div>
+    <div style="font-weight:600;margin-top:6px;">勾选要统计的注数类型（不勾=全部）：</div>
+    <div class="f2-row" id="backFilterTypeRow"></div>
+    <div style="font-weight:600;margin-top:8px;">填写命中注数区间（含端点）：</div>
+    <div class="flex-row" style="margin-top:4px;">
+      <input type="number" class="modal-input" id="backFilterMin" placeholder="最小注数" style="flex:1;margin-bottom:0;" value="1">
+      <span style="align-self:center;">～</span>
+      <input type="number" class="modal-input" id="backFilterMax" placeholder="最大注数" style="flex:1;margin-bottom:0;" value="99999">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-outline" id="btnBackFilterCancel">取消</button>
+      <button class="btn btn-danger" id="btnBackFilterExclude">❌ 删除</button>
+      <button class="btn btn-verify" id="btnBackFilterKeep">⭐ 保留</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="viewPrizeModalOverlay">
+  <div class="modal-box" style="max-width:800px;">
+    <div class="modal-title">💰 查看奖金（前500最少）</div>
+    <div id="viewPrizeInfo" style="font-size:12px;color:#555;margin-bottom:8px;"></div>
+    <div style="margin-bottom:8px;">
+      <label class="select-all-label"><input type="radio" name="prizeBackSrc" value="all" checked> 后区按全部66组</label>
+      <label class="select-all-label" style="margin-left:12px;"><input type="radio" name="prizeBackSrc" value="remain"> 后区按当前剩余</label>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-outline" id="btnViewPrizeCancel">取消</button>
+      <button class="btn btn-smart" id="btnViewPrizeConfirm">开始计算</button>
+    </div>
+    <div id="viewPrizeProgress" style="display:none;margin-top:8px;">
+      <div class="progress-wrap" style="display:block;"><div class="progress-bar" id="viewPrizeProgressBar"></div></div>
+      <div class="tag" id="viewPrizeStatus" style="margin-top:4px;">计算中...</div>
+    </div>
+    <div id="viewPrizeResult" style="margin-top:12px;max-height:400px;overflow-y:auto;"></div>
+  </div>
+</div>
+
 <button class="cancel-float-btn" id="btnGlobalCancel" style="display:none;">❌ 取消当前计算</button>
 </div>
 <script>
 (function(){
 var HISTORY_LINES = [
+"01,05,07,21,35",
 "02,05,07,14,22",
 "14,17,21,25,28",
 "10,14,30,33,34",
@@ -1021,10 +1070,23 @@ var fixed2List=[];
 var fixed2Stats={};
 var fix2SelTypes=new Set();
 var fix2ShowCache=[];
+var remainingBackCombos=[];
+var remainingBackSet=new Set();
+var viewPrizeRunning=false;
 
 function popcount32(v){v=v-((v>>>1)&0x55555555);v=(v&0x33333333)+((v>>>2)&0x33333333);v=(v+(v>>>4))&0x0F0F0F0F;v=(v+(v>>>8))&0x0F0F0F0F;v=(v+(v>>>16))&0x0F0F0F0F;return v&0x3F;}
 function maskFromFront(arr){var l=0,h=0;for(var i=0;i<arr.length;i++){if(arr[i]<=32)l|=(1<<(arr[i]-1));else if(arr[i]>=33)h|=(1<<(arr[i]-33));}return{l:l,h:h};}
 function unmaskFront(l,h){var r=[];for(var i=0;i<32;i++)if(l&(1<<i))r.push(i+1);for(var i=0;i<3;i++)if(h&(1<<i))r.push(i+33);return r;}
+
+function initRemainingBackCombos(){
+    remainingBackCombos=[];
+    remainingBackSet=new Set();
+    for(var a=1;a<=11;a++)for(var b=a+1;b<=12;b++){remainingBackCombos.push([a,b]);remainingBackSet.add(a+'_'+b);}
+}
+function updateBackStatus(){
+    var el=document.getElementById('backCountStatus');
+    if(el)el.textContent='（后区：'+remainingBackCombos.length+'组）';
+}
 
 function buildAll(){
     masksLow=new Uint32Array(TOTAL);masksHigh=new Uint32Array(TOTAL);
@@ -1039,7 +1101,6 @@ function buildAll(){
     log('✅ 全集已加载：'+TOTAL.toLocaleString()+' 注前区组合');
     log('📌 历史数据已导入：'+HISTORY_ARRAYS.length+' 条');
 }
-
 function prizeAmount(mf,mb){
     if(prizeModeHigh){
         if(mf===5&&mb===2)return 5000000;
@@ -1061,7 +1122,6 @@ function prizeAmount(mf,mb){
         return 0;
     }
 }
-
 function log(s){var el=document.getElementById('logArea');var d=document.createElement('div');d.textContent=s;el.appendChild(d);el.scrollTop=el.scrollHeight;while(el.children.length>25)el.removeChild(el.firstChild);}
 function setStatus(s){document.getElementById('statusText').textContent=s;}
 function showProgress(p){document.getElementById('progressWrap').style.display='block';document.getElementById('progressBar').style.width=p+'%';}
@@ -1092,12 +1152,12 @@ function updateDisplay(){
     if(ib){ib.textContent='🔄 相反：'+(invertMode?'开':'关');if(invertMode)ib.classList.add('active');else ib.classList.remove('active');}
     updateUndoRedoButtons();
     updateKeepMatchTags();
+    updateBackStatus();
 }
 function updateUndoRedoButtons(){document.getElementById('btnUndo').disabled=(undoStack.length===0);document.getElementById('btnRedo').disabled=(redoStack.length===0);}
 function saveUndoState(){var s={alive:new Uint8Array(filteredAlive),count:filteredCount,keepMatchConditions:keepMatchConditions.slice()};undoStack.push(s);if(undoStack.length>MAX_UNDO)undoStack.shift();redoStack=[];updateUndoRedoButtons();}
 function undo(){if(!undoStack.length)return;var cur={alive:new Uint8Array(filteredAlive),count:filteredCount,keepMatchConditions:keepMatchConditions.slice()};redoStack.push(cur);var prev=undoStack.pop();filteredAlive.set(prev.alive);filteredCount=prev.count;keepMatchConditions=prev.keepMatchConditions.slice();updateDisplay();log('↩️ 撤退一步');}
 function redo(){if(!redoStack.length)return;var cur={alive:new Uint8Array(filteredAlive),count:filteredCount,keepMatchConditions:keepMatchConditions.slice()};undoStack.push(cur);var next=redoStack.pop();filteredAlive.set(next.alive);filteredCount=next.count;keepMatchConditions=next.keepMatchConditions.slice();updateDisplay();log('↪️ 后退一步');}
-
 function isAllOdd(a){return a.every(function(n){return n%2===1;});}
 function isAllEven(a){return a.every(function(n){return n%2===0;});}
 function countOddEven(a){var o=0,e=0;for(var i=0;i<a.length;i++){if(a[i]%2===1)o++;else e++;}return{odd:o,even:e};}
@@ -1119,7 +1179,6 @@ function isXorSeqGap(a){var s=count2Seq(a),g=count2Gap(a);return(s===1&&g===0)||
 function isExcludeXorSeqGap(a){return isXorSeqGap(a);}
 function getDiffPattern(a){var d=[];for(var i=0;i<a.length-1;i++)d.push(a[i+1]-a[i]);var f={};for(var i=0;i<d.length;i++)f[d[i]]=(f[d[i]]||0)+1;var cs=[];for(var k in f)cs.push(f[k]);cs.sort(function(x,y){return y-x;});if(cs.length===1&&cs[0]===4)return'4same';if(cs.length===2&&cs[0]===3&&cs[1]===1)return'3same';if(cs.length===2&&cs[0]===2&&cs[1]===2)return'2pairs';if(cs.length===3&&cs[0]===2&&cs[1]===1&&cs[2]===1)return'1pair';if(cs.length===4)return'allsame';return'other';}
 function getTailPattern(a){var tc=[0,0,0,0,0,0,0,0,0,0];for(var i=0;i<a.length;i++)tc[a[i]%10]++;var f=[0,0,0,0,0,0];for(var d=0;d<10;d++)if(tc[d]>0)f[tc[d]]++;if(f[1]===5&&f[2]===0&&f[3]===0)return 0;if(f[1]===3&&f[2]===1&&f[3]===0)return 2;if(f[1]===2&&f[3]===1&&f[2]===0)return 3;if(f[1]===1&&f[2]===2&&f[3]===0)return 4;return-1;}
-
 function buildPairRankings(){
     var src=isPrizeHistoryFixed?fixedHistoryRedBlue:[];
     if(!src.length){pairRankMap={};digitRankMap={};return;}
@@ -1147,7 +1206,6 @@ function buildPairRankings(){
 }
 function getPairRanks(arr){if(!pairRankMap||Object.keys(pairRankMap).length===0)return[];var rs=[];for(var p=0;p<arr.length;p++)for(var q=p+1;q<arr.length;q++){var a=arr[p],b=arr[q];var key=(a<b)?String(a).padStart(2,'0')+','+String(b).padStart(2,'0'):String(b).padStart(2,'0')+','+String(a).padStart(2,'0');var r=pairRankMap[key];rs.push(r?r:0);}rs.sort(function(a,b){return a-b;});return rs;}
 function getDigitRanks(arr){if(!digitRankMap||Object.keys(digitRankMap).length===0)return[];var rs=[];for(var i=0;i<arr.length;i++)rs.push(digitRankMap[arr[i]]?digitRankMap[arr[i]]:0);rs.sort(function(a,b){return a-b;});return rs;}
-
 function norm(s){return s.replace(/，/g,',').replace(/：/g,':').replace(/｜/g,'|').trim();}
 function parseNums(s,minVal,maxVal){
     s=norm(s).replace(/\s+/g,'');
@@ -1179,7 +1237,6 @@ function parseDanTuo(s){
     };
 }
 function combos(nums,k){if(k===0)return[[]];if(nums.length<k)return[];var res=[],tmp=new Array(k);(function dfs(start,d){if(d===k){res.push(tmp.slice());return;}for(var i=start;i<=nums.length-(k-d);i++){tmp[d]=nums[i];dfs(i+1,d+1);}})(0,0);return res;}
-
 function parseLineWithBlue(line){
     line=line.trim();
     if(!line)return[];
@@ -1266,27 +1323,13 @@ function fixHistory2(){
             var fAll=dt.frontDan.concat(dt.frontTuo);
             fAll=Array.from(new Set(fAll)).sort(function(a,b){return a-b;});
             if(fAll.length<5)continue;
-            list.push({
-                front:fAll.slice(),
-                type:'胆拖'+dt.frontDan.length+'胆',
-                backAll:dt.backDan.concat(dt.backTuo),
-                isDanTuo:true,
-                dan:dt.frontDan.slice(),
-                needFromTuo:5-dt.frontDan.length
-            });
+            list.push({front:fAll.slice(),type:'胆拖'+dt.frontDan.length+'胆',backAll:dt.backDan.concat(dt.backTuo),isDanTuo:true,dan:dt.frontDan.slice(),needFromTuo:5-dt.frontDan.length});
         }else{
             var parts=line.split('-');
             var fNums=parseNums(parts[0],FRONT_MIN,FRONT_MAX);
             if(fNums.length<5)continue;
             var t=fNums.length===5?'单式5个':'复式'+fNums.length+'个';
-            list.push({
-                front:fNums.slice(),
-                type:t,
-                backAll:parts.length>=2?parseNums(parts[1],BACK_MIN,BACK_MAX):[],
-                isDanTuo:false,
-                dan:[],
-                needFromTuo:0
-            });
+            list.push({front:fNums.slice(),type:t,backAll:parts.length>=2?parseNums(parts[1],BACK_MIN,BACK_MAX):[],isDanTuo:false,dan:[],needFromTuo:0});
         }
     }
     fixed2List=list;
@@ -2182,256 +2225,320 @@ function confirmVerify(){
     document.getElementById('verifyResult').innerHTML=found.length?('<div style="color:red">找到'+found.length+'组匹配4个</div><div>'+found.join('<br>')+'</div>'):'<div style="color:green">✅ 未找到</div>';
     document.getElementById('verifyResult').style.display='block';
 }
-function openSmartRepeatModal(){document.getElementById('smartRepeatModalOverlay').style.display='flex';}
-function _buildSmartRepeatData(){
-    var minRepeat=parseInt(document.getElementById('smartRepeatMin').value);
-    var maxRepeat=parseInt(document.getElementById('smartRepeatMax').value);
-    if(isNaN(minRepeat)||isNaN(maxRepeat)||minRepeat<1||maxRepeat<1||minRepeat>maxRepeat){alert('请输入有效范围');return null;}
-    var selectedHits=[];
-    document.querySelectorAll('#smartRepeatHits input:checked').forEach(function(cb){selectedHits.push(parseInt(cb.value));});
-    if(!selectedHits.length){alert('请勾选命中个数');return null;}
-    var freqMap=new Map();
-    for(var i=0;i<historyCombos.length;i++){var key=historyCombos[i].map(function(n){return String(n).padStart(2,'0');}).join(',');freqMap.set(key,(freqMap.get(key)||0)+1);}
-    var targetCombos=[];
-    freqMap.forEach(function(cnt,key){if(cnt>=minRepeat&&cnt<=maxRepeat){var nums=key.split(',').map(Number);if(nums.length===5)targetCombos.push(nums);}});
-    if(!targetCombos.length){alert('没有符合条件的组合');return null;}
-    return {targetCombos:targetCombos,selectedHits:selectedHits};
+
+// ========== 固定2 中N 筛选（分组独立判断） ==========
+var fix2MidNMode=3;
+function _maxHitWithFix2(fix2, ciL, ciH){
+    if(fix2.isDanTuo){
+        var danMask=maskFromFront(fix2.dan);
+        var danHit=popcount32(ciL&danMask.l)+popcount32(ciH&danMask.h);
+        var allMask=maskFromFront(fix2.front);
+        var allHit=popcount32(ciL&allMask.l)+popcount32(ciH&allMask.h);
+        var tuoHit=allHit-danHit;
+        if(tuoHit<0)tuoHit=0;
+        var need=fix2.needFromTuo;
+        return danHit+(tuoHit<need?tuoHit:need);
+    }else{
+        var m=maskFromFront(fix2.front);
+        return popcount32(ciL&m.l)+popcount32(ciH&m.h);
+    }
 }
-function confirmSmartRepeat(){
-    if(busy)return alert('处理中');
-    var d=_buildSmartRepeatData();
-    if(!d)return;
-    if(!confirm('将使用'+d.targetCombos.length+'个重复组合作为条件，排除中'+d.selectedHits.join('、中')+'的组合？'))return;
-    document.getElementById('smartRepeatModalOverlay').style.display='none';
-    saveUndoState();
-    busy=true;setStatus('智能重复排除中...');
-    showProgress(0);showGlobalCancel();
-    globalAbortFlag=false;
-    var condMasks=d.targetCombos.map(function(c){return maskFromFront(c);});
-    var opts={one:false,two:false,three:false,four:false,five:false,zero:false};
-    d.selectedHits.forEach(function(h){if(h===1)opts.one=true;if(h===2)opts.two=true;if(h===3)opts.three=true;if(h===4)opts.four=true;if(h===5)opts.five=true;});
-    doFilter(condMasks,opts).then(function(removed){log('✅ 智能重复排除完成：移除 '+removed.toLocaleString()+' 组');finishOperation();});
+function openFix2MidNModal(mode,action){
+    if(!fixed2List.length){alert('请先点击"📌 固定2"');return;}
+    fix2MidNMode=mode;
+    var mLabel=(mode===3?'中3':'中4');
+    document.getElementById('fix2MidNTitle').textContent='🎯 固定2：'+mLabel+'筛选（'+(action==='keep'?'保留':'删除')+'）';
+    var info='已固定2：共 '+fixed2List.length+' 注<br>';
+    var typeCounts=fixed2Stats;
+    var keys=Object.keys(typeCounts).sort(function(a,b){return typeCounts[b]-typeCounts[a];});
+    for(var i=0;i<keys.length;i++)info+=keys[i]+'：'+typeCounts[keys[i]]+'注<br>';
+    document.getElementById('fix2Info').innerHTML=info;
+    var row=document.getElementById('fix2TypeRow');
+    row.innerHTML='';
+    for(var i=0;i<keys.length;i++){
+        var k=keys[i];
+        var lab=document.createElement('label');
+        lab.innerHTML='<input type="checkbox" class="f2-type-cb" value="'+k+'"> '+k+'（'+typeCounts[k]+'注）';
+        row.appendChild(lab);
+    }
+    document.getElementById('fix2Min').value=1;
+    document.getElementById('fix2Max').value=99999;
+    document.getElementById('fix2MidNModalOverlay').style.display='flex';
 }
-function confirmSmartRepeatKeep(){
-    if(busy)return alert('处理中');
-    var d=_buildSmartRepeatData();
-    if(!d)return;
-    if(!confirm('将使用'+d.targetCombos.length+'个重复组合作为条件，保留中'+d.selectedHits.join('、中')+'的组合？'))return;
-    document.getElementById('smartRepeatModalOverlay').style.display='none';
+function closeFix2MidNModal(){document.getElementById('fix2MidNModalOverlay').style.display='none';}
+function executeFix2MidN(action){
+    if(!fixed2List.length){alert('请先固定2');return;}
+    var minN=parseInt(document.getElementById('fix2Min').value,10);
+    var maxN=parseInt(document.getElementById('fix2Max').value,10);
+    if(isNaN(minN))minN=0;
+    if(isNaN(maxN))maxN=999999;
+    if(minN<0||maxN<minN){alert('请输入有效区间');return;}
+    var selTypes=[];
+    document.querySelectorAll('.f2-type-cb:checked').forEach(function(cb){selTypes.push(cb.value);});
+    var actLabel=(action==='keep'?'保留':'删除');
+    if(!confirm('确认对每个勾选类型分别满足【固定2中'+fix2MidNMode+' 注数 '+minN+'-'+maxN+'】的组合执行【'+actLabel+'】？'))return;
+    closeFix2MidNModal();
     saveUndoState();
-    busy=true;setStatus('智能重复保留中...');
-    showProgress(0);showGlobalCancel();
-    globalAbortFlag=false;
-    var condMasks=d.targetCombos.map(function(c){return maskFromFront(c);});
-    var opts={one:false,two:false,three:false,four:false,five:false,zero:false};
-    d.selectedHits.forEach(function(h){if(h===1)opts.one=true;if(h===2)opts.two=true;if(h===3)opts.three=true;if(h===4)opts.four=true;if(h===5)opts.five=true;});
-    doFilterPure(condMasks,opts).then(function(keepSet){
-        var removed=0,kept=0;
-        for(var i=0;i<TOTAL;i++){
-            if(!filteredAlive[i])continue;
-            if(keepSet.has(i)){kept++;}else{filteredAlive[i]=0;removed++;}
+    var groups={};
+    for(var j=0;j<fixed2List.length;j++){
+        var f=fixed2List[j];
+        if(selTypes.length && selTypes.indexOf(f.type)===-1) continue;
+        if(!groups[f.type]) groups[f.type]=[];
+        groups[f.type].push(f);
+    }
+    var groupKeys=Object.keys(groups);
+    if(!groupKeys.length){alert('没有符合类型条件的固定2票');return;}
+    var removed=0,kept=0;
+    for(var i=0;i<TOTAL;i++){
+        if(!filteredAlive[i])continue;
+        var ciL=masksLow[i], ciH=masksHigh[i];
+        var allMatch=true;
+        for(var g=0;g<groupKeys.length;g++){
+            var gList=groups[groupKeys[g]];
+            var hitCount=0;
+            for(var j=0;j<gList.length;j++){
+                if(_maxHitWithFix2(gList[j], ciL, ciH)===fix2MidNMode) hitCount++;
+            }
+            if(hitCount<minN || hitCount>maxN){ allMatch=false; break; }
         }
-        filteredCount=kept;
-        updateDisplay();
-        log('✅ 智能重复保留：保留 '+kept.toLocaleString()+' 组');
-        finishOperation();
-    });
+        if(action==='keep'){
+            if(allMatch){kept++;}else{filteredAlive[i]=0;removed++;}
+        }else{
+            if(allMatch){filteredAlive[i]=0;removed++;}else{kept++;}
+        }
+    }
+    filteredCount=kept;
+    updateDisplay();
+    log('✅ 固定2 中'+fix2MidNMode+' '+actLabel+'完成：剩余 '+kept.toLocaleString()+' 组');
 }
-function confirmKeepMulti(){
+function showFix2ShowMid(){
+    if(!fixed2List.length)return alert('请先固定2');
     if(busy)return alert('处理中');
     if(!filteredCount)return alert('无剩余');
-    var raw=document.getElementById('keepMultiTextarea').value.trim();
-    if(!raw)return alert('请输入至少一组数字');
-    var selectedHits=[];
-    document.querySelectorAll('#keepMultiHits input:checked').forEach(function(cb){selectedHits.push(parseInt(cb.value));});
-    if(!selectedHits.length)return alert('请勾选命中个数');
-    var lines=raw.split(/[\n\r]+/).filter(function(l){return l.trim();});
-    var lineNumSets=lines.map(function(line){if(line.indexOf('-')!==-1)line=line.split('-')[0].trim();return new Set(parseNums(line,FRONT_MIN,FRONT_MAX));}).filter(function(s){return s.size>0;});
-    if(!lineNumSets.length)return alert('未识别到有效数字');
-    if(!confirm('只保留与每行数字都恰好匹配'+selectedHits.join('、中')+'个的组合？'))return;
-    document.getElementById('keepMultiModalOverlay').style.display='none';
-    document.getElementById('keepMultiTextarea').value='';
-    saveUndoState();
-    busy=true;setStatus('保留多数字组合中...');
+    busy=true;setStatus('统计固定2中3/中4情况...');
     showProgress(0);showGlobalCancel();
     globalAbortFlag=false;
-    var removed=0,done=0,BATCH=60000;
-    function step(start){
+    var aliveList=[];
+    for(var i=0;i<TOTAL;i++)if(filteredAlive[i])aliveList.push(i);
+    var results=[];
+    var batchSize=400;
+    var idx=0;
+    function process(){
         if(globalAbortFlag){finishOperation();log('⏹️ 已取消');return;}
-        try{
-            var end=Math.min(start+BATCH,TOTAL);
-            for(var i=start;i<end;i++){
-                if(!filteredAlive[i])continue;
-                var nums=unmaskFront(masksLow[i],masksHigh[i]);
-                var allOk=lineNumSets.every(function(set){var match=0;for(var j=0;j<nums.length;j++)if(set.has(nums[j]))match++;return selectedHits.indexOf(match)!==-1;});
-                var shouldKeep=allOk;
-                if(invertMode){if(shouldKeep){filteredAlive[i]=0;removed++;}}else{if(!shouldKeep){filteredAlive[i]=0;removed++;}}
+        var end=Math.min(idx+batchSize,aliveList.length);
+        for(;idx<end;idx++){
+            var ci=aliveList[idx];
+            var ciL=masksLow[ci], ciH=masksHigh[ci];
+            var nums=unmaskFront(ciL,ciH);
+            var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',');
+            var mid4ByType={},mid3ByType={};
+            for(var j=0;j<fixed2List.length;j++){
+                var f=fixed2List[j];
+                var mf=_maxHitWithFix2(f, ciL, ciH);
+                if(mf===4)mid4ByType[f.type]=(mid4ByType[f.type]||0)+1;
+                else if(mf===3)mid3ByType[f.type]=(mid3ByType[f.type]||0)+1;
             }
-            done=end;
-            showProgress(Math.round(done/TOTAL*100));
-            if(done<TOTAL)setTimeout(function(){step(done);},5);
-            else{filteredCount-=removed;updateDisplay();log('✅ 保留多数字组合：剩余 '+filteredCount.toLocaleString()+' 组');finishOperation();}
-        }catch(e){log('❌ 出错：'+e.message);finishOperation();}
+            results.push({idx:ci,combo:comboStr,mid4:mid4ByType,mid3:mid3ByType});
+        }
+        showProgress(Math.round(idx/aliveList.length*100));
+        if(idx<aliveList.length)setTimeout(process,1);
+        else{
+            results.sort(function(a,b){
+                var t4a=0,t3a=0,t4b=0,t3b=0;
+                for(var k in a.mid4)t4a+=a.mid4[k];
+                for(var k in a.mid3)t3a+=a.mid3[k];
+                for(var k in b.mid4)t4b+=b.mid4[k];
+                for(var k in b.mid3)t3b+=b.mid3[k];
+                if(t4b!==t4a)return t4b-t4a;
+                if(t3b!==t3a)return t3b-t3a;
+                return a.combo<b.combo?-1:1;
+            });
+            fix2ShowCache=results;
+            var html='';
+            for(var r=0;r<results.length;r++){
+                var item=results[r];
+                var t4=0,t3=0;
+                var str4='',str3='';
+                var keys4=Object.keys(item.mid4).sort(function(a,b){return item.mid4[b]-item.mid4[a];});
+                for(var k=0;k<keys4.length;k++){t4+=item.mid4[keys4[k]];str4+=(str4?', ':'')+keys4[k]+'有'+item.mid4[keys4[k]]+'注';}
+                var keys3=Object.keys(item.mid3).sort(function(a,b){return item.mid3[b]-item.mid3[a];});
+                for(var k=0;k<keys3.length;k++){t3+=item.mid3[keys3[k]];str3+=(str3?', ':'')+keys3[k]+'有'+item.mid3[keys3[k]]+'注';}
+                html+='<div class="f2-stats-block">';
+                html+='<div class="f2-stats-line"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" class="fix2-show-cb" data-idx="'+item.idx+'"> <b>'+item.combo+'</b></label></div>';
+                html+='<div class="f2-stats-line" style="color:#c0392b;">中4个的有'+t4+'注'+(str4?'，其中'+str4:'')+'</div>';
+                html+='<div class="f2-stats-line" style="color:#2980b9;">中3个的有'+t3+'注'+(str3?'，其中'+str3:'')+'</div>';
+                html+='</div>';
+            }
+            document.getElementById('fix2ShowContent').innerHTML=html;
+            document.getElementById('fix2ShowTitle').textContent='📊 剩余 '+results.length+' 组按固定2的中3/中4情况';
+            document.getElementById('fix2ShowCountInfo').textContent='共 '+results.length+' 组';
+            document.getElementById('fix2ShowSelectAll').checked=false;
+            document.getElementById('fix2ShowMidOverlay').style.display='flex';
+            finishOperation();
+        }
     }
-    step(0);
+    process();
 }
-function confirmMultiExclusion(){
-    var raw=document.getElementById('multiModalTextarea').value.trim();
-    if(!raw)return alert('请输入多数字组合');
-    var lines=raw.split(/[\n\r]+/).filter(function(l){return l.trim();});
-    var multiSets=lines.map(function(l){if(l.indexOf('-')!==-1)l=l.split('-')[0].trim();return parseNums(l,FRONT_MIN,FRONT_MAX);}).filter(function(a){return a.length>=2;});
-    if(!multiSets.length)return alert('未识别到有效组合');
-    document.getElementById('multiModalOverlay').style.display='none';
-    document.getElementById('multiModalTextarea').value='';
-    applyCustomFilter('多数字组合',function(arr){return multiSets.some(function(set){return set.every(function(n){return arr.indexOf(n)!==-1;});});});
-}
-function confirmMultiHitExclusion(){
-    var raw=document.getElementById('multiHitModalTextarea').value.trim();
-    if(!raw)return alert('请输入数字组合');
-    var lines=raw.split(/[\n\r]+/).filter(function(l){return l.trim();});
-    var targetSets=lines.map(function(l){if(l.indexOf('-')!==-1)l=l.split('-')[0].trim();return new Set(parseNums(l,FRONT_MIN,FRONT_MAX));}).filter(function(s){return s.size>0;});
-    if(!targetSets.length)return alert('未识别到有效数字');
-    var selectedHits=[];
-    document.querySelectorAll('#multiHitCheckboxes input:checked').forEach(function(cb){selectedHits.push(parseInt(cb.value));});
-    if(!selectedHits.length)return alert('请勾选命中个数');
-    document.getElementById('multiHitModalOverlay').style.display='none';
-    document.getElementById('multiHitModalTextarea').value='';
-    applyCustomFilter('自定义命中',function(arr){return targetSets.some(function(set){var match=0;for(var k=0;k<arr.length;k++)if(set.has(arr[k]))match++;return selectedHits.indexOf(match)!==-1;});});
-}
-function confirmKeepOnly(){
-    var raw=document.getElementById('keepOnlyModalTextarea').value.trim();
-    if(!raw)return alert('请输入至少一组组合');
-    var lines=raw.split(/[\n\r]+/).filter(function(l){return l.trim();});
-    var keepSet=new Set();
-    for(var i=0;i<lines.length;i++){
-        var frontNums=parseNums(lines[i].split('-')[0].replace(/，/g,','),FRONT_MIN,FRONT_MAX);
-        if(frontNums.length===5)keepSet.add(frontNums.map(function(n){return String(n).padStart(2,'0');}).sort().join(','));
+function executeFix2ShowAction(action){
+    var cbs=document.querySelectorAll('.fix2-show-cb:checked');
+    if(!cbs.length){alert('请至少勾选一项');return;}
+    var checkedSet=new Set();
+    for(var i=0;i<cbs.length;i++)checkedSet.add(parseInt(cbs[i].dataset.idx,10));
+    var actLabel=(action==='keep'?'保留':'删除');
+    if(!confirm('确认对勾选的 '+checkedSet.size.toLocaleString()+' 组执行【'+actLabel+'】？'))return;
+    document.getElementById('fix2ShowMidOverlay').style.display='none';
+    saveUndoState();
+    var removed=0,kept=0;
+    for(var i=0;i<TOTAL;i++){
+        if(!filteredAlive[i])continue;
+        var isChecked=checkedSet.has(i);
+        if(action==='keep'){
+            if(isChecked){kept++;}else{filteredAlive[i]=0;removed++;}
+        }else{
+            if(isChecked){filteredAlive[i]=0;removed++;}else{kept++;}
+        }
     }
-    if(!keepSet.size)return alert('未识别到有效组合');
-    document.getElementById('keepOnlyModalOverlay').style.display='none';
-    document.getElementById('keepOnlyModalTextarea').value='';
-    applyCustomFilter('只保留组合',function(arr){var key=arr.map(function(n){return String(n).padStart(2,'0');}).sort().join(',');return !keepSet.has(key);});
+    filteredCount=kept;
+    updateDisplay();
+    log('✅ 固定2 中3/中4情况 '+actLabel+'完成：剩余 '+kept.toLocaleString()+' 组');
 }
-function confirmKeepDigits(){
-    if(!keepDigitsSel.size)return alert('请至少选择一个数字');
-    document.getElementById('keepDigitsModalOverlay').style.display='none';
-    var digits=new Set(keepDigitsSel);
-    applyKeepFilter('保留数字',function(arr){for(var i=0;i<arr.length;i++)if(digits.has(arr[i]))return true;return false;});
-}
-function openTop3Modal(){document.getElementById('top3ModalTextarea').value='';document.getElementById('top3ModalOverlay').style.display='flex';}
-function confirmTop3Exclusion(){
-    var raw=document.getElementById('top3ModalTextarea').value.trim();
-    if(!raw)return alert('请输入至少一组开头数字');
-    var lines=raw.split(/[\n\r]+/).filter(function(l){return l.trim();});
-    var prefixSets=[];
-    for(var i=0;i<lines.length;i++){
-        var nums=[];
-        lines[i].replace(/，/g,',').replace(/\s+/g,'').split(',').forEach(function(p){var n=parseInt(p,10);if(!isNaN(n)&&n>=1&&n<=35)nums.push(n);});
-        if(nums.length>=1&&nums.length<=5){nums.sort(function(a,b){return a-b;});prefixSets.push(nums);}
+
+// ========== 后区筛选（按固定2） ==========
+function openBackFilterModal(action){
+    if(!fixed2List.length){alert('请先点击"📌 固定2"');return;}
+    var mLabel='';
+    document.getElementById('backFilterTitle').textContent='🎯 后区筛选（'+(action==='keep'?'保留':'删除')+'）';
+    var info='已固定2：共 '+fixed2List.length+' 注<br>';
+    var typeCounts=fixed2Stats;
+    var keys=Object.keys(typeCounts).sort(function(a,b){return typeCounts[b]-typeCounts[a];});
+    for(var i=0;i<keys.length;i++)info+=keys[i]+'：'+typeCounts[keys[i]]+'注<br>';
+    info+='<br>当前后区：'+remainingBackCombos.length+' 组';
+    document.getElementById('backFilterInfo').innerHTML=info;
+    var row=document.getElementById('backFilterTypeRow');
+    row.innerHTML='';
+    for(var i=0;i<keys.length;i++){
+        var k=keys[i];
+        var lab=document.createElement('label');
+        lab.innerHTML='<input type="checkbox" class="back-filter-type-cb" value="'+k+'"> '+k+'（'+typeCounts[k]+'注）';
+        row.appendChild(lab);
     }
-    if(!prefixSets.length)return alert('未识别到有效组合');
-    document.getElementById('top3ModalOverlay').style.display='none';
-    document.getElementById('top3ModalTextarea').value='';
-    applyCustomFilter('排除开头组合',function(arr){for(var s=0;s<prefixSets.length;s++){var prefix=prefixSets[s],match=true;for(var k=0;k<prefix.length;k++){if(arr[k]!==prefix[k]){match=false;break;}}if(match)return true;}return false;});
+    document.getElementById('backFilterMin').value=1;
+    document.getElementById('backFilterMax').value=99999;
+    document.getElementById('backFilterModalOverlay').dataset.action=action;
+    document.getElementById('backFilterModalOverlay').style.display='flex';
 }
-function confirmSumRangeExclusion(){
-    var minSum=parseInt(document.getElementById('sumMinInput').value,10);
-    var maxSum=parseInt(document.getElementById('sumMaxInput').value,10);
-    if(isNaN(minSum)||isNaN(maxSum)||minSum<15||maxSum>165||minSum>maxSum)return alert('请输入有效和值范围（15-165）');
-    document.getElementById('sumRangeModalOverlay').style.display='none';
-    applyCustomFilter('和值范围',function(arr){var sum=arr.reduce(function(a,b){return a+b;},0);return sum>=minSum&&sum<=maxSum;});
+function closeBackFilterModal(){document.getElementById('backFilterModalOverlay').style.display='none';}
+function executeBackFilter(action){
+    if(!fixed2List.length){alert('请先固定2');return;}
+    if(!remainingBackCombos.length){alert('后区已为空');return;}
+    var minN=parseInt(document.getElementById('backFilterMin').value,10);
+    var maxN=parseInt(document.getElementById('backFilterMax').value,10);
+    if(isNaN(minN))minN=0;
+    if(isNaN(maxN))maxN=999999;
+    if(minN<0||maxN<minN){alert('请输入有效区间');return;}
+    var selTypes=[];
+    document.querySelectorAll('.back-filter-type-cb:checked').forEach(function(cb){selTypes.push(cb.value);});
+    var actLabel=(action==='keep'?'保留':'删除');
+    if(!confirm('确认对当前后区 '+remainingBackCombos.length+' 组，按【固定2 命中注数 '+minN+'-'+maxN+'】执行【'+actLabel+'】？'))return;
+    closeBackFilterModal();
+    var groups={};
+    for(var j=0;j<fixed2List.length;j++){
+        var f=fixed2List[j];
+        if(selTypes.length && selTypes.indexOf(f.type)===-1) continue;
+        if(!groups[f.type]) groups[f.type]=[];
+        groups[f.type].push(f);
+    }
+    var groupKeys=Object.keys(groups);
+    if(!groupKeys.length){alert('没有符合类型条件的固定2票');return;}
+
+    // 预计算每个固定2票的前区 mask + 后区 mask 数组（把 backAll 转成 Set 便于快速判断）
+    var flPre=[];
+    for(var g=0;g<groupKeys.length;g++){
+        var gList=groups[groupKeys[g]];
+        var pre=[];
+        for(var j=0;j<gList.length;j++){
+            var f=gList[j];
+            var fm=maskFromFront(f.front);
+            var fmDan=f.isDanTuo?maskFromFront(f.dan):null;
+            var backSet={};
+            if(f.backAll&&f.backAll.length){for(var b=0;b<f.backAll.length;b++)backSet[f.backAll[b]]=true;}
+            pre.push({fix2:f,fm:fm,fmDan:fmDan,backSet:backSet});
+        }
+        flPre.push(pre);
+    }
+
+    var newBack=[];
+    for(var bi=0;bi<remainingBackCombos.length;bi++){
+        var bb=remainingBackCombos[bi];
+        var allMatch=true;
+        for(var g=0;g<flPre.length && allMatch;g++){
+            var pre=flPre[g];
+            var hitCount=0;
+            for(var j=0;j<pre.length;j++){
+                var item=pre[j];
+                var f=item.fix2;
+                // 前区命中：按胆拖/复式分别算
+                var fmHit=0;
+                if(f.isDanTuo){
+                    var danHit=popcount32(item.fmDan.l)+popcount32(item.fmDan.h);
+                    var allHit=popcount32(item.fm.l)+popcount32(item.fm.h);
+                    var tuoHit=allHit-danHit;if(tuoHit<0)tuoHit=0;
+                    var need=f.needFromTuo;
+                    fmHit=danHit+(tuoHit<need?tuoHit:need);
+                }else{
+                    // 对于非胆拖：如果该票后区包含当前 bb 两个号，则算 1 注；否则 0
+                    // 前区只要完全相等才算命中（复式/单式都是完整组合，若固定2票前区是这些数字则命中）
+                    fmHit=5; // 前区看作中奖号码与固定2票"前区号码"完全匹配（因为固定2票都是固定5个前区）
+                }
+                // 修正：非胆拖时，前区是固定5个，若当前剩余前区=固定2票前区，则命中5个。但我们这里遍历的是后区，前区已由外层决定（当前所有剩余前区）
+                // 简化：对后区筛选，我们只统计"该固定2票的前区与当前遍历的固定2票前区是否一致（等价于固定2票自己），并且后区包含 bb 两个号"
+                // 因为固定2票本身已完整记录（前区5个+后区2个 or 后区胆拖），我们只判断后区是否覆盖 bb
+                // 这里我们采用一种简单可行的语义：对每张固定2票，只要 bb 这张后区能与该票的后区组合（可能多组）匹配，即算 1 注
+                // 具体：若 fix2 有 backAll（≥2），则 bb 是该票后区组合之一；若 bb 不在，则该票对 bb 命中 0
+                // 但"后区胆拖"一票可能产生多个后区组合，所以要判断 bb 是否属于该票生成的组合之一
+                // 简化处理：如果 f.backAll 已覆盖 bb 全部数字，算 1 注
+                var backHit=0;
+                if(item.backSet[bb[0]]&&item.backSet[bb[1]])backHit=1;
+                // 每张固定2票对 bb 的"贡献"是：如果它的后区包含 bb（至少2个），则 1 注；否则 0
+                // 但由于前区筛选是"当前剩余组合"层面上的事，这里不做前区过滤（前区按当前剩余全部当作中奖号码）
+                // 按需求：固定2的票（每个 5前区+N后区 组合）作为投注，对 bb 后区组合，看中几注
+                // 每张固定2票产生的所有后区组合中，命中 bb 的只可能是包含 bb 的那个（若有）
+                if(backHit)hitCount++;
+            }
+            if(hitCount<minN || hitCount>maxN){ allMatch=false; }
+        }
+        if(action==='keep'){ if(allMatch) newBack.push(bb); }
+        else{ if(!allMatch) newBack.push(bb); }
+    }
+    remainingBackCombos=newBack;
+    remainingBackSet=new Set();
+    for(var i=0;i<newBack.length;i++)remainingBackSet.add(newBack[i][0]+'_'+newBack[i][1]);
+    updateBackStatus();
+    log('✅ 后区 '+actLabel+'完成：剩余 '+remainingBackCombos.length+' 组');
 }
-function keep2Seq(){applyKeepFilter('2连号',function(arr){return hasSeq(arr,2);});}
-function keep2Gap(){applyKeepFilter('2隔号',function(arr){return hasGap(arr,2);});}
-function keepBothSeqGap(){applyKeepFilter('2连号2隔号',isBothSeqGap);}
-function keepXorSeqGap(){applyKeepFilter('仅保留2连号或2隔号',isXorSeqGap);}
-function excludeXorSeqGap(){applyCustomFilter('仅排除2连号或2隔号',isExcludeXorSeqGap);}
-function keepTop5Digits(){
-    if(!digitRankMap||Object.keys(digitRankMap).length===0)buildPairRankings();
-    if(!digitRankMap||Object.keys(digitRankMap).length===0)return alert('请先固定1');
-    var top5=[];
-    for(var d=1;d<=35;d++)if(digitRankMap[d]&&digitRankMap[d]<=5)top5.push(d);
-    if(!top5.length)return alert('无法获取前5数字');
-    var digits=new Set(top5);
-    applyKeepFilter('保留前5数字',function(arr){for(var i=0;i<arr.length;i++)if(digits.has(arr[i]))return true;return false;});
+function resetBackCombos(){
+    initRemainingBackCombos();
+    updateBackStatus();
+    log('🔵 后区已重置为全部66组');
 }
-function autoFillTop10Digits(){
-    if(!digitRankMap||Object.keys(digitRankMap).length===0)buildPairRankings();
-    if(!digitRankMap||Object.keys(digitRankMap).length===0)return alert('请先固定1');
-    var top10=[];
-    for(var d=1;d<=35;d++)if(digitRankMap[d]&&digitRankMap[d]<=10)top10.push(d);
-    top10.sort(function(a,b){return a-b;});
-    document.getElementById('matchInputArea').value=top10.map(function(n){return String(n).padStart(2,'0');}).join('\n');
-    log('📊 已填入前10数字');
+function openViewBackCombosModal(){
+    var html='<div style="font-weight:600;margin-bottom:8px;">当前剩余后区：'+remainingBackCombos.length+' 组</div>';
+    html+='<table class="content-table"><thead><tr><th class="cb-cell">选</th><th>后区组合</th></tr></thead><tbody>';
+    for(var i=0;i<remainingBackCombos.length;i++){
+        var s=String(remainingBackCombos[i][0]).padStart(2,'0')+','+String(remainingBackCombos[i][1]).padStart(2,'0');
+        html+='<tr><td class="cb-cell"><input type="checkbox" class="back-view-cb" data-idx="'+i+'"></td><td>'+s+'</td></tr>';
+    }
+    html+='</tbody></table>';
+    var modal=document.getElementById('contentModalOverlay');
+    document.getElementById('contentModalTitle').textContent='📋 后区情况';
+    document.getElementById('contentModalBody').innerHTML=html;
+    document.getElementById('contentModalSelectAllWrap').style.display='block';
+    modal.dataset.contentType='backview';
+    modal.style.display='flex';
 }
-function openPairRankExcludeModal(){document.getElementById('pairRankExcludeInput').value='';document.getElementById('pairRankExcludeModalOverlay').style.display='flex';}
-function confirmPairRankExclude(){
-    var val=document.getElementById('pairRankExcludeInput').value.trim();
-    var m=val.match(/^(\d+)\s*-\s*(\d+)$/);
-    if(!m)return alert('请输入正确格式，如：20-50');
-    var minR=parseInt(m[1],10),maxR=parseInt(m[2],10);
-    if(minR>maxR){var t=minR;minR=maxR;maxR=t;}
-    if(!pairRankMap||Object.keys(pairRankMap).length===0)buildPairRankings();
-    if(!pairRankMap||Object.keys(pairRankMap).length===0)return alert('请先固定1');
-    document.getElementById('pairRankExcludeModalOverlay').style.display='none';
-    applyCustomFilter('双数字排名区间['+minR+'-'+maxR+']',function(arr){
-        var ranks=getPairRanks(arr);
-        if(!ranks.length)return false;
-        var minRank=ranks[0];
-        return minRank>=minR&&minRank<=maxR;
-    });
-}
-function openSingleRankExcludeModal(){document.getElementById('singleRankExcludeInput').value='';document.getElementById('singleRankExcludeModalOverlay').style.display='flex';}
-function confirmSingleRankExclude(){
-    var val=document.getElementById('singleRankExcludeInput').value.trim();
-    var m=val.match(/^(\d+)\s*-\s*(\d+)$/);
-    if(!m)return alert('请输入正确格式，如：20-50');
-    var minR=parseInt(m[1],10),maxR=parseInt(m[2],10);
-    if(minR>maxR){var t=minR;minR=maxR;maxR=t;}
-    if(!digitRankMap||Object.keys(digitRankMap).length===0)buildPairRankings();
-    if(!digitRankMap||Object.keys(digitRankMap).length===0)return alert('请先固定1');
-    document.getElementById('singleRankExcludeModalOverlay').style.display='none';
-    applyCustomFilter('单数字排名区间['+minR+'-'+maxR+']',function(arr){
-        var ranks=getDigitRanks(arr);
-        if(!ranks.length)return false;
-        var minRank=ranks[0];
-        return minRank>=minR&&minRank<=maxR;
-    });
-}
-function queryRank(){
-    var input=document.getElementById('rankInput').value.trim();
-    if(!input)return alert('请输入组合');
-    var nums=parseNums(input,FRONT_MIN,FRONT_MAX);
-    if(nums.length!==5)return alert('请输入恰好5个前区号码');
-    var m=maskFromFront(nums);
-    var idx=maskIndex.get(m.l+'_'+m.h);
-    var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',');
-    var html='<div><b>组合：'+comboStr+'</b></div>';
-    if(idx!==undefined&&filteredAlive[idx])html+='<div style="color:green;">✅ 该组合在剩余组合中</div>';
-    else html+='<div style="color:red;">❌ 该组合不在剩余组合中</div>';
-    document.getElementById('rankResult').innerHTML=html;
-    document.getElementById('rankResult').style.display='block';
-}
-function openCheckComboModal(){
-    checkComboSel.clear();
-    if(lastCheckComboSel.length===5){for(var i=0;i<lastCheckComboSel.length;i++)checkComboSel.add(lastCheckComboSel[i]);}
-    drawCheckComboGrid();
-    document.getElementById('checkComboCount').textContent=checkComboSel.size;
-    document.getElementById('checkComboResult').style.display='none';
-    document.getElementById('checkComboModalOverlay').style.display='flex';
-}
-function confirmCheckCombo(){
-    if(checkComboSel.size!==5)return alert('请选择恰好5个前区数字');
-    var nums=Array.from(checkComboSel).sort(function(a,b){return a-b;});
-    lastCheckComboSel=nums.slice();
-    var m=maskFromFront(nums);
-    var idx=maskIndex.get(m.l+'_'+m.h);
-    var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',');
-    var html='';
-    if(idx!==undefined&&filteredAlive[idx])html='<div style="color:green;font-weight:700;">✅ 组合 '+comboStr+' 在剩余中</div>';
-    else html='<div style="color:red;font-weight:700;">❌ 组合 '+comboStr+' 不在剩余中</div>';
-    document.getElementById('checkComboResult').innerHTML=html;
-    document.getElementById('checkComboResult').style.display='block';
+function copyBackCombosAll(){
+    var arr=[];for(var i=0;i<remainingBackCombos.length;i++)arr.push(String(remainingBackCombos[i][0]).padStart(2,'0')+','+String(remainingBackCombos[i][1]).padStart(2,'0'));
+    copyText(arr.join('\n'),arr.length);
 }
     function exportXLSX(){
     if(busy)return alert('处理中');
@@ -2675,210 +2782,118 @@ function confirmPrizeRange(){
     step(0);
 }
 
-function openKeepHeadCountModal(){
-    headCountSelSet.clear();
-    var btns=document.querySelectorAll('.head-count-btn');
-    for(var i=0;i<btns.length;i++){btns[i].classList.remove('selected');}
-    document.getElementById('keepHeadCountModalOverlay').style.display='flex';
+// ========== 查看奖金（前500最少） ==========
+function openViewPrizeModal(){
+    if(!isPrizeHistoryFixed||!fixedHistoryRedBlue.length){alert('请先固定1');return;}
+    if(!filteredCount){alert('无剩余前区');return;}
+    document.getElementById('viewPrizeResult').innerHTML='';
+    document.getElementById('viewPrizeProgress').style.display='none';
+    document.getElementById('viewPrizeModalOverlay').style.display='flex';
 }
-function confirmKeepHeadCount(){
-    if(!headCountSelSet.size){alert('请至少选择一个开头个数');return;}
-    var targetCounts=[];
-    headCountSelSet.forEach(function(v){targetCounts.push(v);});
-    document.getElementById('keepHeadCountModalOverlay').style.display='none';
-    headCountSelSet.clear();
-    var btns=document.querySelectorAll('.head-count-btn');
-    for(var i=0;i<btns.length;i++){btns[i].classList.remove('selected');}
-    applyKeepFilter('保留'+targetCounts.join('或')+'种开头',function(arr){return targetCounts.indexOf(countHeadTypes(arr))!==-1;});
+function closeViewPrizeModal(){
+    if(viewPrizeRunning){viewPrizeRunning=false;return;}
+    document.getElementById('viewPrizeModalOverlay').style.display='none';
 }
-function openKeepTailCountModal(){
-    tailCountSelSet.clear();
-    var btns=document.querySelectorAll('.tail-count-btn');
-    for(var i=0;i<btns.length;i++){btns[i].classList.remove('selected');}
-    document.getElementById('keepTailCountModalOverlay').style.display='flex';
-}
-function confirmKeepTailCount(){
-    if(!tailCountSelSet.size){alert('请至少选择一个尾数模式');return;}
-    var targetPatterns=[];
-    tailCountSelSet.forEach(function(v){targetPatterns.push(v);});
-    document.getElementById('keepTailCountModalOverlay').style.display='none';
-    tailCountSelSet.clear();
-    var btns=document.querySelectorAll('.tail-count-btn');
-    for(var i=0;i<btns.length;i++){btns[i].classList.remove('selected');}
-    applyKeepFilter('保留尾数模式'+targetPatterns.join('或'),function(arr){return targetPatterns.indexOf(getTailPattern(arr))!==-1;});
-}
+function confirmViewPrize(){
+    if(viewPrizeRunning)return;
+    var src=fixedHistoryRedBlue.slice();
+    if(!src.length){alert('固定1为空');return;}
+    // 后区来源选择
+    var bkSrc=document.querySelector('input[name="prizeBackSrc"]:checked').value;
+    var blues;
+    if(bkSrc==='remain'){
+        blues=remainingBackCombos.slice();
+        if(!blues.length){alert('后区为空');return;}
+    }else{
+        blues=getAllBackCombos();
+    }
+    // 收集所有剩余前区
+    var frontList=[];
+    for(var i=0;i<TOTAL;i++)if(filteredAlive[i])frontList.push({idx:i,l:masksLow[i],h:masksHigh[i]});
+    if(!frontList.length){alert('无剩余前区');return;}
 
-// ========== 固定2 中N 筛选（含胆拖算法修复） ==========
-var fix2MidNMode=3;
-var fix2MidNAction='keep';
-function _maxHitWithFix2(fix2, ciL, ciH){
-    if(fix2.isDanTuo){
-        var danMask=maskFromFront(fix2.dan);
-        var danHit=popcount32(ciL&danMask.l)+popcount32(ciH&danMask.h);
-        var allMask=maskFromFront(fix2.front);
-        var allHit=popcount32(ciL&allMask.l)+popcount32(ciH&allMask.h);
-        var tuoHit=allHit-danHit;
-        if(tuoHit<0)tuoHit=0;
-        var need=fix2.needFromTuo;
-        return danHit+(tuoHit<need?tuoHit:need);
-    } else {
-        var m=maskFromFront(fix2.front);
-        return popcount32(ciL&m.l)+popcount32(ciH&m.h);
+    // 预处理固定1：mask + 后区 mask
+    var hist=[];
+    for(var j=0;j<src.length;j++){
+        var t=src[j];
+        if(t.back===null||t.back===undefined)continue;
+        var tm=maskFromFront(t.front);
+        var bm=0;
+        for(var k=0;k<t.back.length;k++) bm|=(1<<(t.back[k]-1));
+        hist.push({l:tm.l,h:tm.h,bm:bm});
     }
-}
-function openFix2MidNModal(mode,action){
-    if(!fixed2List.length){alert('请先点击"📌 固定2"');return;}
-    fix2MidNMode=mode;
-    fix2MidNAction=action;
-    var mLabel=(mode===3?'中3':'中4');
-    document.getElementById('fix2MidNTitle').textContent='🎯 固定2：'+mLabel+'筛选（'+(action==='keep'?'保留':'删除')+'）';
-    var info='已固定2：共 '+fixed2List.length+' 注<br>';
-    var typeCounts=fixed2Stats;
-    var keys=Object.keys(typeCounts).sort(function(a,b){return typeCounts[b]-typeCounts[a];});
-    for(var i=0;i<keys.length;i++)info+=keys[i]+'：'+typeCounts[keys[i]]+'注<br>';
-    document.getElementById('fix2Info').innerHTML=info;
-    var row=document.getElementById('fix2TypeRow');
-    row.innerHTML='';
-    for(var i=0;i<keys.length;i++){
-        var k=keys[i];
-        var lab=document.createElement('label');
-        lab.innerHTML='<input type="checkbox" class="f2-type-cb" value="'+k+'"> '+k+'（'+typeCounts[k]+'注）';
-        row.appendChild(lab);
+    var bluesMasked=[];
+    for(var bi=0;bi<blues.length;bi++){
+        var bb=blues[bi],bm2=0;
+        for(var k=0;k<bb.length;k++) bm2|=(1<<(bb[k]-1));
+        bluesMasked.push({arr:bb,bm:bm2});
     }
-    document.getElementById('fix2Min').value=1;
-    document.getElementById('fix2Max').value=99999;
-    document.getElementById('fix2MidNModalOverlay').style.display='flex';
-}
-function closeFix2MidNModal(){document.getElementById('fix2MidNModalOverlay').style.display='none';}
-function executeFix2MidN(action){
-    if(!fixed2List.length){alert('请先固定2');return;}
-    var minN=parseInt(document.getElementById('fix2Min').value,10);
-    var maxN=parseInt(document.getElementById('fix2Max').value,10);
-    if(isNaN(minN))minN=0;
-    if(isNaN(maxN))maxN=999999;
-    if(minN<0||maxN<minN){alert('请输入有效区间');return;}
-    var selTypes=[];
-    document.querySelectorAll('.f2-type-cb:checked').forEach(function(cb){selTypes.push(cb.value);});
-    var actLabel=(action==='keep'?'保留':'删除');
-    if(!confirm('确认对满足【固定2中'+fix2MidNMode+' 注数 '+minN+'-'+maxN+'】条件的组合执行【'+actLabel+'】？'))return;
-    closeFix2MidNModal();
-    saveUndoState();
-    var fl=[];
-    for(var j=0;j<fixed2List.length;j++){
-        var f=fixed2List[j];
-        if(selTypes.length && selTypes.indexOf(f.type)===-1) continue;
-        fl.push(f);
-    }
-    if(!fl.length){alert('没有符合类型条件的固定2票');return;}
-    var removed=0,kept=0;
-    for(var i=0;i<TOTAL;i++){
-        if(!filteredAlive[i])continue;
-        var ciL=masksLow[i], ciH=masksHigh[i];
-        var hitCount=0;
-        for(var j=0;j<fl.length;j++){
-            if(_maxHitWithFix2(fl[j], ciL, ciH)===fix2MidNMode) hitCount++;
-        }
-        var isMatch=(hitCount>=minN&&hitCount<=maxN);
-        if(action==='keep'){
-            if(isMatch){kept++;}else{filteredAlive[i]=0;removed++;}
-        }else{
-            if(isMatch){filteredAlive[i]=0;removed++;}else{kept++;}
-        }
-    }
-    filteredCount=kept;
-    updateDisplay();
-    log('✅ 固定2 中'+fix2MidNMode+' '+actLabel+'完成：剩余 '+kept.toLocaleString()+' 组');
-}
-function showFix2ShowMid(){
-    if(!fixed2List.length)return alert('请先固定2');
-    if(busy)return alert('处理中');
-    if(!filteredCount)return alert('无剩余');
-    busy=true;setStatus('统计固定2中3/中4情况...');
-    showProgress(0);showGlobalCancel();
-    globalAbortFlag=false;
-    var aliveList=[];
-    for(var i=0;i<TOTAL;i++)if(filteredAlive[i])aliveList.push(i);
-    var results=[];
-    var batchSize=400;
-    var idx=0;
-    function process(){
-        if(globalAbortFlag){finishOperation();log('⏹️ 已取消');return;}
-        var end=Math.min(idx+batchSize,aliveList.length);
-        for(;idx<end;idx++){
-            var ci=aliveList[idx];
-            var ciL=masksLow[ci], ciH=masksHigh[ci];
-            var nums=unmaskFront(ciL,ciH);
-            var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',');
-            var mid4ByType={},mid3ByType={};
-            for(var j=0;j<fixed2List.length;j++){
-                var f=fixed2List[j];
-                var mf=_maxHitWithFix2(f, ciL, ciH);
-                if(mf===4)mid4ByType[f.type]=(mid4ByType[f.type]||0)+1;
-                else if(mf===3)mid3ByType[f.type]=(mid3ByType[f.type]||0)+1;
+
+    viewPrizeRunning=true;
+    document.getElementById('viewPrizeProgress').style.display='block';
+    document.getElementById('viewPrizeProgressBar').style.width='0%';
+    document.getElementById('viewPrizeStatus').textContent='计算中...';
+    document.getElementById('viewPrizeResult').innerHTML='';
+
+    var allResults=[]; // 保存所有前区+后区组合的奖金
+    var hi=0;
+    var BATCH=500;
+    function processHist(){
+        if(!viewPrizeRunning)return;
+        var end=Math.min(hi+BATCH,frontList.length);
+        for(;hi<end;hi++){
+            var fm=frontList[hi];
+            for(var bi=0;bi<bluesMasked.length;bi++){
+                var b=bluesMasked[bi];
+                var totalPrize=0;
+                for(var t=0;t<hist.length;t++){
+                    var interLow=fm.l&hist[t].l;
+                    var interHigh=fm.h&hist[t].h;
+                    var mf=popcount32(interLow)+popcount32(interHigh);
+                    var mb=popcount32(b.bm&hist[t].bm);
+                    var p=prizeAmount(mf,mb);
+                    if(p>0) totalPrize+=p;
+                }
+                allResults.push({idx:fm.idx,b0:b.arr[0],b1:b.arr[1],prize:totalPrize});
             }
-            results.push({idx:ci,combo:comboStr,mid4:mid4ByType,mid3:mid3ByType});
         }
-        showProgress(Math.round(idx/aliveList.length*100));
-        if(idx<aliveList.length)setTimeout(process,1);
-        else{
-            results.sort(function(a,b){
-                var t4a=0,t3a=0,t4b=0,t3b=0;
-                for(var k in a.mid4)t4a+=a.mid4[k];
-                for(var k in a.mid3)t3a+=a.mid3[k];
-                for(var k in b.mid4)t4b+=b.mid4[k];
-                for(var k in b.mid3)t3b+=b.mid3[k];
-                if(t4b!==t4a)return t4b-t4a;
-                if(t3b!==t3a)return t3b-t3a;
-                return a.combo<b.combo?-1:1;
-            });
-            fix2ShowCache=results;
-            var html='';
-            for(var r=0;r<results.length;r++){
-                var item=results[r];
-                var t4=0,t3=0;
-                var str4='',str3='';
-                var keys4=Object.keys(item.mid4).sort(function(a,b){return item.mid4[b]-item.mid4[a];});
-                for(var k=0;k<keys4.length;k++){t4+=item.mid4[keys4[k]];str4+=(str4?', ':'')+keys4[k]+'有'+item.mid4[keys4[k]]+'注';}
-                var keys3=Object.keys(item.mid3).sort(function(a,b){return item.mid3[b]-item.mid3[a];});
-                for(var k=0;k<keys3.length;k++){t3+=item.mid3[keys3[k]];str3+=(str3?', ':'')+keys3[k]+'有'+item.mid3[keys3[k]]+'注';}
-                html+='<div class="f2-stats-block">';
-                html+='<div class="f2-stats-line"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" class="fix2-show-cb" data-idx="'+item.idx+'"> <b>'+item.combo+'</b></label></div>';
-                html+='<div class="f2-stats-line" style="color:#c0392b;">中4个的有'+t4+'注'+(str4?'，其中'+str4:'')+'</div>';
-                html+='<div class="f2-stats-line" style="color:#2980b9;">中3个的有'+t3+'注'+(str3?'，其中'+str3:'')+'</div>';
-                html+='</div>';
-            }
-            document.getElementById('fix2ShowContent').innerHTML=html;
-            document.getElementById('fix2ShowTitle').textContent='📊 剩余 '+results.length+' 组按固定2的中3/中4情况';
-            document.getElementById('fix2ShowCountInfo').textContent='共 '+results.length+' 组';
-            document.getElementById('fix2ShowSelectAll').checked=false;
-            document.getElementById('fix2ShowMidOverlay').style.display='flex';
-            finishOperation();
-        }
-    }
-    process();
-}
-function executeFix2ShowAction(action){
-    var cbs=document.querySelectorAll('.fix2-show-cb:checked');
-    if(!cbs.length){alert('请至少勾选一项');return;}
-    var checkedSet=new Set();
-    for(var i=0;i<cbs.length;i++)checkedSet.add(parseInt(cbs[i].dataset.idx,10));
-    var actLabel=(action==='keep'?'保留':'删除');
-    if(!confirm('确认对勾选的 '+checkedSet.size.toLocaleString()+' 组执行【'+actLabel+'】？'))return;
-    document.getElementById('fix2ShowMidOverlay').style.display='none';
-    saveUndoState();
-    var removed=0,kept=0;
-    for(var i=0;i<TOTAL;i++){
-        if(!filteredAlive[i])continue;
-        var isChecked=checkedSet.has(i);
-        if(action==='keep'){
-            if(isChecked){kept++;}else{filteredAlive[i]=0;removed++;}
+        var pct=Math.round(hi/frontList.length*100);
+        document.getElementById('viewPrizeProgressBar').style.width=pct+'%';
+        document.getElementById('viewPrizeStatus').textContent='计算中... '+hi.toLocaleString()+' / '+frontList.length.toLocaleString();
+        if(hi<frontList.length){
+            setTimeout(processHist,1);
         }else{
-            if(isChecked){filteredAlive[i]=0;removed++;}else{kept++;}
+            // 按奖金升序排序，取前500
+            allResults.sort(function(a,b){return a.prize-b.prize;});
+            var top=allResults.slice(0,500);
+            var html='<div style="margin-bottom:8px;"><b>共 '+allResults.length.toLocaleString()+' 组合，显示奖金最少的前 '+top.length+' 组（后区来源：'+(bkSrc==='remain'?'当前剩余':'全部66组')+'）</b> <button class="btn btn-outline btn-sm" id="btnViewPrizeCopyAll">📋 全部复制</button> <button class="btn btn-outline btn-sm" id="btnViewPrizeCopyChecked">📋 复制勾选</button></div>';
+            html+='<table class="content-table"><thead><tr><th class="cb-cell">选</th><th>组合（前区+后区）</th><th>奖金（元）</th></tr></thead><tbody>';
+            for(var r=0;r<top.length;r++){
+                var nums=unmaskFront(masksLow[top[r].idx],masksHigh[top[r].idx]);
+                var comboStr=nums.map(function(n){return String(n).padStart(2,'0');}).join(',')+'-'+String(top[r].b0).padStart(2,'0')+','+String(top[r].b1).padStart(2,'0');
+                html+='<tr><td class="cb-cell"><input type="checkbox" class="view-prize-cb" data-combo="'+comboStr+'"></td><td>'+comboStr+'</td><td>'+top[r].prize.toLocaleString()+'</td></tr>';
+            }
+            html+='</tbody></table>';
+            document.getElementById('viewPrizeResult').innerHTML=html;
+            document.getElementById('viewPrizeStatus').textContent='✅ 计算完成';
+            viewPrizeRunning=false;
+            document.getElementById('btnViewPrizeCopyAll').onclick=function(){
+                var arr=[];
+                for(var i=0;i<top.length;i++){
+                    var nums=unmaskFront(masksLow[top[i].idx],masksHigh[top[i].idx]);
+                    arr.push(nums.map(function(n){return String(n).padStart(2,'0');}).join(',')+'-'+String(top[i].b0).padStart(2,'0')+','+String(top[i].b1).padStart(2,'0'));
+                }
+                copyText(arr.join('\n'),arr.length);
+            };
+            document.getElementById('btnViewPrizeCopyChecked').onclick=function(){
+                var arr=[];
+                document.querySelectorAll('.view-prize-cb:checked').forEach(function(cb){arr.push(cb.dataset.combo);});
+                if(!arr.length){alert('请先勾选');return;}
+                copyText(arr.join('\n'),arr.length);
+            };
         }
     }
-    filteredCount=kept;
-    updateDisplay();
-    log('✅ 固定2 中3/中4情况 '+actLabel+'完成：剩余 '+kept.toLocaleString()+' 组');
+    setTimeout(processHist,1);
 }
 
 // ========== 绘制网格 ==========
@@ -3002,13 +3017,14 @@ function updateBlueStatus(){
 function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('💰 已切换：'+(prizeModeHigh?'奖池高于8亿模式':'奖池低于8亿模式'));}
     function init(){
     try{
+        initRemainingBackCombos();
         buildAll();buildHistMasks();buildPairRankings();
         drawGrids();drawKeepDigitsGrid();drawMatchGrid();drawCheckComboGrid();drawCalcPrizeGrid();drawKeepMatchGrid();drawRepeatPrizeGrid();drawBlueSelectGrid();drawVerifyGrid();
         function bind(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
         bind('btnClearInput',function(){document.getElementById('inputArea').value='';});
         bind('btnStats',analyzeDuplicates);
         bind('btnTogglePrizeMode',togglePrizeMode);
-        bind('btnGlobalCancel',function(){globalAbortFlag=true;prizeRangeAbortFlag=true;hideGlobalCancel();log('⏹️ 已请求取消');});
+        bind('btnGlobalCancel',function(){globalAbortFlag=true;prizeRangeAbortFlag=true;viewPrizeRunning=false;hideGlobalCancel();log('⏹️ 已请求取消');});
         bind('btnResetAll',function(){
             if(busy)return;
             if(!confirm('重置全部？'))return;
@@ -3022,6 +3038,8 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
             prizeModeHigh=false;selectedBlues=null;pairRankMap=null;digitRankMap=null;
             pairRankContentCache=null;contentModalCache=null;headCountSelSet.clear();tailCountSelSet.clear();
             invertMode=false;fixed2List=[];fixed2Stats={};fix2SelTypes.clear();fix2ShowCache=[];
+            remainingBackCombos=[];remainingBackSet=new Set();
+            initRemainingBackCombos();
             updateDisplay();updateBlueStatus();
             document.getElementById('inputArea').value='';
             document.getElementById('resultArea').style.display='none';
@@ -3070,9 +3088,24 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
         bind('btnContentModalClose',closeContentModal);
         bind('btnContentModalCloseTop',closeContentModal);
         bind('btnContentDeleteSelected',deleteCheckedFromContentModal);
-        bind('btnCopySelected',copyCheckedFromContentModal);
+        bind('btnCopySelected',function(){
+            var ct=document.getElementById('contentModalOverlay').dataset.contentType;
+            if(ct==='backview'){
+                var arr=[];
+                document.querySelectorAll('.back-view-cb:checked').forEach(function(cb){
+                    var idx=parseInt(cb.dataset.idx,10);
+                    var bb=remainingBackCombos[idx];
+                    if(bb)arr.push(String(bb[0]).padStart(2,'0')+','+String(bb[1]).padStart(2,'0'));
+                });
+                if(!arr.length){alert('请先勾选');return;}
+                copyText(arr.join('\n'),arr.length);
+            }else{
+                copyCheckedFromContentModal();
+            }
+        });
         bind('btnCopyAllDigits',function(){
             var ct=document.getElementById('contentModalOverlay').dataset.contentType;
+            if(ct==='backview'){copyBackCombosAll();return;}
             if(ct==='pairrank'&&pairRankContentCache){var all=pairRankContentCache.map(function(r){return r.combo;});copyText(all.join('\n'),all.length);}
             else if(ct==='digitstats'&&contentModalCache){var all=contentModalCache.map(function(r){return String(r.n).padStart(2,'0');});copyText(all.join('\n'),all.length);}
             else alert('当前内容不支持复制全部');
@@ -3153,6 +3186,7 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
         bind('btnRepeatPrizeClear',function(){repeatPrizeSel.clear();lastRepeatPrizeSel=[];drawRepeatPrizeGrid();document.getElementById('repeatPrizeCount').textContent='0';document.getElementById('repeatPrizeResult').style.display='none';});
         bind('btnExcludeMulti',function(){document.getElementById('multiModalTextarea').value='';document.getElementById('multiModalOverlay').style.display='flex';});
         bind('btnExcludeMultiHit',function(){document.getElementById('multiHitModalTextarea').value='';document.querySelectorAll('#multiHitCheckboxes input').forEach(function(cb){cb.checked=false;});document.getElementById('multiHitModalOverlay').style.display='flex';});
+        // 固定2 中N
         bind('btnFix2Mid3Keep',function(){openFix2MidNModal(3,'keep');});
         bind('btnFix2Mid3Exclude',function(){openFix2MidNModal(3,'exclude');});
         bind('btnFix2Mid4Keep',function(){openFix2MidNModal(4,'keep');});
@@ -3169,6 +3203,16 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
             var cbs=document.querySelectorAll('.fix2-show-cb');
             for(var i=0;i<cbs.length;i++)cbs[i].checked=this.checked;
         });
+        // 后区相关
+        bind('btnKeepBackFilter',function(){openBackFilterModal('keep');});
+        bind('btnViewBackCombos',openViewBackCombosModal);
+        bind('btnViewPrize',openViewPrizeModal);
+        bind('btnBackFilterCancel',closeBackFilterModal);
+        bind('btnBackFilterKeep',function(){executeBackFilter('keep');});
+        bind('btnBackFilterExclude',function(){executeBackFilter('exclude');});
+        bind('btnViewPrizeCancel',function(){viewPrizeRunning=false;document.getElementById('viewPrizeModalOverlay').style.display='none';});
+        bind('btnViewPrizeConfirm',confirmViewPrize);
+        // 弹窗关闭
         bind('btnMatchModalCancelTop',function(){document.getElementById('matchModalOverlay').style.display='none';});
         bind('btnMatchModalCancel',function(){document.getElementById('matchModalOverlay').style.display='none';});
         bind('btnMatchModalConfirm',confirmMatchAnalysis);
@@ -3199,6 +3243,7 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
         bind('btnMultiHitModalConfirm',confirmMultiHitExclusion);
         bind('btnRepeatPrizeCancel',hideRepeatPrizeModal);
         bind('btnRepeatPrizeConfirm',confirmRepeatPrizeStats);
+        // 相反模式
         bind('btnInvertMode',function(){
             var target=!invertMode;
             document.getElementById('invertTitle').textContent=target?'开启相反模式':'关闭相反模式';
@@ -3238,6 +3283,7 @@ function togglePrizeMode(){prizeModeHigh=!prizeModeHigh;updateDisplay();log('�
         updateDisplay();updateBlueStatus();
         log('✅ 工具就绪，共 '+TOTAL.toLocaleString()+' 注前区组合');
         log('📌 历史数据已导入：'+HISTORY_ARRAYS.length+' 条');
+        log('🔵 后区初始：66 组');
     }catch(e){
         alert('初始化失败：'+e.message);
         console.error(e);
