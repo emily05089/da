@@ -206,6 +206,60 @@
         }
         .error-line { font-weight: 700; color: #b91c1c; }
         .error-reason { color: #7f1d1d; margin-left: 6px; }
+        /* 重复检测样式 */
+        .dup-box {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: #78350f;
+            font-size: 0.85rem;
+            margin-top: 6px;
+        }
+        .dup-box summary {
+            cursor: pointer;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #92400e;
+            font-size: 0.95rem;
+        }
+        .dup-list {
+            max-height: 420px;
+            overflow-y: auto;
+            background: #fffaeb;
+            border-radius: 8px;
+            padding: 8px 10px;
+            border: 1px solid #fef3c7;
+        }
+        .dup-item {
+            padding: 4px 8px;
+            border-bottom: 1px dashed #fde68a;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            word-break: break-all;
+        }
+        .dup-item:last-child { border-bottom: none; }
+        .dup-key { color: #1a3244; font-weight: 600; }
+        .dup-count { color: #b45309; font-weight: 700; margin-left: 8px; }
+        .dup-lines { color: #92400e; margin-left: 4px; }
+        .dup-more { text-align: center; color: #92400e; padding: 6px; font-style: italic; }
+        .dup-skipped {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: #7f1d1d;
+            font-size: 0.82rem;
+            margin-bottom: 10px;
+        }
+        .empty-tip {
+            color: #8899aa;
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+        }
         @media (max-width: 600px) {
             .container { padding: 16px; }
             .btn { padding: 10px 18px; }
@@ -232,6 +286,7 @@
             <span>✅ 数字 1-9 或 01-09 均可识别</span>
             <span>✅ 胆拖中“无”表示该区没有胆码</span>
             <span>📊 自动拆分并统计单式注数</span>
+            <span>🔁 复式（前区≥6）自动检测重复组合</span>
         </div>
     </div>
 
@@ -246,25 +301,29 @@
 
 <script>
     (function() {
-        // 分组定义：标准按前区数量 5-14 单独分组 + 15及以上，胆拖按前区胆数量 0-4
-        const GROUP_DEFS = [
-            { id: 'g5',  label: '前区5个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 5 },
-            { id: 'g6',  label: '前区6个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 6 },
-            { id: 'g7',  label: '前区7个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 7 },
-            { id: 'g8',  label: '前区8个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 8 },
-            { id: 'g9',  label: '前区9个数字的组合',   test: (item) => item.type === 'standard' && item.qianCount === 9 },
-            { id: 'g10', label: '前区10个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 10 },
-            { id: 'g11', label: '前区11个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 11 },
-            { id: 'g12', label: '前区12个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 12 },
-            { id: 'g13', label: '前区13个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 13 },
-            { id: 'g14', label: '前区14个数字的组合',  test: (item) => item.type === 'standard' && item.qianCount === 14 },
-            { id: 'g15', label: '前区15个数字及以上的组合', test: (item) => item.type === 'standard' && item.qianCount >= 15 },
-            { id: 'd0', label: '前区0个胆（全拖）',   test: (item) => item.type === 'dantuo' && item.qianDanCount === 0 },
-            { id: 'd1', label: '前区1个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 1 },
-            { id: 'd2', label: '前区2个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 2 },
-            { id: 'd3', label: '前区3个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 3 },
-            { id: 'd4', label: '前区4个胆的组合',     test: (item) => item.type === 'dantuo' && item.qianDanCount === 4 }
-        ];
+        // 动态生成分组定义：标准型 5-35 每个数量单独一组；胆拖按前区胆 0-4
+        const GROUP_DEFS = [];
+        for (let i = 5; i <= 35; i++) {
+            GROUP_DEFS.push({
+                id: 'g' + i,
+                label: `前区${i}个数字的组合`,
+                test: (item) => item.type === 'standard' && item.qianCount === i
+            });
+        }
+        const dantuoLabels = {
+            0: '前区0个胆（全拖）',
+            1: '前区1个胆的组合',
+            2: '前区2个胆的组合',
+            3: '前区3个胆的组合',
+            4: '前区4个胆的组合'
+        };
+        for (let i = 0; i <= 4; i++) {
+            GROUP_DEFS.push({
+                id: 'd' + i,
+                label: dantuoLabels[i],
+                test: (item) => item.type === 'dantuo' && item.qianDanCount === i
+            });
+        }
 
         // 从字符串中提取指定范围内的整数，允许前导零，支持中文逗号/英文逗号混合
         function extractNumsInRange(str, min, max) {
@@ -289,10 +348,9 @@
             return { nums, invalidNums };
         }
 
-        // 判断字符串是否为“无”或空（修复：去除首尾可能存在的逗号、空格）
+        // 判断字符串是否为“无”或空（去除首尾分隔符后判断）
         function isNoneOrEmpty(s) {
             if (!s) return true;
-            // 去除首尾的逗号（中英文）、空格等分隔符
             let cleaned = s.replace(/^[,，\s]+|[,，\s]+$/g, '').trim();
             return !cleaned || /^无$/i.test(cleaned);
         }
@@ -344,8 +402,7 @@
             };
         }
 
-        // 解析胆拖格式行，支持：前区胆：... 前区拖：... 后区胆：... 后区拖：...
-        // 胆码部分可以写“无”表示没有胆码
+        // 解析胆拖格式行
         function parseDantuoLine(trimmed, raw) {
             const qianDanMatch = trimmed.match(/前区胆\s*[:：]\s*([\s\S]*?)(?=前区拖|后区胆|后区拖|$)/i);
             const qianTuoMatch = trimmed.match(/前区拖\s*[:：]\s*([\s\S]*?)(?=后区胆|后区拖|$)/i);
@@ -357,7 +414,6 @@
             const houDanStr = houDanMatch ? houDanMatch[1].trim() : '';
             const houTuoStr = houTuoMatch ? houTuoMatch[1].trim() : '';
 
-            // 检查必要关键字是否存在
             if (!/前区胆\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“前区胆”' };
             if (!/前区拖\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“前区拖”' };
             if (!/后区胆\s*[:：]/i.test(trimmed)) return { type: 'invalid', raw, reason: '缺少“后区胆”' };
@@ -448,6 +504,25 @@
             return Math.round(result);
         }
 
+        // 生成组合（数组形式）
+        function combinations(arr, k) {
+            if (k === 0) return [[]];
+            if (arr.length < k) return [];
+            const result = [];
+            const chosen = [];
+            const f = (start) => {
+                if (chosen.length === k) { result.push([...chosen]); return; }
+                const remain = k - chosen.length;
+                for (let i = start; i <= arr.length - remain; i++) {
+                    chosen.push(arr[i]);
+                    f(i + 1);
+                    chosen.pop();
+                }
+            };
+            f(0);
+            return result;
+        }
+
         // 计算某个项展开后的单式注数
         function countExpanded(item) {
             if (item.type === 'standard') {
@@ -472,6 +547,13 @@
             const errors = [];
             let totalCount = 0;
 
+            // 重复检测
+            const dupMap = new Map(); // key -> { count, lineNums: Set }
+            const dupSkipped = [];
+            let expandTotal = 0;
+            const MAX_SINGLE = 100000;   // 单行最大展开注数
+            const MAX_TOTAL = 200000;    // 检测总展开上限
+
             for (let i = 0; i < rawLines.length; i++) {
                 const line = rawLines[i];
                 if (!line.trim()) continue;
@@ -491,12 +573,63 @@
                     }
                 }
                 if (!anyMatched) errors.push({ lineNum: i + 1, reason: '无法匹配任何分组', raw: parsed.raw });
+
+                // 复式重复检测（标准型且前区数量 >= 6）
+                if (parsed.type === 'standard' && parsed.qianCount >= 6) {
+                    const qianCombCount = combinationsCount(parsed.qianCount, 5);
+                    const houCombCount = combinationsCount(parsed.houCount, 2);
+                    const singleTotal = qianCombCount * houCombCount;
+
+                    if (singleTotal > MAX_SINGLE) {
+                        dupSkipped.push({ lineNum: i + 1, reason: `单行展开 ${singleTotal} 注，超过单行上限 ${MAX_SINGLE}，未参与检测` });
+                    } else if (expandTotal + singleTotal > MAX_TOTAL) {
+                        dupSkipped.push({ lineNum: i + 1, reason: `累计展开将超过 ${MAX_TOTAL} 注上限，未参与检测` });
+                    } else {
+                        expandTotal += singleTotal;
+                        const qianCombos = combinations(parsed.qianNums, 5);
+                        const houCombos = combinations(parsed.houNums, 2);
+                        for (let qi = 0; qi < qianCombos.length; qi++) {
+                            const qStr = qianCombos[qi].join(',');
+                            for (let hi = 0; hi < houCombos.length; hi++) {
+                                const key = qStr + '-' + houCombos[hi].join(',');
+                                let entry = dupMap.get(key);
+                                if (!entry) {
+                                    entry = { count: 0, lineNums: new Set() };
+                                    dupMap.set(key, entry);
+                                }
+                                entry.count++;
+                                entry.lineNums.add(i + 1);
+                            }
+                        }
+                    }
+                }
             }
 
-            render(groups, errors, totalCount);
+            // 收集重复项
+            const duplicates = [];
+            for (const [key, entry] of dupMap) {
+                if (entry.count > 1) {
+                    duplicates.push({
+                        key,
+                        count: entry.count,
+                        lineNums: [...entry.lineNums].sort((a, b) => a - b)
+                    });
+                }
+            }
+            duplicates.sort((a, b) => b.count - a.count);
+
+            const MAX_DUP_SHOW = 300;
+            const dupResult = {
+                duplicates: duplicates.slice(0, MAX_DUP_SHOW),
+                totalDupCount: duplicates.length,
+                skipped: dupSkipped,
+                expandTotal
+            };
+
+            render(groups, errors, totalCount, dupResult);
         }
 
-        function render(groups, errors, totalCount) {
+        function render(groups, errors, totalCount, dupResult) {
             const container = document.getElementById('resultsContainer');
             let html = '';
 
@@ -510,19 +643,58 @@
 
             html += `<div class="total-box">📊 一共生成了 <strong>${totalCount}</strong> 注单式组合</div>`;
 
+            // 收集非空分组数据
             const groupsData = {};
-            for (let g of groups) groupsData[g.id] = g.items.join('\n');
+            const nonEmptyGroups = [];
             for (let g of groups) {
-                const content = groupsData[g.id];
-                const isEmpty = g.items.length === 0;
-                html += `<div class="group-card"><div class="group-header"><span class="group-title">📌 ${escHtml(g.label)} <span class="badge">${g.items.length} 组</span></span><button class="copy-btn" data-group-id="${g.id}" ${isEmpty ? 'disabled' : ''}>📋 复制本组</button></div><div class="combo-list ${isEmpty ? 'empty' : ''}">${isEmpty ? '（暂无）' : escHtml(content)}</div></div>`;
+                if (g.items.length > 0) {
+                    groupsData[g.id] = g.items.join('\n');
+                    nonEmptyGroups.push(g);
+                }
             }
+
+            if (nonEmptyGroups.length === 0) {
+                html += `<div class="empty-tip">暂无有效分组内容</div>`;
+            } else {
+                for (let g of nonEmptyGroups) {
+                    const content = groupsData[g.id];
+                    html += `<div class="group-card"><div class="group-header"><span class="group-title">📌 ${escHtml(g.label)} <span class="badge">${g.items.length} 组</span></span><button class="copy-btn" data-group-id="${g.id}">📋 复制本组</button></div><div class="combo-list">${escHtml(content)}</div></div>`;
+                }
+            }
+
+            // 重复检测面板（页面最后）
+            html += `<div class="dup-box">`;
+            if (dupResult.skipped.length > 0) {
+                html += `<div class="dup-skipped">⚠️ 以下行因展开量过大未参与重复检测：<br>`;
+                for (const s of dupResult.skipped) {
+                    html += `第 ${s.lineNum} 行：${escHtml(s.reason)}<br>`;
+                }
+                html += `</div>`;
+            }
+            const dupTitle = dupResult.totalDupCount > 0
+                ? `🔁 重复组合检测：发现 <strong>${dupResult.totalDupCount}</strong> 个重复的单式组合`
+                : `🔁 重复组合检测：未发现重复的单式组合`;
+            html += `<details class="dup-box" open><summary>${dupTitle}</summary>`;
+            if (dupResult.totalDupCount === 0) {
+                html += `<div class="empty">（无）</div>`;
+            } else {
+                html += `<div class="dup-list">`;
+                for (const d of dupResult.duplicates) {
+                    html += `<div class="dup-item"><span class="dup-key">${escHtml(d.key)}</span><span class="dup-count">出现 ${d.count} 次</span><span class="dup-lines">（第 ${d.lineNums.join('、')} 行）</span></div>`;
+                }
+                if (dupResult.totalDupCount > dupResult.duplicates.length) {
+                    html += `<div class="dup-more">... 还有 ${dupResult.totalDupCount - dupResult.duplicates.length} 个重复组合未显示</div>`;
+                }
+                html += `</div>`;
+            }
+            html += `</details></div>`;
+
             container.innerHTML = html;
 
             container.querySelectorAll('.copy-btn[data-group-id]').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const content = groupsData[this.getAttribute('data-group-id')] || '';
-                    if (!content || this.disabled) return;
+                    if (!content) return;
                     copyContent(content, this);
                 });
             });
@@ -562,6 +734,8 @@
             const demo = [
                 '1,2,3,4,5-1,2',
                 '4,5,6,7,8,9-2,3,4',
+                '1,2,3,4,5,6,7,8-1,2',
+                '1,2,3,4,5,6,7,9-1,2',
                 '前区胆：1，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9',
                 '前区胆：1，2，前区拖：10，12，13，15，21，22，后区胆：无，后区拖：5，6，7，8',
                 '前区胆：无，前区拖：01,02,03,04,05,06，后区胆：无，后区拖：01,02,03',
