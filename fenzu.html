@@ -303,7 +303,7 @@
             <span>✅ 数字 1-9 或 01-09 均可识别</span>
             <span>✅ 胆拖中“无”表示该区没有胆码</span>
             <span>📊 自动拆分并统计单式注数</span>
-            <span>🔁 全部类型自动检测重复，仅显示不相邻行之间的重复</span>
+            <span>🔁 只显示“跨块”重复（连续多行重复不显示）</span>
         </div>
     </div>
 
@@ -365,7 +365,7 @@
             return { nums, invalidNums };
         }
 
-        // 判断字符串是否为“无”或空（去除首尾分隔符后判断）
+        // 判断字符串是否为“无”或空
         function isNoneOrEmpty(s) {
             if (!s) return true;
             let cleaned = s.replace(/^[,，\s]+|[,，\s]+$/g, '').trim();
@@ -544,17 +544,25 @@
             return '';
         }
 
-        // 过滤行号：只保留不相邻的行号（相邻的只保留第一个）
-        function filterNonAdjacentLines(lineNums) {
+        // 核心修复：将升序排列的行号拆分为多个"连续段"
+        // 例如 [2,3,108] → [{start:2,end:3}, {start:108,end:108}]
+        //      [253,...,267] → [{start:253,end:267}]（单段）
+        function findSegments(lineNums) {
             if (lineNums.length === 0) return [];
-            const result = [lineNums[0]];
+            const segments = [];
+            let start = lineNums[0];
+            let end = lineNums[0];
             for (let i = 1; i < lineNums.length; i++) {
-                const last = result[result.length - 1];
-                if (lineNums[i] > last + 1) {
-                    result.push(lineNums[i]);
+                if (lineNums[i] === end + 1) {
+                    end = lineNums[i];
+                } else {
+                    segments.push({ start, end });
+                    start = lineNums[i];
+                    end = lineNums[i];
                 }
             }
-            return result;
+            segments.push({ start, end });
+            return segments;
         }
 
         // 处理并渲染
@@ -614,24 +622,25 @@
                 }
             }
 
-            // 收集重复项：过滤掉相邻的行号，只保留不相邻的
+            // 收集重复项：按"连续段"判断
             const duplicates = [];
             for (const [sig, entry] of dupMap) {
                 const sortedLines = [...entry.lineNums].sort((a, b) => a - b);
-                const filteredLines = filterNonAdjacentLines(sortedLines);
-                // 只有过滤后仍有≥2行（即存在不相邻重复）才报告
-                if (filteredLines.length > 1) {
+                const segments = findSegments(sortedLines);
+                // 只有存在 2 个及以上连续段（即跨块重复）才报告
+                if (segments.length > 1) {
+                    const firstLines = segments.map(s => s.start);
                     duplicates.push({
                         sig,
-                        count: filteredLines.length,
-                        rawCount: entry.count,
-                        lineNums: filteredLines,
+                        segmentCount: segments.length,
+                        firstLines,
+                        segments,
                         raws: entry.raws,
                         typeLabel: buildTypeLabel(entry.parsedFirst)
                     });
                 }
             }
-            duplicates.sort((a, b) => b.count - a.count || a.sig.localeCompare(b.sig));
+            duplicates.sort((a, b) => b.segmentCount - a.segmentCount || a.sig.localeCompare(b.sig));
 
             const MAX_DUP_SHOW = 300;
             const dupResult = {
@@ -683,19 +692,19 @@
             if (!dupResult.checkedLines) {
                 html += `<div class="dup-ok">🔁 重复检测：本次输入无有效行。</div>`;
             } else if (dupResult.totalDupCount === 0) {
-                html += `<div class="dup-ok">🔁 重复检测：没有跨行重复的组合（相邻行重复已自动忽略，参与检测 ${dupResult.checkedCount} 行）。</div>`;
+                html += `<div class="dup-ok">🔁 重复检测：没有跨块重复的组合（同一组合只在连续的一整段中出现，已自动忽略；参与检测 ${dupResult.checkedCount} 行）。</div>`;
             } else {
-                const dupTitle = `🔁 重复检测：发现 <strong>${dupResult.totalDupCount}</strong> 组跨行重复的组合`;
+                const dupTitle = `🔁 重复检测：发现 <strong>${dupResult.totalDupCount}</strong> 个组合存在跨块重复`;
                 html += `<details class="dup-box" open><summary>${dupTitle}</summary>`;
                 html += `<div class="dup-list">`;
                 for (const d of dupResult.duplicates) {
                     html += `<div class="dup-item">`;
-                    html += `<div><span class="dup-raw">${escHtml(d.raws[0])}</span><span class="dup-type">${escHtml(d.typeLabel)}</span><span class="dup-count">出现 ${d.count} 次</span></div>`;
-                    html += `<div class="dup-lines">所在行：第 ${d.lineNums.join('、')} 行</div>`;
+                    html += `<div><span class="dup-raw">${escHtml(d.raws[0])}</span><span class="dup-type">${escHtml(d.typeLabel)}</span><span class="dup-count">共 ${d.segmentCount} 处重复</span></div>`;
+                    html += `<div class="dup-lines">所在行：第 ${d.firstLines.join('、')} 行</div>`;
                     html += `</div>`;
                 }
                 if (dupResult.totalDupCount > dupResult.duplicates.length) {
-                    html += `<div class="dup-more">... 还有 ${dupResult.totalDupCount - dupResult.duplicates.length} 组重复未显示</div>`;
+                    html += `<div class="dup-more">... 还有 ${dupResult.totalDupCount - dupResult.duplicates.length} 个未显示</div>`;
                 }
                 html += `</div></details>`;
             }
@@ -745,27 +754,25 @@
 
         function loadDemo() {
             const demo = [
-                '02,07,15,20,21-07,10',
-                '02,07,15,20,21-07,10',
-                '03,05,20,30,31-02,12',
-                '03,05,20,30,31-02,12',
-                '07,09,12,17,20-08,12',
-                '07,09,12,17,20-08,12',
-                '01,05,07,15,19-05,07',
-                '15,27,29,33,35-05,07',
-                '01,05,07,15,19-05,07',
-                '15,27,29,33,35-05,07',
-                '01,05,07,15,19-05,07',
-                '15,27,29,33,35-05,07',
-                '01,05,07,15,19-05,07',
-                '15,27,29,33,35-05,07',
-                '01,05,07,15,19-05,07',
+                // 单式：连续块（第1-3行），不应显示
                 '01,02,03,04,05-06,07',
+                '01,02,03,04,05-06,07',
+                '01,02,03,04,05-06,07',
+                // 单式：跨块重复（第4行 与 第7行）
+                '02,07,15,20,21-07,10',
+                '03,05,20,30,31-02,12',
+                '07,09,12,17,20-08,12',
+                '02,07,15,20,21-07,10',
+                // 复式：跨块重复
+                '01,02,03,04,05,06,07,08-01,02',
+                '09,10,11,12,13,14-03,04',
+                '01,02,03,04,05,06,07,08-01,02',
+                // 胆拖：正常胆码不同（不重复）
                 '前区胆：08,13,23,31，前区拖：04,18,19,20，后区胆：无，后区拖：02,05',
                 '前区胆：04,13,23,31，前区拖：08,18,19,20，后区胆：无，后区拖：02,05',
+                // 胆拖：跨块重复
                 '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,10',
-                '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,10',
-                '05,14,16,22,28,33,35-06,09,12'
+                '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,10'
             ];
             document.getElementById('comboInput').value = demo.join('\n');
             process();
