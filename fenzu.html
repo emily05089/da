@@ -303,7 +303,7 @@
             <span>✅ 数字 1-9 或 01-09 均可识别</span>
             <span>✅ 胆拖中“无”表示该区没有胆码</span>
             <span>📊 自动拆分并统计单式注数</span>
-            <span>🔁 复式(前区≥6)与胆拖自动检测重复输入行（单式不检测）</span>
+            <span>🔁 复式(前区≥6)与胆拖自动检测重复输入行（单式不检测，胆拖分别比较胆码和拖码）</span>
         </div>
     </div>
 
@@ -372,7 +372,7 @@
             return !cleaned || /^无$/i.test(cleaned);
         }
 
-        // 解析标准复式行，格式：前区号码-后区号码
+        // 解析标准复式行
         function parseStandardLine(trimmed, raw) {
             const lastDash = trimmed.lastIndexOf('-');
             if (lastDash === -1) {
@@ -538,7 +538,7 @@
             if (parsed.type === 'standard') {
                 return `复式${parsed.qianCount}个`;
             } else if (parsed.type === 'dantuo') {
-                return `前区${parsed.qianDanCount}胆+拖${parsed.qianTuoCount}个`;
+                return `前区${parsed.qianDanCount}胆`;
             }
             return '';
         }
@@ -552,7 +552,7 @@
             let totalCount = 0;
 
             // 重复检测：只比较输入行本身
-            const dupMap = new Map(); // 签名 -> { count, lineNums: Set, raws: [], parsedFirst }
+            const dupMap = new Map();
             let checkedCount = 0;
 
             for (let i = 0; i < rawLines.length; i++) {
@@ -581,13 +581,16 @@
                 if (parsed.type === 'standard') {
                     if (parsed.qianCount >= 6) {
                         participate = true;
-                        sig = parsed.qianNums.join(',') + '|' + parsed.houNums.join(',');
+                        sig = 'S|' + parsed.qianNums.join(',') + '|' + parsed.houNums.join(',');
                     }
                 } else if (parsed.type === 'dantuo') {
                     participate = true;
-                    const qianAll = [...parsed.qianDanNums, ...parsed.qianTuoNums].sort((a,b)=>a-b);
-                    const houAll = [...parsed.houDanNums, ...parsed.houTuoNums].sort((a,b)=>a-b);
-                    sig = qianAll.join(',') + '|' + houAll.join(',');
+                    // 胆拖：分别比较胆码和拖码
+                    sig = 'D|'
+                        + parsed.qianDanNums.join(',') + '|'
+                        + parsed.qianTuoNums.join(',') + '|'
+                        + parsed.houDanNums.join(',') + '|'
+                        + parsed.houTuoNums.join(',');
                 }
 
                 if (participate) {
@@ -734,15 +737,12 @@
                 '4,5,6,7,8,9-2,3,4',
                 '1,2,3,4,5,6,7,8-1,2',
                 '1,2,3,4,5,6,7,8-1,2',
-                '1,2,3,4,5,6,7,9-1,2',
-                '02,03,10,13,15,16,22,23,24,25,34-08,09,12',
-                '02,03,10,13,15,16,22,23,24,25,34-08,09,12',
-                '02,07,13,19,29,33,34-05,11',
-                '02,07,13,19,29,33,34-05,11',
-                '前区胆：1，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9',
-                '前区胆：1，前区拖：10，12，13，15，21，后区胆：6，后区拖：7，8，9',
-                '前区胆：1，2，前区拖：10，12，13，15，21，22，后区胆：无，后区拖：5，6，7，8',
-                '前区胆：无，前区拖：01,02,03,04,05,06，后区胆：无，后区拖：01,02,03'
+                '前区胆：08,13,23,31，前区拖：04,18,19,20，后区胆：无，后区拖：02,05',
+                '前区胆：04,13,23,31，前区拖：08,18,19,20，后区胆：无，后区拖：02,05',
+                '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,10',
+                '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,05',
+                '05,14,16,22,28,33,35-06,09,12',
+                '05,14,16,22,28,33,35-06,09,12'
             ];
             document.getElementById('comboInput').value = demo.join('\n');
             process();
