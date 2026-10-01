@@ -303,7 +303,7 @@
             <span>✅ 数字 1-9 或 01-09 均可识别</span>
             <span>✅ 胆拖中“无”表示该区没有胆码</span>
             <span>📊 自动拆分并统计单式注数</span>
-            <span>🔁 复式(前区≥6)与胆拖自动检测重复输入行（单式不检测，胆拖分别比较胆码和拖码）</span>
+            <span>🔁 全部类型自动检测重复，仅显示不相邻行之间的重复</span>
         </div>
     </div>
 
@@ -536,11 +536,25 @@
         // 生成重复行的类型描述
         function buildTypeLabel(parsed) {
             if (parsed.type === 'standard') {
+                if (parsed.qianCount === 5) return '单式5个';
                 return `复式${parsed.qianCount}个`;
             } else if (parsed.type === 'dantuo') {
                 return `前区${parsed.qianDanCount}胆`;
             }
             return '';
+        }
+
+        // 过滤行号：只保留不相邻的行号（相邻的只保留第一个）
+        function filterNonAdjacentLines(lineNums) {
+            if (lineNums.length === 0) return [];
+            const result = [lineNums[0]];
+            for (let i = 1; i < lineNums.length; i++) {
+                const last = result[result.length - 1];
+                if (lineNums[i] > last + 1) {
+                    result.push(lineNums[i]);
+                }
+            }
+            return result;
         }
 
         // 处理并渲染
@@ -551,7 +565,7 @@
             const errors = [];
             let totalCount = 0;
 
-            // 重复检测：只比较输入行本身
+            // 重复检测：所有类型都参与
             const dupMap = new Map();
             let checkedCount = 0;
 
@@ -575,17 +589,11 @@
                 }
                 if (!anyMatched) errors.push({ lineNum: i + 1, reason: '无法匹配任何分组', raw: parsed.raw });
 
-                // === 重复检测 ===
-                let participate = false;
+                // === 重复检测：所有类型都参与 ===
                 let sig = '';
                 if (parsed.type === 'standard') {
-                    if (parsed.qianCount >= 6) {
-                        participate = true;
-                        sig = 'S|' + parsed.qianNums.join(',') + '|' + parsed.houNums.join(',');
-                    }
+                    sig = 'S|' + parsed.qianNums.join(',') + '|' + parsed.houNums.join(',');
                 } else if (parsed.type === 'dantuo') {
-                    participate = true;
-                    // 胆拖：分别比较胆码和拖码
                     sig = 'D|'
                         + parsed.qianDanNums.join(',') + '|'
                         + parsed.qianTuoNums.join(',') + '|'
@@ -593,7 +601,7 @@
                         + parsed.houTuoNums.join(',');
                 }
 
-                if (participate) {
+                if (sig) {
                     checkedCount++;
                     let entry = dupMap.get(sig);
                     if (!entry) {
@@ -606,14 +614,18 @@
                 }
             }
 
-            // 收集重复项（出现≥2次）
+            // 收集重复项：过滤掉相邻的行号，只保留不相邻的
             const duplicates = [];
             for (const [sig, entry] of dupMap) {
-                if (entry.count > 1) {
+                const sortedLines = [...entry.lineNums].sort((a, b) => a - b);
+                const filteredLines = filterNonAdjacentLines(sortedLines);
+                // 只有过滤后仍有≥2行（即存在不相邻重复）才报告
+                if (filteredLines.length > 1) {
                     duplicates.push({
                         sig,
-                        count: entry.count,
-                        lineNums: [...entry.lineNums].sort((a, b) => a - b),
+                        count: filteredLines.length,
+                        rawCount: entry.count,
+                        lineNums: filteredLines,
                         raws: entry.raws,
                         typeLabel: buildTypeLabel(entry.parsedFirst)
                     });
@@ -669,11 +681,11 @@
             html += `<div class="dup-box">`;
 
             if (!dupResult.checkedLines) {
-                html += `<div class="dup-ok">🔁 重复检测：本次输入中没有复式(前区≥6)或胆拖，无需检测。</div>`;
+                html += `<div class="dup-ok">🔁 重复检测：本次输入无有效行。</div>`;
             } else if (dupResult.totalDupCount === 0) {
-                html += `<div class="dup-ok">🔁 重复检测：没有重复的输入行（参与检测 ${dupResult.checkedCount} 行，全部唯一）。</div>`;
+                html += `<div class="dup-ok">🔁 重复检测：没有跨行重复的组合（相邻行重复已自动忽略，参与检测 ${dupResult.checkedCount} 行）。</div>`;
             } else {
-                const dupTitle = `🔁 重复检测：发现 <strong>${dupResult.totalDupCount}</strong> 组重复的输入行`;
+                const dupTitle = `🔁 重复检测：发现 <strong>${dupResult.totalDupCount}</strong> 组跨行重复的组合`;
                 html += `<details class="dup-box" open><summary>${dupTitle}</summary>`;
                 html += `<div class="dup-list">`;
                 for (const d of dupResult.duplicates) {
@@ -733,15 +745,26 @@
 
         function loadDemo() {
             const demo = [
-                '1,2,3,4,5-1,2',
-                '4,5,6,7,8,9-2,3,4',
-                '1,2,3,4,5,6,7,8-1,2',
-                '1,2,3,4,5,6,7,8-1,2',
+                '02,07,15,20,21-07,10',
+                '02,07,15,20,21-07,10',
+                '03,05,20,30,31-02,12',
+                '03,05,20,30,31-02,12',
+                '07,09,12,17,20-08,12',
+                '07,09,12,17,20-08,12',
+                '01,05,07,15,19-05,07',
+                '15,27,29,33,35-05,07',
+                '01,05,07,15,19-05,07',
+                '15,27,29,33,35-05,07',
+                '01,05,07,15,19-05,07',
+                '15,27,29,33,35-05,07',
+                '01,05,07,15,19-05,07',
+                '15,27,29,33,35-05,07',
+                '01,05,07,15,19-05,07',
+                '01,02,03,04,05-06,07',
                 '前区胆：08,13,23,31，前区拖：04,18,19,20，后区胆：无，后区拖：02,05',
                 '前区胆：04,13,23,31，前区拖：08,18,19,20，后区胆：无，后区拖：02,05',
                 '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,10',
-                '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,05',
-                '05,14,16,22,28,33,35-06,09,12',
+                '前区胆：07,09，前区拖：01,03,04,05,08,11,13,15,18,19,26,27,28,29,32,33，后区胆：无，后区拖：02,10',
                 '05,14,16,22,28,33,35-06,09,12'
             ];
             document.getElementById('comboInput').value = demo.join('\n');
