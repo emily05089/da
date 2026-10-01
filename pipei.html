@@ -891,9 +891,9 @@
                             maxGrade: { frontHit: -1, backHit: -1 },
                             minGrade: { frontHit: 99, backHit: 99 },
                             totalPrize: 0, 
-                            dist: {},       // 每个等级的计数
-                            distPrize: {},  // 每个等级的实际奖金总和
-                            distLines: {},  // 每个等级的原始投注行
+                            dist: {},
+                            distPrize: {},
+                            distLines: {},
                             details: []
                         };
                     }
@@ -940,7 +940,6 @@
                     groupStats[gkey].dist[maxKey] = (groupStats[gkey].dist[maxKey] || 0) + 1;
                     groupStats[gkey].distPrize[maxKey] = (groupStats[gkey].distPrize[maxKey] || 0) + linePrize;
                     
-                    // 记录该等级的原始投注行
                     if (!groupStats[gkey].distLines[maxKey]) groupStats[gkey].distLines[maxKey] = [];
                     groupStats[gkey].distLines[maxKey].push(line);
 
@@ -953,9 +952,24 @@
                     }
                 }
 
-                // 计算全部总奖金
+                const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
+
+                // 计算全部总计
                 let grandTotalPrize = 0;
-                for (let gkey in groupStats) grandTotalPrize += groupStats[gkey].totalPrize;
+                let grandTotalCount = 0;
+                let grandPrizeCount = 0;
+                let grandPrizeByLevel = {};
+                for (let gkey in groupStats) {
+                    let g = groupStats[gkey];
+                    grandTotalPrize += g.totalPrize;
+                    grandTotalCount += g.actualCount;
+                    for (let k of order) {
+                        if (g.dist[k] && prizeMap[k] > 0) {
+                            grandPrizeCount += g.dist[k];
+                            grandPrizeByLevel[k] = (grandPrizeByLevel[k] || 0) + g.dist[k];
+                        }
+                    }
+                }
 
                 let globalMaxGrade = { frontHit: 0, backHit: 0 };
                 for (let gkey in groupStats) {
@@ -963,6 +977,7 @@
                     if (compareGrade(g.maxGrade, globalMaxGrade) > 0) globalMaxGrade = g.maxGrade;
                 }
 
+                // 顶部
                 let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
 
                 let statsLines = [];
@@ -1002,47 +1017,37 @@
                     resultText += '\n' + statsLines.join('\n') + '\n';
                 }
 
+                // 全部总计
                 resultText += `\n===== 📈 全部总计 (共${totalCombinations}注) =====\n`;
-                resultText += `💰 总奖金：${grandTotalPrize.toLocaleString()}元\n\n`;
+                resultText += `💰 总奖金：${grandTotalPrize.toLocaleString()}元\n`;
+
+                // 全部总计：有奖金统计（隔一行）
+                if (grandPrizeCount > 0) {
+                    let parts = [];
+                    for (let k of order) {
+                        if (grandPrizeByLevel[k]) {
+                            parts.push(`${k}有${grandPrizeByLevel[k]}注`);
+                        }
+                    }
+                    let prizeRatio = grandTotalCount > 0 ? (grandTotalPrize / (grandTotalCount * 2) * 100).toFixed(2) : '0.00';
+                    let countRatio = grandTotalCount > 0 ? (grandPrizeCount / grandTotalCount * 100).toFixed(2) : '0.00';
+                    resultText += `\n一共有${grandTotalCount}注，有奖金的有${grandPrizeCount}注，其中${parts.join('，')}。奖金占比是${prizeRatio}%(${grandTotalPrize}元/${grandTotalCount * 2}元)，有奖金的注数占比是${countRatio}%(${grandPrizeCount}/${grandTotalCount})\n`;
+                }
+
+                resultText += '\n';
 
                 let sortedKeys = sortGroupKeys(Object.keys(groupStats));
-                const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
-                
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
                     resultText += `===== ${gkey} (共${g.actualCount}注) =====\n`;
                     resultText += `最多命中：${g.maxGrade.frontHit}+${g.maxGrade.backHit}\n`;
                     resultText += `最少命中：${g.minGrade.frontHit}+${g.minGrade.backHit}\n`;
                     resultText += `奖金小计：${g.totalPrize.toLocaleString()}元\n`;
-
-                    // 计算有奖金的行统计
-                    let prizeCount = 0;
-                    let prizeByLevel = {};
-                    for (let k of order) {
-                        if (g.dist[k] && prizeMap[k] > 0) {
-                            prizeCount += g.dist[k];
-                            prizeByLevel[k] = g.dist[k];
-                        }
-                    }
-                    
-                    if (prizeCount > 0) {
-                        let parts = [];
-                        for (let k of order) {
-                            if (prizeByLevel[k]) {
-                                parts.push(`${k}有${prizeByLevel[k]}注`);
-                            }
-                        }
-                        let prizeRatio = grandTotalPrize > 0 ? (g.totalPrize / grandTotalPrize * 100).toFixed(2) : '0.00';
-                        let countRatio = g.actualCount > 0 ? (prizeCount / g.actualCount * 100).toFixed(2) : '0.00';
-                        resultText += `有奖金的有${prizeCount}注，其中${parts.join('，')}。奖金占比是${prizeRatio}%(${g.totalPrize}元/${grandTotalPrize}元)，有奖金的注数占比是${countRatio}%(${prizeCount}/${g.actualCount})\n`;
-                    }
-
                     resultText += `--- 命中分布（按每行最高等级统计） ---\n`;
                     for (let k of order) {
                         if (g.dist[k]) {
                             let subtotal = g.distPrize[k] || 0;
                             resultText += `${k} ： ${g.dist[k]} 注（行），小计：${subtotal.toLocaleString()}元\n`;
-                            // 如果该等级有奖金，列出具体中奖号码
                             if (prizeMap[k] > 0 && g.distLines[k] && g.distLines[k].length > 0) {
                                 resultText += `中奖号码：\n`;
                                 g.distLines[k].forEach(line => {
@@ -1052,8 +1057,30 @@
                         }
                     }
                     
+                    // 组统计（在命中分布之后，隔一行）
+                    let gPrizeCount = 0;
+                    let gPrizeByLevel = {};
+                    for (let k of order) {
+                        if (g.dist[k] && prizeMap[k] > 0) {
+                            gPrizeCount += g.dist[k];
+                            gPrizeByLevel[k] = g.dist[k];
+                        }
+                    }
+                    
+                    if (gPrizeCount > 0) {
+                        let parts = [];
+                        for (let k of order) {
+                            if (gPrizeByLevel[k]) {
+                                parts.push(`${k}有${gPrizeByLevel[k]}注`);
+                            }
+                        }
+                        let prizeRatio = g.actualCount > 0 ? (g.totalPrize / (g.actualCount * 2) * 100).toFixed(2) : '0.00';
+                        let countRatio = g.actualCount > 0 ? (gPrizeCount / g.actualCount * 100).toFixed(2) : '0.00';
+                        resultText += `\n一共有${g.actualCount}注，有奖金的有${gPrizeCount}注，其中${parts.join('，')}。奖金占比是${prizeRatio}%(${g.totalPrize}元/${g.actualCount * 2}元)，有奖金的注数占比是${countRatio}%(${gPrizeCount}/${g.actualCount})\n`;
+                    }
+                    
                     if (g.details.length > 0) {
-                        resultText += `--- 中高奖金详情 ---\n`;
+                        resultText += `\n--- 中高奖金详情 ---\n`;
                         g.details.forEach(item => {
                             resultText += `中${item.maxFront}+${item.maxBack}，号码：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}-${item.backAll.map(n=>String(n).padStart(2,'0')).join(',')}，奖金合计：${item.prize.toLocaleString()}元\n`;
                         });
@@ -1091,7 +1118,7 @@
                 navigator.clipboard.writeText(lastSSQResultText).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
             };
 
-            // ===== 模式三：批量开奖匹配 =====
+            // ===== 模式三 =====
             window.copyMode3Detail = function(boxId) {
                 let el = document.getElementById(boxId);
                 if (!el) { showToast('复制失败', 'error'); return; }
