@@ -366,6 +366,9 @@
                 <div id="resultsSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
                 <div id="groupMatchArea"></div>
                 <div id="invalidAreaMatch"></div>
+                <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="copyMode1Result()">📋 一键复制结果</button>
+                </div>
             </div>
         </div>
 
@@ -386,7 +389,9 @@
             <div class="results-container" id="resultsContainerSSQ">
                 <div id="ssqResultContent" style="background:#fafbfd;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:'SF Mono','Monaco','Consolas',monospace;white-space:pre-wrap;line-height:1.8;font-size:0.85rem;overflow-x:auto;"></div>
                 <div id="invalidAreaSSQ" style="margin-top:12px;"></div>
-                <button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="copySSQResult()">📋 一键复制结果</button>
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="copySSQResult()">📋 一键复制结果</button>
+                </div>
             </div>
         </div>
 
@@ -752,6 +757,18 @@
                 setTimeout(() => $('bulkInput').focus(), 100);
             }
             window.closeModal2 = () => $('modalOverlay2').classList.remove('open');
+
+            // 模式一复制函数
+            window.copyMode1Result = () => {
+                let container = $('resultsContainer');
+                if (!container) { showToast('暂无结果可复制', 'warning'); return; }
+                let clone = container.cloneNode(true);
+                // 移除复制按钮本身，避免复制到按钮文字
+                clone.querySelectorAll('button').forEach(b => b.remove());
+                let text = clone.innerText.trim();
+                if (!text) { showToast('暂无结果可复制', 'warning'); return; }
+                navigator.clipboard.writeText(text).then(() => showToast('已复制', 'success')).catch(() => showToast('复制失败', 'error'));
+            };
 
             window.confirmBulkData = () => {
                 let raw = $('bulkInput').value;
