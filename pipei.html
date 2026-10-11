@@ -879,6 +879,8 @@
                 return a.backHit - b.backHit;
             }
 
+            function sumDict(d) { let s = 0; for (let k in d) s += d[k]; return s; }
+
             function generateSSQResultText(draw, lines) {
                 const prizeMap = currentPrizeMap();
                 const order = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','2+2','3+0','2+1','1+2','0+2','2+0','1+1','0+1','1+0','0+0'];
@@ -886,12 +888,6 @@
                 let totalCombinations = 0;
                 let totalRows = 0;
                 let invalidList = [];
-
-                let globalStats = {
-                    '5': { total: 0, sub: {'5+2':0, '5+1':0, '5+0':0} },
-                    '4': { total: 0, sub: {'4+2':0, '4+1':0, '4+0':0} },
-                    '3': { total: 0, sub: {'3+2':0, '3+1':0, '3+0':0} }
-                };
 
                 for (let idx = 0; idx < lines.length; idx++) {
                     let line = lines[idx].trim();
@@ -908,13 +904,17 @@
                             totalCombinations: 0, actualCount: 0,
                             maxGrade: { frontHit: -1, backHit: -1 },
                             minGrade: { frontHit: 99, backHit: 99 },
-                            totalPrize: 0, 
-                            dist: {}, distPrize: {}, distLines: {}
+                            totalPrize: 0,
+                            dist: {}, distPrize: {}, distLines: {},
+                            dist5: {}, dist4: {}, dist3: {},
+                            back2Dist: {},
+                            prizeByLevel: {}
                         };
                     }
+                    let g = groupStats[gkey];
                     totalCombinations += parsed.totalCombinations;
-                    groupStats[gkey].totalCombinations += parsed.totalCombinations;
-                    groupStats[gkey].actualCount += parsed.actualCount;
+                    g.totalCombinations += parsed.totalCombinations;
+                    g.actualCount += parsed.actualCount;
 
                     let maxGrade = { frontHit: -1, backHit: -1, prize: -1 };
                     let linePrize = 0;
@@ -934,148 +934,128 @@
                         }
                     }
 
-                    groupStats[gkey].totalPrize += linePrize;
-
+                    g.totalPrize += linePrize;
                     let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
-                    
-                    if (maxGrade.frontHit === 5 && globalStats['5'].sub[maxKey] !== undefined) {
-                        globalStats['5'].total++;
-                        globalStats['5'].sub[maxKey]++;
-                    } else if (maxGrade.frontHit === 4 && globalStats['4'].sub[maxKey] !== undefined) {
-                        globalStats['4'].total++;
-                        globalStats['4'].sub[maxKey]++;
-                    } else if (maxGrade.frontHit === 3 && globalStats['3'].sub[maxKey] !== undefined) {
-                        globalStats['3'].total++;
-                        globalStats['3'].sub[maxKey]++;
+
+                    if (compareGrade(maxGrade, g.maxGrade) > 0) g.maxGrade = maxGrade;
+                    if (compareGrade(maxGrade, g.minGrade) < 0) g.minGrade = maxGrade;
+
+                    g.dist[maxKey] = (g.dist[maxKey] || 0) + 1;
+                    g.distPrize[maxKey] = (g.distPrize[maxKey] || 0) + linePrize;
+                    if (!g.distLines[maxKey]) g.distLines[maxKey] = [];
+                    g.distLines[maxKey].push(line);
+
+                    if (maxGrade.frontHit === 5) g.dist5[maxKey] = (g.dist5[maxKey]||0)+1;
+                    else if (maxGrade.frontHit === 4) g.dist4[maxKey] = (g.dist4[maxKey]||0)+1;
+                    else if (maxGrade.frontHit === 3) g.dist3[maxKey] = (g.dist3[maxKey]||0)+1;
+
+                    if (maxGrade.backHit === 2) g.back2Dist[maxKey] = (g.back2Dist[maxKey]||0)+1;
+
+                    if ((prizeMap[maxKey] || 0) > 0) {
+                        g.prizeByLevel[maxKey] = (g.prizeByLevel[maxKey]||0)+1;
                     }
-
-                    if (compareGrade(maxGrade, groupStats[gkey].maxGrade) > 0) groupStats[gkey].maxGrade = maxGrade;
-                    if (compareGrade(maxGrade, groupStats[gkey].minGrade) < 0) groupStats[gkey].minGrade = maxGrade;
-
-                    groupStats[gkey].dist[maxKey] = (groupStats[gkey].dist[maxKey] || 0) + 1;
-                    groupStats[gkey].distPrize[maxKey] = (groupStats[gkey].distPrize[maxKey] || 0) + linePrize;
-                    
-                    if (!groupStats[gkey].distLines[maxKey]) groupStats[gkey].distLines[maxKey] = [];
-                    groupStats[gkey].distLines[maxKey].push(line);
                 }
 
-                // 全局统计
+                // 全局派生
+                let globalMaxGrade = { frontHit: 0, backHit: 0 };
                 let grandTotalPrize = 0;
-                let grandTotalRows = 0;
                 let grandPrizeRows = 0;
-                let grandPrizeByLevel = {};
-                let grandPrizeByGroup = {};
                 let grandBack2Rows = 0;
-                let grandBack2ByLevelGroup = {};
+                let globalDist5 = {}, globalDist4 = {}, globalDist3 = {};
+                let globalPrizeByLevel = {};
+                let globalPrizeByGroup = {};
 
                 for (let gkey in groupStats) {
                     let g = groupStats[gkey];
                     grandTotalPrize += g.totalPrize;
-                    grandTotalRows += g.actualCount;
-                    for (let k of order) {
-                        if (g.dist[k] && prizeMap[k] > 0) {
-                            grandPrizeRows += g.dist[k];
-                            grandPrizeByLevel[k] = (grandPrizeByLevel[k] || 0) + g.dist[k];
-                            grandPrizeByGroup[gkey] = (grandPrizeByGroup[gkey] || 0) + g.dist[k];
-                        }
-                        if (g.dist[k] && k.endsWith('+2')) {
-                            grandBack2Rows += g.dist[k];
-                            let ck = k + '|' + gkey;
-                            grandBack2ByLevelGroup[ck] = (grandBack2ByLevelGroup[ck] || 0) + g.dist[k];
-                        }
-                    }
-                }
-
-                let globalMaxGrade = { frontHit: 0, backHit: 0 };
-                for (let gkey in groupStats) {
-                    let g = groupStats[gkey];
+                    let gr = sumDict(g.prizeByLevel);
+                    grandPrizeRows += gr;
+                    grandBack2Rows += sumDict(g.back2Dist);
                     if (compareGrade(g.maxGrade, globalMaxGrade) > 0) globalMaxGrade = g.maxGrade;
+                    for (let k in g.dist5) globalDist5[k] = (globalDist5[k]||0) + g.dist5[k];
+                    for (let k in g.dist4) globalDist4[k] = (globalDist4[k]||0) + g.dist4[k];
+                    for (let k in g.dist3) globalDist3[k] = (globalDist3[k]||0) + g.dist3[k];
+                    for (let k in g.prizeByLevel) {
+                        globalPrizeByLevel[k] = (globalPrizeByLevel[k]||0) + g.prizeByLevel[k];
+                    }
+                    if (gr > 0) globalPrizeByGroup[gkey] = gr;
                 }
 
+                let totalCost = totalCombinations * 2;
+                let prizeRatioAll = totalCost > 0 ? (grandTotalPrize / totalCost * 100).toFixed(2) : '0.00';
+                let countRatioAll = totalRows > 0 ? (grandPrizeRows / totalRows * 100).toFixed(2) : '0.00';
+                let back2PctAll = totalRows > 0 ? (grandBack2Rows / totalRows * 100).toFixed(2) : '0.00';
+
+                let maxFront = globalMaxGrade.frontHit;
+                const levelsToShow = [];
+                if (maxFront >= 5) levelsToShow.push(5, 4, 3);
+                else if (maxFront >= 4) levelsToShow.push(4, 3);
+                else if (maxFront >= 3) levelsToShow.push(3);
+
+                function getDistForLevel(level) {
+                    return level === 5 ? globalDist5 : level === 4 ? globalDist4 : globalDist3;
+                }
+                function subKeysForLevel(level) {
+                    return level === 5 ? ['5+2','5+1','5+0'] : level === 4 ? ['4+2','4+1','4+0'] : ['3+2','3+1','3+0'];
+                }
+
+                // ===== 顶部结果 =====
                 let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
 
-                let statsLines = [];
-                let maxFront = globalMaxGrade.frontHit;
-
-                function buildStatLine(level) {
-                    let gs = globalStats[level];
-                    if (gs.total === 0) return null;
-                    let subParts = [];
-                    let subKeys = level === '5' ? ['5+2','5+1','5+0'] : level === '4' ? ['4+2','4+1','4+0'] : ['3+2','3+1','3+0'];
-                    for (let k of subKeys) {
-                        if (gs.sub[k] > 0) {
-                            subParts.push(`${k.replace('+','➕')}的有${gs.sub[k]}注`);
+                for (let lv of levelsToShow) {
+                    let dist = getDistForLevel(lv);
+                    let total = sumDict(dist);
+                    let pct = totalRows > 0 ? (total / totalRows * 100).toFixed(2) : '0.00';
+                    resultText += `\n✅中${lv}个的有${total}行，中${lv}个的行数占比是${pct}%(${total}/${totalRows})\n`;
+                    for (let sk of subKeysForLevel(lv)) {
+                        let cnt = dist[sk] || 0;
+                        if (cnt > 0) {
+                            let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
+                            resultText += `\n其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${totalRows})\n`;
                         }
                     }
-                    return `中${level}个的有${gs.total}注${subParts.length > 0 ? '，其中' + subParts.join('，') : ''}。`;
-                }
-
-                if (maxFront >= 5) {
-                    let l5 = buildStatLine('5');
-                    let l4 = buildStatLine('4');
-                    let l3 = buildStatLine('3');
-                    if (l5) statsLines.push(l5);
-                    if (l4) statsLines.push(l4);
-                    if (l3) statsLines.push(l3);
-                } else if (maxFront >= 4) {
-                    let l4 = buildStatLine('4');
-                    let l3 = buildStatLine('3');
-                    if (l4) statsLines.push(l4);
-                    if (l3) statsLines.push(l3);
-                } else if (maxFront >= 3) {
-                    let l3 = buildStatLine('3');
-                    if (l3) statsLines.push(l3);
-                }
-
-                if (statsLines.length > 0) {
-                    resultText += '\n' + statsLines.join('\n') + '\n';
                 }
 
                 // ===== 全部总计 =====
-                resultText += `\n===== 📈 全部总计 (共${totalCombinations}注组合) =====\n`;
+                resultText += `\n===== 📈 全部总计${totalRows}行 (共${totalCombinations}注组合) \n`;
                 resultText += `💰 总奖金：${grandTotalPrize.toLocaleString()}元\n\n`;
+                resultText += `✅全部奖金占比是${prizeRatioAll}%(${grandTotalPrize}元/${totalCost}元)，有奖金的行数占比是${countRatioAll}%(${grandPrizeRows}/${totalRows})\n\n`;
 
                 if (grandPrizeRows > 0) {
                     let levelParts = [];
                     for (let k of order) {
-                        if (grandPrizeByLevel[k]) levelParts.push(`${k}有${grandPrizeByLevel[k]}行`);
+                        if (globalPrizeByLevel[k]) levelParts.push(`${k}有${globalPrizeByLevel[k]}行`);
                     }
-                    resultText += `一共有${grandTotalRows}行（共${totalCombinations}注组合），有奖金的有${grandPrizeRows}行，其中${levelParts.join('，')}。\n\n`;
+                    resultText += `有奖金的有${grandPrizeRows}行，其中${levelParts.join('，')}。\n\n`;
 
-                    let sortedGroupKeys = sortGroupKeys(Object.keys(grandPrizeByGroup));
+                    let sortedGroupKeys = sortGroupKeys(Object.keys(globalPrizeByGroup));
                     let groupParts = [];
                     for (let gk of sortedGroupKeys) {
-                        if (grandPrizeByGroup[gk]) groupParts.push(`${gk}的有${grandPrizeByGroup[gk]}行`);
+                        if (globalPrizeByGroup[gk]) groupParts.push(`${gk}的有${globalPrizeByGroup[gk]}行`);
                     }
                     resultText += `其中${groupParts.join('，')}。\n\n`;
-
-                    if (grandBack2Rows > 0) {
-                        let back2Entries = Object.keys(grandBack2ByLevelGroup).map(key => {
-                            let parts = key.split('|');
-                            return { lvl: parts[0], grp: parts[1], count: grandBack2ByLevelGroup[key] };
-                        });
-                        back2Entries.sort((a, b) => order.indexOf(a.lvl) - order.indexOf(b.lvl));
-                        let back2Parts = back2Entries.map(e => `${e.lvl}有${e.count}行（${e.grp}）`);
-                        resultText += `后区全中的有${grandBack2Rows}行，其中${back2Parts.join('，')}\n\n`;
-                    } else {
-                        resultText += `后区全中的有0行\n\n`;
-                    }
-
-                    let totalCost = totalCombinations * 2;
-                    let prizeRatio = totalCost > 0 ? (grandTotalPrize / totalCost * 100).toFixed(2) : '0.00';
-                    let countRatio = grandTotalRows > 0 ? (grandPrizeRows / grandTotalRows * 100).toFixed(2) : '0.00';
-                    resultText += `奖金占比是${prizeRatio}%(${grandTotalPrize}元/${totalCost}元)，有奖金的行数占比是${countRatio}%(${grandPrizeRows}/${grandTotalRows})\n`;
-                } else {
-                    resultText += `一共有${grandTotalRows}行（共${totalCombinations}注组合），有奖金的有0行。奖金占比是0%(0元/${totalCombinations * 2}元)，有奖金的行数占比是0%(0/${grandTotalRows})\n`;
                 }
 
-                resultText += '\n';
+                resultText += `✅ 后区全中的有${grandBack2Rows}行，全中的行数比例：${back2PctAll}%（${grandBack2Rows}➗${totalRows}）\n\n`;
+
+                if (grandBack2Rows > 0) {
+                    let entries = [];
+                    for (let gkey in groupStats) {
+                        let g = groupStats[gkey];
+                        for (let k in g.back2Dist) {
+                            entries.push({ lvl: k, grp: gkey, count: g.back2Dist[k] });
+                        }
+                    }
+                    entries.sort((a, b) => order.indexOf(a.lvl) - order.indexOf(b.lvl));
+                    let parts = entries.map(e => `${e.lvl}有${e.count}行（${e.grp}）`);
+                    resultText += `后区全中的有${grandBack2Rows}行，其中${parts.join('，')}\n\n`;
+                }
 
                 // ===== 分组统计 =====
                 let sortedKeys = sortGroupKeys(Object.keys(groupStats));
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
-                    resultText += `===== ${gkey} (共${g.actualCount}行) =====\n`;
+                    resultText += `\n===== ${gkey} (共${g.actualCount}行) =====\n`;
                     resultText += `最多命中：${g.maxGrade.frontHit}+${g.maxGrade.backHit}\n`;
                     resultText += `最少命中：${g.minGrade.frontHit}+${g.minGrade.backHit}\n`;
                     resultText += `奖金小计：${g.totalPrize.toLocaleString()}元\n`;
@@ -1093,29 +1073,117 @@
                         }
                     }
                     
-                    // 该组的奖金统计（无论是否有奖金都显示）
-                    let gPrizeCount = 0;
-                    let gPrizeByLevel = {};
-                    for (let k of order) {
-                        if (g.dist[k] && prizeMap[k] > 0) {
-                            gPrizeCount += g.dist[k];
-                            gPrizeByLevel[k] = g.dist[k];
-                        }
-                    }
-                    
+                    let gPrizeRows = sumDict(g.prizeByLevel);
                     let parts = [];
-                    if (gPrizeCount > 0) {
+                    if (gPrizeRows > 0) {
                         for (let k of order) {
-                            if (gPrizeByLevel[k]) parts.push(`${k}有${gPrizeByLevel[k]}行`);
+                            if (g.prizeByLevel[k]) parts.push(`${k}有${g.prizeByLevel[k]}行`);
                         }
                     }
                     let prizeRatio = g.totalCombinations > 0 ? (g.totalPrize / (g.totalCombinations * 2) * 100).toFixed(2) : '0.00';
-                    let countRatio = g.actualCount > 0 ? (gPrizeCount / g.actualCount * 100).toFixed(2) : '0.00';
+                    let countRatio = g.actualCount > 0 ? (gPrizeRows / g.actualCount * 100).toFixed(2) : '0.00';
                     let partsStr = parts.length > 0 ? `，其中${parts.join('，')}` : '';
-                    resultText += `\n一共有${g.actualCount}行（共${g.totalCombinations}注组合），有奖金的有${gPrizeCount}行${partsStr}。奖金占比是${prizeRatio}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${countRatio}%(${gPrizeCount}/${g.actualCount})\n`;
-                    
+                    resultText += `\n一共有${g.actualCount}行（共${g.totalCombinations}注组合），有奖金的有${gPrizeRows}行${partsStr}。奖金占比是${prizeRatio}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${countRatio}%(${gPrizeRows}/${g.actualCount})\n`;
+                }
+
+                // ===== 全部总结 =====
+                resultText += `\n\n❗️全部总结\n\n`;
+                resultText += `✅全部奖金占比是${prizeRatioAll}%(${grandTotalPrize}元/${totalCost}元)，有奖金的行数占比是${countRatioAll}%(${grandPrizeRows}/${totalRows})\n`;
+
+                for (let lv of levelsToShow) {
+                    let dist = getDistForLevel(lv);
+                    let total = sumDict(dist);
+                    let pct = totalRows > 0 ? (total / totalRows * 100).toFixed(2) : '0.00';
+                    resultText += `\n✅中${lv}个的有${total}行，中${lv}个的行数占比是${pct}%(${total}/${totalRows})\n`;
+                    for (let sk of subKeysForLevel(lv)) {
+                        let cnt = dist[sk] || 0;
+                        if (cnt > 0) {
+                            let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
+                            resultText += `其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${totalRows})\n`;
+                        }
+                    }
+                }
+
+                resultText += `\n✅后区全中的有${grandBack2Rows}行，全中的行数比例：${back2PctAll}%（${grandBack2Rows}➗${totalRows}）\n\n`;
+
+                // 后区全中详情
+                resultText += `❗️后区全中详情\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = sumDict(g.back2Dist);
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}后区全中的行数比例：${pct}%（${n}➗${g.actualCount}）\n`;
+                }
+                resultText += '\n';
+
+                // 奖金比例详情
+                resultText += `❗️奖金比例详情\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let pct = g.totalCombinations > 0 ? (g.totalPrize / (g.totalCombinations * 2) * 100).toFixed(2) : '0.00';
+                    let pr = sumDict(g.prizeByLevel);
+                    let cpct = g.actualCount > 0 ? (pr / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}奖金占比是${pct}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${cpct}%(${pr}/${g.actualCount})\n`;
+                }
+                resultText += '\n';
+
+                // 中5个详情
+                if (levelsToShow.includes(5)) {
+                    resultText += `❗️中5个详情\n`;
+                    for (let gkey of sortedKeys) {
+                        let g = groupStats[gkey];
+                        let n = sumDict(g.dist5);
+                        let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                        resultText += `${gkey}中5个的有${n}行，中5个的行数占比是${pct}%(${n}/${g.actualCount})\n`;
+                        for (let sk of ['5+2','5+1','5+0']) {
+                            let cnt = g.dist5[sk] || 0;
+                            if (cnt > 0) {
+                                let spct = g.actualCount > 0 ? (cnt / g.actualCount * 100).toFixed(2) : '0.00';
+                                resultText += `其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${g.actualCount})\n`;
+                            }
+                        }
+                    }
                     resultText += '\n';
                 }
+
+                // 中4个详情
+                if (levelsToShow.includes(4)) {
+                    resultText += `❗️中4个详情\n`;
+                    for (let gkey of sortedKeys) {
+                        let g = groupStats[gkey];
+                        let n = sumDict(g.dist4);
+                        let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                        resultText += `${gkey}中4个的有${n}行，中4个的行数占比是${pct}%(${n}/${g.actualCount})\n`;
+                        for (let sk of ['4+2','4+1','4+0']) {
+                            let cnt = g.dist4[sk] || 0;
+                            if (cnt > 0) {
+                                let spct = g.actualCount > 0 ? (cnt / g.actualCount * 100).toFixed(2) : '0.00';
+                                resultText += `其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${g.actualCount})\n`;
+                            }
+                        }
+                    }
+                    resultText += '\n';
+                }
+
+                // 中3个详情
+                if (levelsToShow.includes(3)) {
+                    resultText += `❗️中3个详情\n`;
+                    for (let gkey of sortedKeys) {
+                        let g = groupStats[gkey];
+                        let n = sumDict(g.dist3);
+                        let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                        resultText += `${gkey}中3个的有${n}行，中3个的行数占比是${pct}%(${n}/${g.actualCount})\n`;
+                        for (let sk of ['3+2','3+1','3+0']) {
+                            let cnt = g.dist3[sk] || 0;
+                            if (cnt > 0) {
+                                let spct = g.actualCount > 0 ? (cnt / g.actualCount * 100).toFixed(2) : '0.00';
+                                resultText += `其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${g.actualCount})\n`;
+                            }
+                        }
+                    }
+                    resultText += '\n';
+                }
+
                 return { text: resultText, invalidList };
             }
 
