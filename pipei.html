@@ -1106,7 +1106,7 @@
 
                 resultText += `\n✅后区全中的有${grandBack2Rows}行，全中的行数比例：${back2PctAll}%（${grandBack2Rows}➗${totalRows}）\n\n`;
 
-                // 后区全中详情
+                // 后区全中详情（每种类型之间加空行）
                 resultText += `❗️后区全中详情\n\n`;
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
@@ -1116,18 +1116,17 @@
                 }
                 resultText += '\n';
 
-                // 奖金比例详情
+                // 奖金比例详情（每种类型之间加空行）—— 本次修改
                 resultText += `❗️奖金比例详情\n\n`;
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
                     let pct = g.totalCombinations > 0 ? (g.totalPrize / (g.totalCombinations * 2) * 100).toFixed(2) : '0.00';
                     let pr = sumDict(g.prizeByLevel);
                     let cpct = g.actualCount > 0 ? (pr / g.actualCount * 100).toFixed(2) : '0.00';
-                    resultText += `${gkey}奖金占比是${pct}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${cpct}%(${pr}/${g.actualCount})\n`;
+                    resultText += `${gkey}奖金占比是${pct}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${cpct}%(${pr}/${g.actualCount})\n\n`;
                 }
-                resultText += '\n';
 
-                // 中5个详情
+                // 中5个详情（每种类型之间加空行）
                 if (levelsToShow.includes(5)) {
                     resultText += `❗️中5个详情\n`;
                     for (let gkey of sortedKeys) {
@@ -1142,11 +1141,12 @@
                                 resultText += `其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${g.actualCount})\n`;
                             }
                         }
+                        resultText += '\n';
                     }
                     resultText += '\n';
                 }
 
-                // 中4个详情
+                // 中4个详情（每种类型之间加空行）—— 本次修改
                 if (levelsToShow.includes(4)) {
                     resultText += `❗️中4个详情\n`;
                     for (let gkey of sortedKeys) {
@@ -1161,11 +1161,12 @@
                                 resultText += `其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${g.actualCount})\n`;
                             }
                         }
+                        resultText += '\n';
                     }
                     resultText += '\n';
                 }
 
-                // 中3个详情
+                // 中3个详情（每种类型之间加空行）—— 本次修改
                 if (levelsToShow.includes(3)) {
                     resultText += `❗️中3个详情\n`;
                     for (let gkey of sortedKeys) {
@@ -1180,6 +1181,7 @@
                                 resultText += `其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${g.actualCount})\n`;
                             }
                         }
+                        resultText += '\n';
                     }
                     resultText += '\n';
                 }
