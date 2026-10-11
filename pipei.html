@@ -758,12 +758,10 @@
             }
             window.closeModal2 = () => $('modalOverlay2').classList.remove('open');
 
-            // 模式一复制函数
             window.copyMode1Result = () => {
                 let container = $('resultsContainer');
                 if (!container) { showToast('暂无结果可复制', 'warning'); return; }
                 let clone = container.cloneNode(true);
-                // 移除复制按钮本身，避免复制到按钮文字
                 clone.querySelectorAll('button').forEach(b => b.remove());
                 let text = clone.innerText.trim();
                 if (!text) { showToast('暂无结果可复制', 'warning'); return; }
@@ -911,7 +909,7 @@
                             maxGrade: { frontHit: -1, backHit: -1 },
                             minGrade: { frontHit: 99, backHit: 99 },
                             totalPrize: 0, 
-                            dist: {}, distPrize: {}, distLines: {}, details: []
+                            dist: {}, distPrize: {}, distLines: {}
                         };
                     }
                     totalCombinations += parsed.totalCombinations;
@@ -959,14 +957,6 @@
                     
                     if (!groupStats[gkey].distLines[maxKey]) groupStats[gkey].distLines[maxKey] = [];
                     groupStats[gkey].distLines[maxKey].push(line);
-
-                    if (maxGrade.frontHit >= 4) {
-                        groupStats[gkey].details.push({
-                            frontAll: parsed.frontAllNums, backAll: parsed.backAllNums,
-                            maxFront: maxGrade.frontHit, maxBack: maxGrade.backHit,
-                            prize: linePrize, key: maxKey
-                        });
-                    }
                 }
 
                 // 全局统计
@@ -1046,14 +1036,12 @@
                 resultText += `💰 总奖金：${grandTotalPrize.toLocaleString()}元\n\n`;
 
                 if (grandPrizeRows > 0) {
-                    // 第1段：有奖金总览（行数 + 组合数）
                     let levelParts = [];
                     for (let k of order) {
                         if (grandPrizeByLevel[k]) levelParts.push(`${k}有${grandPrizeByLevel[k]}行`);
                     }
                     resultText += `一共有${grandTotalRows}行（共${totalCombinations}注组合），有奖金的有${grandPrizeRows}行，其中${levelParts.join('，')}。\n\n`;
 
-                    // 第2段：按投注类型（行数）
                     let sortedGroupKeys = sortGroupKeys(Object.keys(grandPrizeByGroup));
                     let groupParts = [];
                     for (let gk of sortedGroupKeys) {
@@ -1061,7 +1049,6 @@
                     }
                     resultText += `其中${groupParts.join('，')}。\n\n`;
 
-                    // 第3段：后区全中（行数）
                     if (grandBack2Rows > 0) {
                         let back2Entries = Object.keys(grandBack2ByLevelGroup).map(key => {
                             let parts = key.split('|');
@@ -1074,13 +1061,12 @@
                         resultText += `后区全中的有0行\n\n`;
                     }
 
-                    // 第4段：占比（奖金占比基于总组合数，注数占比基于总行数）
                     let totalCost = totalCombinations * 2;
                     let prizeRatio = totalCost > 0 ? (grandTotalPrize / totalCost * 100).toFixed(2) : '0.00';
                     let countRatio = grandTotalRows > 0 ? (grandPrizeRows / grandTotalRows * 100).toFixed(2) : '0.00';
-                    resultText += `奖金占比是${prizeRatio}%(${grandTotalPrize}元/${totalCost}元)，有奖金的注数占比是${countRatio}%(${grandPrizeRows}/${grandTotalRows})\n`;
+                    resultText += `奖金占比是${prizeRatio}%(${grandTotalPrize}元/${totalCost}元)，有奖金的行数占比是${countRatio}%(${grandPrizeRows}/${grandTotalRows})\n`;
                 } else {
-                    resultText += `一共有${grandTotalRows}行（共${totalCombinations}注组合），有奖金的有0行。\n`;
+                    resultText += `一共有${grandTotalRows}行（共${totalCombinations}注组合），有奖金的有0行。奖金占比是0%(0元/${totalCombinations * 2}元)，有奖金的行数占比是0%(0/${grandTotalRows})\n`;
                 }
 
                 resultText += '\n';
@@ -1107,7 +1093,7 @@
                         }
                     }
                     
-                    // 该组的奖金统计（在命中分布之后）
+                    // 该组的奖金统计（无论是否有奖金都显示）
                     let gPrizeCount = 0;
                     let gPrizeByLevel = {};
                     for (let k of order) {
@@ -1117,22 +1103,17 @@
                         }
                     }
                     
+                    let parts = [];
                     if (gPrizeCount > 0) {
-                        let parts = [];
                         for (let k of order) {
                             if (gPrizeByLevel[k]) parts.push(`${k}有${gPrizeByLevel[k]}行`);
                         }
-                        let prizeRatio = g.totalCombinations > 0 ? (g.totalPrize / (g.totalCombinations * 2) * 100).toFixed(2) : '0.00';
-                        let countRatio = g.actualCount > 0 ? (gPrizeCount / g.actualCount * 100).toFixed(2) : '0.00';
-                        resultText += `\n一共有${g.actualCount}行（共${g.totalCombinations}注组合），有奖金的有${gPrizeCount}行，其中${parts.join('，')}。奖金占比是${prizeRatio}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的注数占比是${countRatio}%(${gPrizeCount}/${g.actualCount})\n`;
                     }
+                    let prizeRatio = g.totalCombinations > 0 ? (g.totalPrize / (g.totalCombinations * 2) * 100).toFixed(2) : '0.00';
+                    let countRatio = g.actualCount > 0 ? (gPrizeCount / g.actualCount * 100).toFixed(2) : '0.00';
+                    let partsStr = parts.length > 0 ? `，其中${parts.join('，')}` : '';
+                    resultText += `\n一共有${g.actualCount}行（共${g.totalCombinations}注组合），有奖金的有${gPrizeCount}行${partsStr}。奖金占比是${prizeRatio}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${countRatio}%(${gPrizeCount}/${g.actualCount})\n`;
                     
-                    if (g.details.length > 0) {
-                        resultText += `\n--- 中高奖金详情 ---\n`;
-                        g.details.forEach(item => {
-                            resultText += `中${item.maxFront}+${item.maxBack}，号码：${item.frontAll.map(n=>String(n).padStart(2,'0')).join(',')}-${item.backAll.map(n=>String(n).padStart(2,'0')).join(',')}，奖金合计：${item.prize.toLocaleString()}元\n`;
-                        });
-                    }
                     resultText += '\n';
                 }
                 return { text: resultText, invalidList };
