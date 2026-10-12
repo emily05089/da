@@ -908,7 +908,8 @@
                             dist: {}, distPrize: {}, distLines: {},
                             dist5: {}, dist4: {}, dist3: {},
                             back2Dist: {},
-                            prizeByLevel: {}
+                            prizeByLevel: {},
+                            prizeRowsDetail: []
                         };
                     }
                     let g = groupStats[gkey];
@@ -953,6 +954,7 @@
 
                     if ((prizeMap[maxKey] || 0) > 0) {
                         g.prizeByLevel[maxKey] = (g.prizeByLevel[maxKey]||0)+1;
+                        g.prizeRowsDetail.push({ key: maxKey, line: line, frontLevel: maxGrade.frontHit });
                     }
                 }
 
@@ -1106,7 +1108,7 @@
 
                 resultText += `\n✅后区全中的有${grandBack2Rows}行，全中的行数比例：${back2PctAll}%（${grandBack2Rows}➗${totalRows}）\n\n`;
 
-                // 后区全中详情（每种类型之间加空行）
+                // 后区全中详情
                 resultText += `❗️后区全中详情\n\n`;
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
@@ -1116,7 +1118,7 @@
                 }
                 resultText += '\n';
 
-                // 奖金比例详情（每种类型之间加空行）—— 本次修改
+                // 奖金比例详情
                 resultText += `❗️奖金比例详情\n\n`;
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
@@ -1126,7 +1128,7 @@
                     resultText += `${gkey}奖金占比是${pct}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${cpct}%(${pr}/${g.actualCount})\n\n`;
                 }
 
-                // 中5个详情（每种类型之间加空行）
+                // 中5个详情
                 if (levelsToShow.includes(5)) {
                     resultText += `❗️中5个详情\n`;
                     for (let gkey of sortedKeys) {
@@ -1146,7 +1148,7 @@
                     resultText += '\n';
                 }
 
-                // 中4个详情（每种类型之间加空行）—— 本次修改
+                // 中4个详情
                 if (levelsToShow.includes(4)) {
                     resultText += `❗️中4个详情\n`;
                     for (let gkey of sortedKeys) {
@@ -1166,7 +1168,7 @@
                     resultText += '\n';
                 }
 
-                // 中3个详情（每种类型之间加空行）—— 本次修改
+                // 中3个详情
                 if (levelsToShow.includes(3)) {
                     resultText += `❗️中3个详情\n`;
                     for (let gkey of sortedKeys) {
@@ -1184,6 +1186,83 @@
                         resultText += '\n';
                     }
                     resultText += '\n';
+                }
+
+                // ===== 新增：中2+2、中2+1、中1+2、中0+2详情 =====
+                const extraLevels = ['2+2', '2+1', '1+2', '0+2'];
+                for (let lv of extraLevels) {
+                    resultText += `❗️中${lv.replace('+','➕')}详情\n\n`;
+                    for (let gkey of sortedKeys) {
+                        let g = groupStats[gkey];
+                        let cnt = g.dist[lv] || 0;
+                        let pct = g.actualCount > 0 ? (cnt / g.actualCount * 100).toFixed(2) : '0.00';
+                        resultText += `${gkey}中${lv.replace('+','➕')}的有${cnt}行，中${lv.replace('+','➕')}的行数占比是${pct}%(${cnt}/${g.actualCount})\n\n`;
+                    }
+                }
+
+                // ===== 新增：有奖金的重复行情况 =====
+                resultText += `\n❗️有奖金的重复行情况\n\n`;
+                let hasAnyDup = false;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    if (!g.prizeRowsDetail || g.prizeRowsDetail.length === 0) continue;
+
+                    // 按前区命中数分组
+                    let byFrontLevel = {};
+                    for (let r of g.prizeRowsDetail) {
+                        if (!byFrontLevel[r.frontLevel]) byFrontLevel[r.frontLevel] = [];
+                        byFrontLevel[r.frontLevel].push(r);
+                    }
+
+                    let frontLevels = Object.keys(byFrontLevel).map(Number).sort((a, b) => b - a);
+
+                    for (let fl of frontLevels) {
+                        let rows = byFrontLevel[fl];
+                        // 按等级分组
+                        let byLevel = {};
+                        for (let r of rows) {
+                            if (!byLevel[r.key]) byLevel[r.key] = [];
+                            byLevel[r.key].push(r);
+                        }
+
+                        // 找出有重复的等级
+                        let dupLevels = [];
+                        for (let k of order) {
+                            if (byLevel[k]) {
+                                let lines = byLevel[k].map(r => r.line);
+                                let uniqueLines = new Set(lines);
+                                if (lines.length > uniqueLines.size) {
+                                    dupLevels.push({ key: k, total: lines.length, unique: uniqueLines.size });
+                                }
+                            }
+                        }
+
+                        if (dupLevels.length === 0) continue;
+                        hasAnyDup = true;
+
+                        // 先输出有重复的等级提示
+                        for (let d of dupLevels) {
+                            resultText += `${gkey}中${d.key.replace('+','➕')}有${d.total}行重复\n`;
+                        }
+
+                        // 输出该前区命中数分组下所有有奖金行去重后的总数
+                        let allLines = rows.map(r => r.line);
+                        let uniqueAll = new Set(allLines);
+                        let uc = uniqueAll.size;
+                        let upct = g.actualCount > 0 ? (uc / g.actualCount * 100).toFixed(2) : '0.00';
+                        resultText += `${gkey}中${fl}个不重复的有${uc}行，中${fl}个不重复的行数占比是${upct}%(${uc}/${g.actualCount})\n`;
+
+                        // 对有重复的等级，输出去重后行数
+                        for (let d of dupLevels) {
+                            let lpct = g.actualCount > 0 ? (d.unique / g.actualCount * 100).toFixed(2) : '0.00';
+                            resultText += `其中${d.key.replace('+','➕')}不重复的有${d.unique}行，中${d.key.replace('+','➕')}不重复的行数占比是${lpct}%(${d.unique}/${g.actualCount})\n`;
+                        }
+
+                        resultText += '\n';
+                    }
+                }
+                if (!hasAnyDup) {
+                    resultText += `本次没有有奖金的重复行。\n\n`;
                 }
 
                 return { text: resultText, invalidList };
