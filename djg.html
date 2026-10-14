@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>结果统计汇总</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8; color: #222;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  .status {
+    background: #e8f0fe; border-left: 4px solid #3b82f6;
+    padding: 10px 12px; border-radius: 6px; margin-bottom: 10px;
+    font-size: 14px; line-height: 1.6;
+  }
+  textarea {
+    width: 100%; height: 230px; padding: 12px;
+    border: 1px solid #d0d5dd; border-radius: 8px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.5; resize: vertical;
+    background: #fff; outline: none;
+  }
+  textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+  .btns { display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
+  button {
+    padding: 10px 18px; border: none; border-radius: 8px;
+    font-size: 14px; cursor: pointer; background: #3b82f6; color: #fff;
+    transition: .15s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.secondary { background: #6b7280; }
+  button.danger { background: #ef4444; }
+  button.copy { background: #10b981; font-weight: 600; }
+  #resultWrap { margin-top: 16px; display: none; }
+  pre {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 14px; font-size: 13px; line-height: 1.75;
+    white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, Menlo, Consolas, "PingFang SC", monospace;
+    max-height: 72vh; overflow: auto; margin: 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📊 结果统计汇总</h1>
+  <div class="status" id="status">请粘贴第 1 组结果，然后点击【确定（录入本组）】。</div>
+  <textarea id="input" placeholder="在此粘贴结果（Ctrl+V）..."></textarea>
+  <div class="btns">
+    <button id="addBtn">✅ 确定（录入本组）</button>
+    <button id="endBtn" disabled>🏁 结束并输出结果</button>
+    <button id="resetBtn" class="danger">↺ 重新开始</button>
+  </div>
+  <div id="resultWrap">
+    <div class="btns">
+      <button id="copyBtn" class="copy">📋 一键复制</button>
+    </div>
+    <pre id="resultText"></pre>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var groups = [];
+  var $ = function (id) { return document.getElementById(id); };
+  var inputEl   = $('input'),
+      statusEl  = $('status'),
+      addBtn    = $('addBtn'),
+      endBtn    = $('endBtn'),
+      resetBtn  = $('resetBtn'),
+      resultWrap= $('resultWrap'),
+      resultText= $('resultText'),
+      copyBtn   = $('copyBtn');
+
+  /* ============ 工具 ============ */
+  function normalizeText(t) {
+    // 把半角 + 统一成全角 ➕
+    return String(t).replace(/\+/g, '➕');
+  }
+  function toNum(s) { return parseFloat(s); }
+  function normCat(c) { return c.replace(/^前区/, ''); }
+
+  /* ============ 解析一组结果 ============ */
+  function parseOne(rawText) {
+    var text = normalizeText(rawText);
+    var res = {
+      bonus:  { all: null, cats: {} },
+      back:   { all: null, cats: {} },
+      hits:   {},
+      unique: { byCount: {}, byCombo: {} }
+    };
+
+    var lines = text.split(/\r?\n/).map(function (s) { return s.trim(); })
+                    .filter(function (s) { return s.length > 0; });
+
+    var zone = null;
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      /* ---- 区域切换 ---- */
+      if (/^❗/.test(line)) {
+        var t = line.replace(/^❗\uFE0F?/, '').trim();
+        if (/重复行/.test(t))            zone = 'unique';
+        else if (/后区全中/.test(t))     zone = 'back';
+        else if (/奖金情况/.test(t))     zone = 'bonus';
+        else {
+          var mh = t.match(/^中([\d➕]+)(?:情况|详情)$/);
+          zone = mh ? ('hit:' + mh[1]) : null;
+        }
+        continue;
+      }
+      if (!zone) continue;
+
+      /* ---- 奖金情况 ---- */
+      if (zone === 'bonus') {
+        var mb = line.match(
+          /^(.*?)奖金占比是([\d.]+)%[（(]([\d,，]+)元[\/／]([\d,，]+)元[）)][，,]?\s*有奖金的行数占比是([\d.]+)%[（(](\d+)[\/／](\d+)[）)]/
+        );
+        if (!mb) continue;
+        var bcat = mb[1].trim();
+        var bval = {
+          pct:    toNum(mb[2]),
+          amount: toNum(mb[3].replace(/[,，]/g, '')),
+          total:  toNum(mb[4].replace(/[,，]/g, '')),
+          winPct: toNum(mb[5]),
+          winNum: parseInt(mb[6], 10),
+          winDen: parseInt(mb[7], 10)
+        };
+        if (bcat === '全部') res.bonus.all = bval;
+        else res.bonus.cats[normCat(bcat)] = bval;
+        continue;
+      }
+
+      /* ---- 后区全中 ---- */
+      if (zone === 'back') {
+        var mk = line.match(
+          /^(.*?)后区全中的行数比例：\s*([\d.]+)%[（(](\d+)\s*[➗\/]\s*(\d+)[）)]/
+        );
+        if (!mk) continue;
+        var kcat = mk[1].trim();
+        var kval = { pct: toNum(mk[2]), num: parseInt(mk[3], 10), den: parseInt(mk[4], 10) };
+        if (kcat === '全部') res.back.all = kval;
+        else res.back.cats[normCat(kcat)] = kval;
+        continue;
+      }
+
+      /* ---- 有奖金的重复行情况（只统计单式5个） ---- */
+      if (zone === 'unique') {
+        var mu1 = line.match(
+          /^其中(\d➕\d)不重复的有(\d+)行[，,]?\s*中\d➕\d不重复的行数占比是([\d.]+)%[（(](\d+)[\/／](\d+)[）)]/
+        );
+        if (mu1) {
+          res.unique.byCombo[mu1[1]] = {
+            rows: parseInt(mu1[2], 10),
+            pct:  toNum(mu1[3]),
+            num:  parseInt(mu1[4], 10),
+            den:  parseInt(mu1[5], 10)
+          };
+          continue;
+        }
+        var mu2 = line.match(
+          /^(.*?)中(\d)个不重复的有(\d+)行[，,]?\s*中\d个不重复的行数占比是([\d.]+)%[（(](\d+)[\/／](\d+)[）)]/
+        );
+        if (mu2) {
+          res.unique.byCount[mu2[2]] = {
+            rows: parseInt(mu2[3], 10),
+            pct:  toNum(mu2[4]),
+            num:  parseInt(mu2[5], 10),
+            den:  parseInt(mu2[6], 10)
+          };
+        }
+        continue;
+      }
+
+      /* ---- 中X个 / 中X➕Y ---- */
+      if (zone.indexOf('hit:') === 0) {
+        var mh2 = line.match(
+          /^(.*?)中(\d➕\d|\d)个?的行数占比是([\d.]+)%[（(](\d+)[\/／](\d+)[）)]/
+        );
+        if (!mh2) continue;
+        var hcat = mh2[1].trim();
+        var hkey = mh2[2];
+        var hval = { pct: toNum(mh2[3]), num: parseInt(mh2[4], 10), den: parseInt(mh2[5], 10) };
+        if (!res.hits[hkey]) res.hits[hkey] = { all: null, cats: {} };
+        if (hcat === '全部') res.hits[hkey].all = hval;
+        else res.hits[hkey].cats[normCat(hcat)] = hval;
+      }
+    }
+
+    return res;
+  }
+
+  /* ============ 类别排序 ============ */
+  function catKey(c) {
+    var m = c.match(/^单式(\d+)个$/);  if (m) return [0, +m[1]];
+    m = c.match(/^复式(\d+)个$/);      if (m) return [1, +m[1]];
+    m = c.match(/^胆拖(\d+)胆$/);      if (m) return [2, +m[1]];
+    return [3, 0];
+  }
+  function catUnion(getter) {
+    var set = {};
+    groups.forEach(function (g) {
+      var o = getter(g);
+      if (!o) return;
+      Object.keys(o).forEach(function (k) { set[k] = 1; });
+    });
+    return Object.keys(set).sort(function (a, b) {
+      var ka = catKey(a), kb = catKey(b);
+      if (ka[0] !== kb[0]) return ka[0] - kb[0];
+      if (ka[1] !== kb[1]) return ka[1] - kb[1];
+      return a.localeCompare(b);
+    });
+  }
+
+  /* ============ 取值 / 生成区间文本 ============ */
+  function collect(fn) {
+    var arr = [];
+    groups.forEach(function (g) {
+      var v = fn(g);
+      if (v !== undefined && v !== null && !isNaN(v)) arr.push(v);
+    });
+    return arr;
+  }
+  function pctRange(label, arr) {
+    if (!arr.length) return '';
+    var min = Math.min.apply(null, arr).toFixed(2);
+    var max = Math.max.apply(null, arr).toFixed(2);
+    var list = arr.map(function (v) { return v.toFixed(2) + '%'; }).join('、');
+    return label + '范围是' + min + '%-' + max + '%(一共' + arr.length + '组，分别是' + list + ')';
+  }
+  function numRange(label, arr) {
+    if (!arr.length) return '';
+    var min = Math.min.apply(null, arr);
+    var max = Math.max.apply(null, arr);
+    var list = arr.join('、');
+    return label + '范围是' + min + '-' + max + '(一共' + arr.length + '组，分别是' + list + ')';
+  }
+  function joinRanges() {
+    var parts = Array.prototype.slice.call(arguments).filter(Boolean);
+    return parts.join('，');
+  }
+  function block(title, entries) {
+    if (!entries.length) return '';
+    return title + '\n\n' + entries.join('\n\n') + '\n\n';
+  }
+
+  /* ============ 汇总生成 ============ */
+  function buildResult() {
+    var out = '';
+
+    out += '一共输入了' + groups.length + '组结果\n\n';
+
+    /* ---------- 1. 奖金情况 ---------- */
+    var bonusAllPct = collect(function (g) { return g.bonus.all && g.bonus.all.pct; });
+    if (bonusAllPct.length) {
+      var e1 = [];
+      e1.push(joinRanges(
+        pctRange('全部奖金占比', bonusAllPct),
+        pctRange('有奖金的行数占比', collect(function (g) { return g.bonus.all && g.bonus.all.winPct; }))
+      ));
+      catUnion(function (g) { return g.bonus.cats; }).forEach(function (c) {
+        e1.push(joinRanges(
+          pctRange(c + '奖金占比', collect(function (g) { return g.bonus.cats[c] && g.bonus.cats[c].pct; })),
+          pctRange('有奖金的行数占比', collect(function (g) { return g.bonus.cats[c] && g.bonus.cats[c].winPct; }))
+        ));
+      });
+      out += block('❗️奖金情况', e1);
+    }
+
+    /* ---------- 2. 后区全中情况 ---------- */
+    var backAllPct = collect(function (g) { return g.back.all && g.back.all.pct; });
+    if (backAllPct.length) {
+      var e2 = [];
+      e2.push(joinRanges(
+        pctRange('全部后区全中的行数比例', backAllPct),
+        numRange('行数', collect(function (g) { return g.back.all && g.back.all.num; }))
+      ));
+      catUnion(function (g) { return g.back.cats; }).forEach(function (c) {
+        e2.push(joinRanges(
+          pctRange(c + '后区全中的行数比例', collect(function (g) { return g.back.cats[c] && g.back.cats[c].pct; })),
+          numRange('行数', collect(function (g) { return g.back.cats[c] && g.back.cats[c].num; }))
+        ));
+      });
+      out += block('❗️后区全中情况', e2);
+    }
+
+    /* ---------- 3. 中X个 / 中X➕Y ---------- */
+    var hitOrder = ['4', '3', '4➕1', '4➕0', '3➕2', '3➕1', '2➕2', '3➕0', '2➕1', '1➕2', '0➕2'];
+    hitOrder.forEach(function (h) {
+      var has = groups.some(function (g) { return !!g.hits[h]; });
+      if (!has) return;
+
+      var isBasic = (h === '4' || h === '3');
+      var hLabel = isBasic ? (h + '个') : h;
+      var title  = '❗️中' + hLabel + (isBasic ? '情况' : '详情');
+
+      var e3 = [];
+      e3.push(joinRanges(
+        pctRange('全部中' + hLabel + '的行数占比',
+          collect(function (g) { return g.hits[h] && g.hits[h].all && g.hits[h].all.pct; })),
+        numRange('行数',
+          collect(function (g) { return g.hits[h] && g.hits[h].all && g.hits[h].all.num; }))
+      ));
+      catUnion(function (g) { return g.hits[h] && g.hits[h].cats; }).forEach(function (c) {
+        e3.push(joinRanges(
+          pctRange(c + '中' + hLabel + '的行数占比',
+            collect(function (g) { return g.hits[h] && g.hits[h].cats[c] && g.hits[h].cats[c].pct; })),
+          numRange('行数',
+            collect(function (g) { return g.hits[h] && g.hits[h].cats[c] && g.hits[h].cats[c].num; }))
+        ));
+      });
+      out += block(title, e3);
+    });
+
+    /* ---------- 4. 单式5个有奖金的不重复行情况 ---------- */
+    var hasUnique = groups.some(function (g) {
+      return Object.keys(g.unique.byCount).length > 0 || Object.keys(g.unique.byCombo).length > 0;
+    });
+    if (hasUnique) {
+      var e4 = [];
+      ['4', '3', '2'].forEach(function (k) {
+        var p = collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].pct; });
+        if (!p.length) return;
+        e4.push(joinRanges(
+          pctRange('单式5个中' + k + '个的行数占比', p),
+          numRange('行数', collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].num; }))
+        ));
+      });
+      ['4➕1', '4➕0', '3➕2', '3➕1', '2➕2', '3➕0', '2➕1', '1➕2', '0➕2'].forEach(function (k) {
+        var p = collect(function (g) { return g.unique.byCombo[k] && g.unique.byCombo[k].pct; });
+        if (!p.length) return;
+        e4.push(joinRanges(
+          pctRange('单式5个中' + k + '的行数占比', p),
+          numRange('行数', collect(function (g) { return g.unique.byCombo[k] && g.unique.byCombo[k].num; }))
+        ));
+      });
+      out += block('❗️单式5个有奖金的不重复行情况', e4);
+    }
+
+    return out.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  /* ============ 事件绑定 ============ */
+  addBtn.addEventListener('click', function () {
+    var txt = inputEl.value.trim();
+    if (!txt) { alert('请先粘贴结果内容'); return; }
+
+    var parsed;
+    try { parsed = parseOne(txt); }
+    catch (e) { alert('解析出错：' + e.message); return; }
+
+    var ok = parsed.bonus.all || Object.keys(parsed.hits).length > 0 || parsed.back.all;
+    if (!ok) { alert('未识别到有效内容，请检查粘贴的格式是否正确。'); return; }
+
+    groups.push(parsed);
+    inputEl.value = '';
+    inputEl.focus();
+    resultWrap.style.display = 'none';
+
+    statusEl.textContent = '已录入第 ' + groups.length + ' 组结果。请继续粘贴下一组，或点击【结束并输出结果】。';
+    endBtn.disabled = false;
+  });
+
+  endBtn.addEventListener('click', function () {
+    if (!groups.length) { alert('还没有录入任何结果'); return; }
+    resultText.textContent = buildResult();
+    resultWrap.style.display = 'block';
+    statusEl.textContent = '✅ 统计完成，共 ' + groups.length + ' 组结果。点击【一键复制】即可复制。';
+    resultWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  resetBtn.addEventListener('click', function () {
+    if (!confirm('确定要清空所有已录入的结果吗？')) return;
+    groups = [];
+    inputEl.value = '';
+    resultText.textContent = '';
+    resultWrap.style.display = 'none';
+    endBtn.disabled = true;
+    statusEl.textContent = '请粘贴第 1 组结果，然后点击【确定（录入本组）】。';
+    inputEl.focus();
+  });
+
+  copyBtn.addEventListener('click', function () {
+    var text = resultText.textContent;
+    if (!text) return;
+
+    var done = function () {
+      var old = copyBtn.textContent;
+      copyBtn.textContent = '✅ 已复制';
+      setTimeout(function () { copyBtn.textContent = old; }, 1500);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+    } else {
+      fallbackCopy(text, done);
+    }
+  });
+
+  function fallbackCopy(text, cb) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    if (cb) cb();
+  }
+
+})();
+</script>
+</body>
+</html>
