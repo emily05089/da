@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>后区全中行统计</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 60px;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f4f6f9; color: #1f2329;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  .hint { font-size: 13px; color: #6b7280; margin: 0 0 14px; line-height: 1.7; }
+  textarea {
+    width: 100%; height: 280px; padding: 12px 14px;
+    font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    font-size: 13px; line-height: 1.6;
+    border: 1px solid #d0d5dd; border-radius: 10px;
+    resize: vertical; background: #fff; outline: none;
+    transition: border-color .15s;
+  }
+  textarea:focus { border-color: #2f6fed; box-shadow: 0 0 0 3px rgba(47,111,237,.12); }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    padding: 10px 22px; font-size: 14px; border: 0; border-radius: 8px;
+    background: #2f6fed; color: #fff; cursor: pointer; transition: background .15s;
+  }
+  button:hover { background: #2359c9; }
+  button:active { transform: translateY(1px); }
+  button.ghost { background: #e8ecf3; color: #2f6fed; }
+  button.ghost:hover { background: #dbe3ef; }
+  .msg { font-size: 13px; color: #d92d20; }
+  .msg.ok { color: #12805c; }
+
+  .panel {
+    margin-top: 22px; background: #fff; border: 1px solid #e4e7ec;
+    border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e4e7ec;
+    font-size: 13px; color: #475467; font-weight: 600;
+  }
+  pre {
+    margin: 0; padding: 16px; font-size: 14px; line-height: 1.9;
+    font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    white-space: pre-wrap; word-break: break-all; color: #101828;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>后区全中行统计</h1>
+  <p class="hint">
+    把以「期号匹配」开头的完整统计文本粘贴到下面，点击「生成结果」。<br>
+    支持 Ctrl / ⌘ + Enter 快速生成。单式5个会自动计算「不重复行数比例」。
+  </p>
+
+  <textarea id="input" placeholder="在此粘贴内容…&#10;&#10;例如：&#10;26094匹配&#10;&#10;5，14，15，17，33-1，7&#10;&#10;🎯 全部最多中 4+0&#10;…"></textarea>
+
+  <div class="row">
+    <button id="run">生成结果</button>
+    <button id="clear" class="ghost">清空</button>
+    <span class="msg" id="msg"></span>
+  </div>
+
+  <div class="panel" id="panel" hidden>
+    <div class="panel-head">
+      <span>输出结果</span>
+      <button id="copy" class="ghost">复制</button>
+    </div>
+    <pre id="output"></pre>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* 百分比：保留两位小数 */
+  function pct(n, d) {
+    if (!d) return '0.00';
+    return (n / d * 100).toFixed(2);
+  }
+
+  /* ================= 解析 ================= */
+  function parseReport(text) {
+    var lines = text.split(/\r?\n/);
+
+    var data = {
+      matchId: '',
+      totalRowsStr: '',
+      totalRows: 0,
+      totalCombos: '',
+      backRows: 0,
+      sections: []
+    };
+
+    /* 期号：第一个非空行开头的数字 */
+    for (var i = 0; i < lines.length; i++) {
+      var t = lines[i].trim();
+      if (!t) continue;
+      var m = t.match(/^(\d+)/);
+      if (m) data.matchId = m[1];
+      break;
+    }
+
+    /* 总计：一共有185行（共21884注组合） */
+    var mt = text.match(/一共有\s*([\d,]+)\s*行\s*[（(]\s*共\s*([\d,]+)\s*注组合/);
+    if (mt) {
+      data.totalRowsStr = mt[1];
+      data.totalRows = parseInt(mt[1].replace(/,/g, ''), 10);
+      data.totalCombos = mt[2];
+    }
+
+    /* 后区全中总行数 */
+    var mb = text.match(/后区全中的有\s*([\d,]+)\s*行/);
+    if (mb) data.backRows = parseInt(mb[1].replace(/,/g, ''), 10);
+
+    /* 逐行扫描分区 */
+    var cur = null, curHit = null, mode = null;
+
+    for (var j = 0; j < lines.length; j++) {
+      var line = lines[j].trim();
+      if (!line) continue;
+
+      /* 分区标题：===== 单式5个 (共142行) ===== */
+      var sm = line.match(/^=+\s*(.+?)\s*[（(]\s*共\s*([\d,]+)\s*[^）)]*[）)]\s*=+$/);
+      if (sm) {
+        cur = {
+          name: sm[1].trim(),
+          totalRows: parseInt(sm[2].replace(/,/g, ''), 10),
+          hits: []
+        };
+        data.sections.push(cur);
+        curHit = null;
+        mode = null;
+        continue;
+      }
+      if (!cur) continue;
+
+      /* 分隔线 */
+      if (/^-{2,}/.test(line)) { mode = null; continue; }
+
+      /* 命中行：3+1 ： 1 行，小计：15元 */
+      var hm = line.match(/^(\d+\+\d+)\s*[：:]\s*([\d,]+)\s*行\s*[，,]\s*小计\s*[：:]\s*([\d,]+)\s*元/);
+      if (hm) {
+        curHit = {
+          hit: hm[1],
+          rows: parseInt(hm[2].replace(/,/g, ''), 10),
+          money: parseInt(hm[3].replace(/,/g, ''), 10),
+          numbers: []
+        };
+        cur.hits.push(curHit);
+        mode = null;
+        continue;
+      }
+
+      /* 中奖号码块 */
+      if (/^中奖号码\s*[：:]/.test(line)) {
+        mode = 'nums';
+        continue;
+      }
+
+      /* 其他说明行 */
+      if (/^一共有/.test(line) || /^奖金占比/.test(line) ||
+          /^最多命中/.test(line) || /^最少命中/.test(line) ||
+          /^奖金小计/.test(line) || /^其中/.test(line) ||
+          /^后区全中/.test(line)) {
+        mode = null;
+        continue;
+      }
+
+      if (mode === 'nums' && curHit) {
+        curHit.numbers.push(line);
+      }
+    }
+
+    return data;
+  }
+
+  /* ================= 生成输出 ================= */
+  function buildOutput(data) {
+    /* 1. 计算每个分区的后区全中行数、不重复行数 */
+    var secList = data.sections.map(function (sec) {
+      var backRows = 0;
+      var uniqSet = {};
+      sec.hits.forEach(function (h) {
+        if (/\+2$/.test(h.hit) && h.rows > 0) {
+          backRows += h.rows;
+          h.numbers.forEach(function (n) {
+            var key = n.trim();
+            if (key) uniqSet[key] = 1;
+          });
+        }
+      });
+      return {
+        name: sec.name,
+        totalRows: sec.totalRows,
+        backRows: backRows,
+        uniqCount: Object.keys(uniqSet).length,
+        hits: sec.hits
+      };
+    });
+
+    /* 2. 后区全中总行数（优先取报告数字，缺失则累加） */
+    var totalBack = data.backRows;
+    if (!totalBack) {
+      totalBack = secList.reduce(function (s, x) { return s + x.backRows; }, 0);
+    }
+
+    /* 3. 有后区全中的分区（用于汇总行） */
+    var activeSecs = secList.filter(function (s) { return s.backRows > 0; });
+
+    /* 4. 明细块：收集所有后区全中的命中行 */
+    var blocks = [];
+    secList.forEach(function (s) {
+      s.hits.forEach(function (h) {
+        if (/\+2$/.test(h.hit) && h.rows > 0) {
+          var rk = h.hit.match(/(\d+)\+(\d+)/);
+          blocks.push({
+            section: s.name,
+            hit: h.hit,
+            rows: h.rows,
+            money: h.money,
+            numbers: h.numbers.slice(),
+            back: parseInt(rk[2], 10),
+            front: parseInt(rk[1], 10)
+          });
+        }
+      });
+    });
+    blocks.sort(function (a, b) {
+      if (b.back !== a.back) return b.back - a.back;
+      if (b.front !== a.front) return b.front - a.front;
+      return b.money - a.money;
+    });
+
+    /* 5. 组装输出 */
+    var parts = [];
+
+    /* 期号 + 空行 */
+    if (data.matchId) {
+      parts.push(data.matchId);
+      parts.push('');
+    }
+
+    parts.push('一共有' + data.totalRowsStr + '行（共' + data.totalCombos + '注组合），');
+    parts.push('后区全中的有' + totalBack + '行，全中的行数比例：' +
+               pct(totalBack, data.totalRows) + '%（' +
+               totalBack + '➗' + data.totalRowsStr + '）');
+    parts.push('');
+
+    /* 有后区全中的分区汇总行 */
+    parts.push(activeSecs.map(function (s) {
+      return s.name + '共' + s.backRows + '行';
+    }).join('，'));
+    parts.push('');
+
+    /* 单式5个比例行（单独放在前面） */
+    var single = secList.find(function (s) { return s.name === '单式5个'; });
+    if (single) {
+      parts.push(
+        '单式5个后区全中的行数比例：' +
+        pct(single.backRows, single.totalRows) + '%（' +
+        single.backRows + '➗' + single.totalRows + '），' +
+        '单式5个后区全中不重复的行数比例：' +
+        pct(single.uniqCount, single.totalRows) + '%（' +
+        single.uniqCount + '➗' + single.totalRows + '）'
+      );
+    }
+    parts.push('');
+
+    /* 其他分区比例行，每行一个（跳过“全部总计”这类非投注分区） */
+    var otherSecs = secList.filter(function (s) {
+      return s.name !== '单式5个' && !/总计/.test(s.name);
+    });
+    otherSecs.forEach(function (s) {
+      parts.push(s.name + '后区全中的行数比例：' +
+                 pct(s.backRows, s.totalRows) + '%（' +
+                 s.backRows + '➗' + s.totalRows + '）');
+    });
+    parts.push('');
+
+    /* 明细块 */
+    blocks.forEach(function (b, i) {
+      var prefix = (i === 0 ? '其中' : '') +
+                   b.hit + '有' + b.rows + '行（' + b.section + '）';
+      var blockText;
+      if (b.numbers.length === 0) {
+        blockText = prefix;
+      } else if (b.numbers.length === 1) {
+        blockText = prefix + '，' + b.numbers[0];
+      } else {
+        blockText = prefix + ' ' + b.numbers.join('\n');
+      }
+      parts.push(blockText);
+      if (i < blocks.length - 1) parts.push('');
+    });
+
+    return parts.join('\n');
+  }
+
+  /* ================= 交互 ================= */
+  var inputEl = $('input');
+  var msgEl = $('msg');
+  var panelEl = $('panel');
+  var outEl = $('output');
+
+  function run() {
+    var text = inputEl.value;
+    if (!text.trim()) {
+      msgEl.className = 'msg';
+      msgEl.textContent = '请先粘贴内容';
+      panelEl.hidden = true;
+      return;
+    }
+
+    var data = parseReport(text);
+
+    if (!data.sections.length) {
+      msgEl.className = 'msg';
+      msgEl.textContent = '没有解析到任何分区，请检查文本是否完整';
+      panelEl.hidden = true;
+      return;
+    }
+
+    outEl.textContent = buildOutput(data);
+    panelEl.hidden = false;
+
+    msgEl.className = 'msg ok';
+    msgEl.textContent = '已生成';
+  }
+
+  $('run').addEventListener('click', run);
+
+  $('clear').addEventListener('click', function () {
+    inputEl.value = '';
+    panelEl.hidden = true;
+    msgEl.textContent = '';
+    inputEl.focus();
+  });
+
+  $('copy').addEventListener('click', function () {
+    var txt = outEl.textContent;
+    var btn = this;
+
+    function done() {
+      var old = btn.textContent;
+      btn.textContent = '已复制 ✓';
+      setTimeout(function () { btn.textContent = old; }, 1500);
+    }
+
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      run();
+    }
+  });
+
+  inputEl.focus();
+})();
+</script>
+</body>
+</html>
