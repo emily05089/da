@@ -187,11 +187,13 @@
       /* ---------- 区域切换 ---------- */
       if (/^❗/.test(line)) {
         var t = line.replace(/^❗\uFE0F?/, '').trim();
+
         if (/重复行/.test(t))            zone = 'unique';
         else if (/后区全中/.test(t))     zone = 'back';
         else if (/奖金情况/.test(t))     zone = 'bonus';
         else {
-          var mh = t.match(/^中([\d➕]+)(?:情况|详情)$/);
+          // 匹配「中4个情况」「中3个情况」「中4➕1详情」等
+          var mh = t.match(/^中(\d➕\d|\d+)个?(?:情况|详情)$/);
           zone = mh ? ('hit:' + mh[1]) : null;
         }
         continue;
@@ -233,7 +235,7 @@
 
       /* ---------- 有奖金的重复行情况（仅单式5个） ---------- */
       if (zone === 'unique') {
-        // 形如：其中2➕2不重复的有1行，中2➕2不重复的行数占比是0.37%(1/270)
+        // 其中2➕2不重复的有1行，中2➕2不重复的行数占比是0.37%(1/270)
         var mu1 = line.match(
           /^其中(\d➕\d)不重复的有(\d+)行[，,]?\s*中\d➕\d不重复的行数占比是([\d.]+)%[（(](\d+)[\/／](\d+)[）)]/
         );
@@ -246,7 +248,7 @@
           };
           continue;
         }
-        // 形如：单式5个中2个不重复的有5行，中2个不重复的行数占比是1.85%(5/270)
+        // 单式5个中2个不重复的有5行，中2个不重复的行数占比是1.85%(5/270)
         var mu2 = line.match(
           /^(.*?)中(\d)个不重复的有(\d+)行[，,]?\s*中\d个不重复的行数占比是([\d.]+)%[（(](\d+)[\/／](\d+)[）)]/
         );
@@ -424,7 +426,7 @@
       out += block('❗️中3个情况', e5);
     }
 
-    /* ---------- 5. 中X➕Y 详情（不含“中4个”“中3个”已单独输出） ---------- */
+    /* ---------- 5. 中X➕Y 详情 ---------- */
     var hitOrder = ['4➕1', '4➕0', '3➕2', '3➕1', '2➕2', '3➕0', '2➕1', '1➕2', '0➕2'];
 
     hitOrder.forEach(function (h) {
@@ -459,7 +461,7 @@
     });
     if (hasUnique) {
       var e6 = [];
-      // 先按“中X个”输出（4、3、2）
+      // 按“中X个”输出（4、3、2）
       ['4', '3', '2'].forEach(function (k) {
         var p = collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].pct; });
         if (!p.length) return;
@@ -469,7 +471,7 @@
             collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].num; }))
         ));
       });
-      // 再按“中X➕Y”输出
+      // 按“中X➕Y”输出
       ['4➕1', '4➕0', '3➕2', '3➕1', '2➕2', '3➕0', '2➕1', '1➕2', '0➕2'].forEach(function (k) {
         var p = collect(function (g) { return g.unique.byCombo[k] && g.unique.byCombo[k].pct; });
         if (!p.length) return;
