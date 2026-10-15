@@ -160,7 +160,7 @@
 
   /* ================= 工具 ================= */
   function normalizeText(t) {
-    return String(t).replace(/\+/g, '➕');   // 半角 + → 全角 ➕
+    return String(t).replace(/\+/g, '➕');
   }
   function toNum(s) { return parseFloat(s); }
   function normCat(c) { return c.replace(/^前区/, ''); }
@@ -188,11 +188,10 @@
       if (/^❗/.test(line)) {
         var t = line.replace(/^❗\uFE0F?/, '').trim();
 
-        if (/重复行/.test(t))            zone = 'unique';
+        if (/不重复行|重复行/.test(t))   zone = 'unique';
         else if (/后区全中/.test(t))     zone = 'back';
         else if (/奖金情况/.test(t))     zone = 'bonus';
         else {
-          // 匹配「中4个情况」「中3个情况」「中4➕1详情」等
           var mh = t.match(/^中(\d➕\d|\d+)个?(?:情况|详情)$/);
           zone = mh ? ('hit:' + mh[1]) : null;
         }
@@ -456,29 +455,33 @@
     });
 
     /* ---------- 6. 单式5个有奖金的不重复行情况 ---------- */
+    // 顺序严格按需求：3个、2个、3➕2、3➕1、2➕2、3➕0、2➕1、1➕2、0➕2
+    var uniqueOrder = ['3', '2', '3➕2', '3➕1', '2➕2', '3➕0', '2➕1', '1➕2', '0➕2'];
+
     var hasUnique = groups.some(function (g) {
-      return Object.keys(g.unique.byCount).length > 0 || Object.keys(g.unique.byCombo).length > 0;
+      return uniqueOrder.some(function (k) {
+        if (k === '3' || k === '2') {
+          return g.unique.byCount[k] && !isNaN(g.unique.byCount[k].pct);
+        }
+        return g.unique.byCombo[k] && !isNaN(g.unique.byCombo[k].pct);
+      });
     });
+
     if (hasUnique) {
       var e6 = [];
-      // 按“中X个”输出（4、3、2）
-      ['4', '3', '2'].forEach(function (k) {
-        var p = collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].pct; });
-        if (!p.length) return;
-        e6.push(joinRanges(
-          pctRange('单式5个中' + k + '个的行数占比', p),
-          numRange('行数',
-            collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].num; }))
-        ));
-      });
-      // 按“中X➕Y”输出
-      ['4➕1', '4➕0', '3➕2', '3➕1', '2➕2', '3➕0', '2➕1', '1➕2', '0➕2'].forEach(function (k) {
-        var p = collect(function (g) { return g.unique.byCombo[k] && g.unique.byCombo[k].pct; });
+      uniqueOrder.forEach(function (k) {
+        var p, n;
+        if (k === '3' || k === '2') {
+          p = collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].pct; });
+          n = collect(function (g) { return g.unique.byCount[k] && g.unique.byCount[k].num; });
+        } else {
+          p = collect(function (g) { return g.unique.byCombo[k] && g.unique.byCombo[k].pct; });
+          n = collect(function (g) { return g.unique.byCombo[k] && g.unique.byCombo[k].num; });
+        }
         if (!p.length) return;
         e6.push(joinRanges(
           pctRange('单式5个中' + k + '的行数占比', p),
-          numRange('行数',
-            collect(function (g) { return g.unique.byCombo[k] && g.unique.byCombo[k].num; }))
+          numRange('行数', n)
         ));
       });
       out += block('❗️单式5个有奖金的不重复行情况', e6);
