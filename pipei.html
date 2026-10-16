@@ -909,7 +909,9 @@
                             dist5: {}, dist4: {}, dist3: {},
                             back2Dist: {},
                             prizeByLevel: {},
-                            prizeRowsDetail: []
+                            uniqueRowsMap: new Map(),
+                            uniqueTotalPrize: 0,
+                            uniquePrizeRows: 0
                         };
                     }
                     let g = groupStats[gkey];
@@ -954,7 +956,20 @@
 
                     if ((prizeMap[maxKey] || 0) > 0) {
                         g.prizeByLevel[maxKey] = (g.prizeByLevel[maxKey]||0)+1;
-                        g.prizeRowsDetail.push({ key: maxKey, line: line, frontLevel: maxGrade.frontHit });
+                    }
+
+                    // 去重统计
+                    if (!g.uniqueRowsMap.has(line)) {
+                        g.uniqueRowsMap.set(line, {
+                            linePrize: linePrize,
+                            maxKey: maxKey,
+                            frontHit: maxGrade.frontHit,
+                            backHit: maxGrade.backHit
+                        });
+                        g.uniqueTotalPrize += linePrize;
+                        if ((prizeMap[maxKey] || 0) > 0) {
+                            g.uniquePrizeRows += 1;
+                        }
                     }
                 }
 
@@ -966,6 +981,15 @@
                 let globalDist5 = {}, globalDist4 = {}, globalDist3 = {};
                 let globalPrizeByLevel = {};
                 let globalPrizeByGroup = {};
+
+                // 去重全局
+                let uniqueGrandTotalPrize = 0;
+                let uniqueGrandPrizeRows = 0;
+                let uniqueGrandBack2Rows = 0;
+                let uniqueGlobalDist3 = {};
+                let uniqueGlobalDist4 = {};
+                let uniqueGlobalDist5 = {};
+                let uniqueGlobal22And21 = 0;
 
                 for (let gkey in groupStats) {
                     let g = groupStats[gkey];
@@ -981,6 +1005,17 @@
                         globalPrizeByLevel[k] = (globalPrizeByLevel[k]||0) + g.prizeByLevel[k];
                     }
                     if (gr > 0) globalPrizeByGroup[gkey] = gr;
+
+                    // 去重全局
+                    uniqueGrandTotalPrize += g.uniqueTotalPrize;
+                    uniqueGrandPrizeRows += g.uniquePrizeRows;
+                    for (let [line, info] of g.uniqueRowsMap) {
+                        if (info.maxKey.endsWith('+2')) uniqueGrandBack2Rows++;
+                        if (info.frontHit === 5) uniqueGlobalDist5[info.maxKey] = (uniqueGlobalDist5[info.maxKey]||0)+1;
+                        else if (info.frontHit === 4) uniqueGlobalDist4[info.maxKey] = (uniqueGlobalDist4[info.maxKey]||0)+1;
+                        else if (info.frontHit === 3) uniqueGlobalDist3[info.maxKey] = (uniqueGlobalDist3[info.maxKey]||0)+1;
+                        if (info.maxKey === '2+2' || info.maxKey === '2+1') uniqueGlobal22And21++;
+                    }
                 }
 
                 let totalCost = totalCombinations * 2;
@@ -1001,14 +1036,54 @@
                     return level === 5 ? ['5+2','5+1','5+0'] : level === 4 ? ['4+2','4+1','4+0'] : ['3+2','3+1','3+0'];
                 }
 
-                // 全局某等级总行数
                 function getGlobalLevelCount(level) {
                     let cnt = 0;
-                    for (let gkey in groupStats) {
-                        cnt += groupStats[gkey].dist[level] || 0;
+                    for (let gkey in groupStats) cnt += groupStats[gkey].dist[level] || 0;
+                    return cnt;
+                }
+
+                // 辅助函数：去重统计
+                function uniqueLevelCount(g, level) {
+                    if (!g) return 0;
+                    let cnt = 0;
+                    for (let [line, info] of g.uniqueRowsMap) {
+                        if (info.frontHit === level) cnt++;
                     }
                     return cnt;
                 }
+                function uniqueKeyCount(g, key) {
+                    if (!g) return 0;
+                    let cnt = 0;
+                    for (let [line, info] of g.uniqueRowsMap) {
+                        if (info.maxKey === key) cnt++;
+                    }
+                    return cnt;
+                }
+                function uniqueBack2Count(g) {
+                    if (!g) return 0;
+                    let cnt = 0;
+                    for (let [line, info] of g.uniqueRowsMap) {
+                        if (info.maxKey.endsWith('+2')) cnt++;
+                    }
+                    return cnt;
+                }
+                function unique22And21Count(g) {
+                    if (!g) return 0;
+                    let cnt = 0;
+                    for (let [line, info] of g.uniqueRowsMap) {
+                        if (info.maxKey === '2+2' || info.maxKey === '2+1') cnt++;
+                    }
+                    return cnt;
+                }
+                function getAllUniqueLevelCount(level) {
+                    let cnt = 0;
+                    for (let gkey in groupStats) cnt += uniqueLevelCount(groupStats[gkey], level);
+                    return cnt;
+                }
+
+                let singleGroup = groupStats['单式5个'];
+                let singleActualCount = singleGroup ? singleGroup.actualCount : 0;
+                let singleTotalCost = singleGroup ? singleGroup.totalCombinations * 2 : 0;
 
                 // ===== 顶部结果 =====
                 let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
@@ -1109,6 +1184,17 @@
                     resultText += `${gkey}奖金占比是${pct}%(${g.totalPrize}元/${g.totalCombinations * 2}元)，有奖金的行数占比是${cpct}%(${pr}/${g.actualCount})\n\n`;
                 }
 
+                // ❗️不重复的奖金情况
+                resultText += `❗️不重复的奖金情况\n\n`;
+                let uPrizePctAll = totalCost > 0 ? (uniqueGrandTotalPrize / totalCost * 100).toFixed(2) : '0.00';
+                let uCountPctAll = totalRows > 0 ? (uniqueGrandPrizeRows / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部奖金占比是${uPrizePctAll}%(${uniqueGrandTotalPrize}元/${totalCost}元)，有奖金的行数占比是${uCountPctAll}%(${uniqueGrandPrizeRows}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let uPct = singleTotalCost > 0 ? (singleGroup.uniqueTotalPrize / singleTotalCost * 100).toFixed(2) : '0.00';
+                    let uCpct = singleActualCount > 0 ? (singleGroup.uniquePrizeRows / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个奖金占比是${uPct}%(${singleGroup.uniqueTotalPrize}元/${singleTotalCost}元)，有奖金的行数占比是${uCpct}%(${singleGroup.uniquePrizeRows}/${singleActualCount})\n\n`;
+                }
+
                 // ❗️后区全中情况
                 resultText += `❗️后区全中情况\n\n`;
                 resultText += `全部后区全中的行数比例：${back2PctAll}%（${grandBack2Rows}➗${totalRows}）\n\n`;
@@ -1117,6 +1203,16 @@
                     let n = sumDict(g.back2Dist);
                     let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
                     resultText += `${gkey}后区全中的行数比例：${pct}%（${n}➗${g.actualCount}）\n\n`;
+                }
+
+                // ❗️不重复的后区全中情况
+                resultText += `❗️不重复的后区全中情况\n\n`;
+                let uBack2PctAll = totalRows > 0 ? (uniqueGrandBack2Rows / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部后区全中的行数比例：${uBack2PctAll}%（${uniqueGrandBack2Rows}➗${totalRows}）\n\n`;
+                if (singleGroup) {
+                    let uB = uniqueBack2Count(singleGroup);
+                    let uPct = singleActualCount > 0 ? (uB / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个后区全中的行数比例${uPct}%（${uB}➗${singleActualCount}）\n\n`;
                 }
 
                 // ❗️中4个情况
@@ -1143,78 +1239,224 @@
                     resultText += `${gkey}中3个的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
                 }
 
-                // 各子等级详情
-                const detailLevels = ['4+1', '4+0', '3+2', '3+1', '2+2', '3+0', '2+1', '1+2', '0+2'];
-                for (let lv of detailLevels) {
-                    resultText += `❗️中${lv.replace('+','➕')}详情\n\n`;
-                    let gtotal = getGlobalLevelCount(lv);
-                    let gpct = totalRows > 0 ? (gtotal / totalRows * 100).toFixed(2) : '0.00';
-                    resultText += `全部中${lv.replace('+','➕')}的行数占比是${gpct}%(${gtotal}/${totalRows})\n\n`;
-                    for (let gkey of sortedKeys) {
-                        let g = groupStats[gkey];
-                        let cnt = g.dist[lv] || 0;
-                        let pct = g.actualCount > 0 ? (cnt / g.actualCount * 100).toFixed(2) : '0.00';
-                        resultText += `${gkey}中${lv.replace('+','➕')}的行数占比是${pct}%(${cnt}/${g.actualCount})\n\n`;
-                    }
+                // ❗️不重复的中3个情况
+                resultText += `❗️不重复的中3个情况\n\n`;
+                let u3all = getAllUniqueLevelCount(3);
+                let u3pctAll = totalRows > 0 ? (u3all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中3个的行数占比是${u3pctAll}%(${u3all}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u3s = uniqueLevelCount(singleGroup, 3);
+                    let u3pctS = singleActualCount > 0 ? (u3s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中3个的行数占比是${u3pctS}%(${u3s}/${singleActualCount})\n\n`;
                 }
 
-                // ===== 有奖金的重复行情况 =====
-                resultText += `❗️有奖金的重复行情况\n\n`;
-                let hasAnyDup = false;
+                // ❗️中2➕2和2➕1的情况
+                resultText += `❗️中2➕2和2➕1的情况\n\n`;
+                let g22And21All = (globalDist['2+2'] || 0) + (globalDist['2+1'] || 0);
+                // 用全局统计来计算
+                let g22All = 0, g21All = 0;
+                for (let gkey in groupStats) {
+                    g22All += groupStats[gkey].dist['2+2'] || 0;
+                    g21All += groupStats[gkey].dist['2+1'] || 0;
+                }
+                g22And21All = g22All + g21All;
+                let g22PctAll = totalRows > 0 ? (g22And21All / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中2➕2和2➕1的行数占比是${g22PctAll}%(${g22And21All}/${totalRows})\n\n`;
                 for (let gkey of sortedKeys) {
                     let g = groupStats[gkey];
-                    if (!g.prizeRowsDetail || g.prizeRowsDetail.length === 0) continue;
-
-                    let byFrontLevel = {};
-                    for (let r of g.prizeRowsDetail) {
-                        if (!byFrontLevel[r.frontLevel]) byFrontLevel[r.frontLevel] = [];
-                        byFrontLevel[r.frontLevel].push(r);
-                    }
-
-                    let frontLevels = Object.keys(byFrontLevel).map(Number).sort((a, b) => b - a);
-
-                    for (let fl of frontLevels) {
-                        let rows = byFrontLevel[fl];
-                        let byLevel = {};
-                        for (let r of rows) {
-                            if (!byLevel[r.key]) byLevel[r.key] = [];
-                            byLevel[r.key].push(r);
-                        }
-
-                        let dupLevels = [];
-                        for (let k of order) {
-                            if (byLevel[k]) {
-                                let lines = byLevel[k].map(r => r.line);
-                                let uniqueLines = new Set(lines);
-                                if (lines.length > uniqueLines.size) {
-                                    dupLevels.push({ key: k, total: lines.length, unique: uniqueLines.size });
-                                }
-                            }
-                        }
-
-                        if (dupLevels.length === 0) continue;
-                        hasAnyDup = true;
-
-                        for (let d of dupLevels) {
-                            resultText += `${gkey}中${d.key.replace('+','➕')}有${d.total}行重复\n`;
-                        }
-
-                        let allLines = rows.map(r => r.line);
-                        let uniqueAll = new Set(allLines);
-                        let uc = uniqueAll.size;
-                        let upct = g.actualCount > 0 ? (uc / g.actualCount * 100).toFixed(2) : '0.00';
-                        resultText += `${gkey}中${fl}个不重复的有${uc}行，中${fl}个不重复的行数占比是${upct}%(${uc}/${g.actualCount})\n`;
-
-                        for (let d of dupLevels) {
-                            let lpct = g.actualCount > 0 ? (d.unique / g.actualCount * 100).toFixed(2) : '0.00';
-                            resultText += `其中${d.key.replace('+','➕')}不重复的有${d.unique}行，中${d.key.replace('+','➕')}不重复的行数占比是${lpct}%(${d.unique}/${g.actualCount})\n`;
-                        }
-
-                        resultText += '\n';
-                    }
+                    let n = (g.dist['2+2']||0) + (g.dist['2+1']||0);
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中2➕2和2➕1的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
                 }
-                if (!hasAnyDup) {
-                    resultText += `本次没有有奖金的重复行。\n\n`;
+
+                // ❗️不重复的中2➕2和2➕1的情况
+                resultText += `❗️不重复的中2➕2和2➕1的情况\n\n`;
+                let u22PctAll = totalRows > 0 ? (uniqueGlobal22And21 / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中2➕2和2➕1的行数占比是${u22PctAll}%(${uniqueGlobal22And21}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u22s = unique22And21Count(singleGroup);
+                    let u22PctS = singleActualCount > 0 ? (u22s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中2➕2和2➕1的行数占比是${u22PctS}%(${u22s}/${singleActualCount})\n\n`;
+                }
+
+                // ❗️中4➕1详情
+                resultText += `❗️中4➕1详情\n\n`;
+                let g41all = getGlobalLevelCount('4+1');
+                let g41pctAll = totalRows > 0 ? (g41all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中4➕1的行数占比是${g41pctAll}%(${g41all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['4+1'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中4➕1的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️中4➕0详情
+                resultText += `❗️中4➕0详情\n\n`;
+                let g40all = getGlobalLevelCount('4+0');
+                let g40pctAll = totalRows > 0 ? (g40all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中4➕0的行数占比是${g40pctAll}%(${g40all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['4+0'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中4➕0的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️中3➕2详情
+                resultText += `❗️中3➕2详情\n\n`;
+                let g32all = getGlobalLevelCount('3+2');
+                let g32pctAll = totalRows > 0 ? (g32all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中3➕2的行数占比是${g32pctAll}%(${g32all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['3+2'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中3➕2的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️中3➕1详情
+                resultText += `❗️中3➕1详情\n\n`;
+                let g31all = getGlobalLevelCount('3+1');
+                let g31pctAll = totalRows > 0 ? (g31all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中3➕1的行数占比是${g31pctAll}%(${g31all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['3+1'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中3➕1的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️不重复的中3➕1详情
+                resultText += `❗️不重复的中3➕1详情\n\n`;
+                let u31all = 0;
+                for (let gkey in groupStats) u31all += uniqueKeyCount(groupStats[gkey], '3+1');
+                let u31pctAll = totalRows > 0 ? (u31all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中3➕1的行数占比是${u31pctAll}%(${u31all}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u31s = uniqueKeyCount(singleGroup, '3+1');
+                    let u31pctS = singleActualCount > 0 ? (u31s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中3➕1的行数占比是${u31pctS}%(${u31s}/${singleActualCount})\n\n`;
+                }
+
+                // ❗️中2➕2详情
+                resultText += `❗️中2➕2详情\n\n`;
+                let g22all = getGlobalLevelCount('2+2');
+                let g22pctAll2 = totalRows > 0 ? (g22all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中2➕2的行数占比是${g22pctAll2}%(${g22all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['2+2'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中2➕2的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️不重复的中2➕2详情
+                resultText += `❗️不重复的中2➕2详情\n\n`;
+                let u22all = 0;
+                for (let gkey in groupStats) u22all += uniqueKeyCount(groupStats[gkey], '2+2');
+                let u22pctAll2 = totalRows > 0 ? (u22all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中2➕2的行数占比是${u22pctAll2}%(${u22all}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u22s = uniqueKeyCount(singleGroup, '2+2');
+                    let u22pctS = singleActualCount > 0 ? (u22s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中2➕2的行数占比是${u22pctS}%(${u22s}/${singleActualCount})\n\n`;
+                }
+
+                // ❗️中3➕0详情
+                resultText += `❗️中3➕0详情\n\n`;
+                let g30all = getGlobalLevelCount('3+0');
+                let g30pctAll = totalRows > 0 ? (g30all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中3➕0的行数占比是${g30pctAll}%(${g30all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['3+0'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中3➕0的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️不重复的中3➕0详情
+                resultText += `❗️不重复的中3➕0详情\n\n`;
+                let u30all = 0;
+                for (let gkey in groupStats) u30all += uniqueKeyCount(groupStats[gkey], '3+0');
+                let u30pctAll = totalRows > 0 ? (u30all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中3➕0的行数占比是${u30pctAll}%(${u30all}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u30s = uniqueKeyCount(singleGroup, '3+0');
+                    let u30pctS = singleActualCount > 0 ? (u30s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中3➕0的行数占比是${u30pctS}%(${u30s}/${singleActualCount})\n\n`;
+                }
+
+                // ❗️中2➕1详情
+                resultText += `❗️中2➕1详情\n\n`;
+                let g21all2 = getGlobalLevelCount('2+1');
+                let g21pctAll = totalRows > 0 ? (g21all2 / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中2➕1的行数占比是${g21pctAll}%(${g21all2}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['2+1'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中2➕1的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️不重复的中2➕1详情
+                resultText += `❗️不重复的中2➕1详情\n\n`;
+                let u21all = 0;
+                for (let gkey in groupStats) u21all += uniqueKeyCount(groupStats[gkey], '2+1');
+                let u21pctAll = totalRows > 0 ? (u21all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中2➕1的行数占比是${u21pctAll}%(${u21all}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u21s = uniqueKeyCount(singleGroup, '2+1');
+                    let u21pctS = singleActualCount > 0 ? (u21s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中2➕1的行数占比是${u21pctS}%(${u21s}/${singleActualCount})\n\n`;
+                }
+
+                // ❗️中1➕2详情
+                resultText += `❗️中1➕2详情\n\n`;
+                let g12all = getGlobalLevelCount('1+2');
+                let g12pctAll = totalRows > 0 ? (g12all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中1➕2的行数占比是${g12pctAll}%(${g12all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['1+2'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中1➕2的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️不重复的中1➕2详情
+                resultText += `❗️不重复的中1➕2详情\n\n`;
+                let u12all = 0;
+                for (let gkey in groupStats) u12all += uniqueKeyCount(groupStats[gkey], '1+2');
+                let u12pctAll = totalRows > 0 ? (u12all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中1➕2的行数占比是${u12pctAll}%(${u12all}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u12s = uniqueKeyCount(singleGroup, '1+2');
+                    let u12pctS = singleActualCount > 0 ? (u12s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中1➕2的行数占比是${u12pctS}%(${u12s}/${singleActualCount})\n\n`;
+                }
+
+                // ❗️中0➕2详情
+                resultText += `❗️中0➕2详情\n\n`;
+                let g02all = getGlobalLevelCount('0+2');
+                let g02pctAll = totalRows > 0 ? (g02all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中0➕2的行数占比是${g02pctAll}%(${g02all}/${totalRows})\n\n`;
+                for (let gkey of sortedKeys) {
+                    let g = groupStats[gkey];
+                    let n = g.dist['0+2'] || 0;
+                    let pct = g.actualCount > 0 ? (n / g.actualCount * 100).toFixed(2) : '0.00';
+                    resultText += `${gkey}中0➕2的行数占比是${pct}%(${n}/${g.actualCount})\n\n`;
+                }
+
+                // ❗️不重复的中0➕2详情
+                resultText += `❗️不重复的中0➕2详情\n\n`;
+                let u02all = 0;
+                for (let gkey in groupStats) u02all += uniqueKeyCount(groupStats[gkey], '0+2');
+                let u02pctAll = totalRows > 0 ? (u02all / totalRows * 100).toFixed(2) : '0.00';
+                resultText += `全部中0➕2的行数占比是${u02pctAll}%(${u02all}/${totalRows})\n\n`;
+                if (singleGroup) {
+                    let u02s = uniqueKeyCount(singleGroup, '0+2');
+                    let u02pctS = singleActualCount > 0 ? (u02s / singleActualCount * 100).toFixed(2) : '0.00';
+                    resultText += `单式5个中0➕2的行数占比是${u02pctS}%(${u02s}/${singleActualCount})\n\n`;
                 }
 
                 return { text: resultText, invalidList };
