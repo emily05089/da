@@ -211,7 +211,7 @@
           var m = t.match(/^中(.+?)详情$/);
           zone = 'hit:' + m[1];
         } else if (/^单式5个有奖金的不重复行情况$/.test(t)) {
-          zone = null; // 该模块已删除，忽略
+          zone = null;
         } else {
           zone = null;
         }
@@ -240,10 +240,10 @@
         continue;
       }
 
-      /* ---------- 后区全中类 ---------- */
+      /* ---------- 后区全中类（冒号可选、空白宽松，兼容全角半角括号和➗/） ---------- */
       if (zone === 'back' || zone === 'uniqueBack') {
         var mk = line.match(
-          /^(.*?)后区全中的行数比例[：:]\s*([\d.]+)%[（(](\d+)\s*[➗\/]\s*(\d+)[）)]/
+          /^(.*?)后区全中的行数比例[ \t\u3000]*[：:]?[ \t\u3000]*([\d.]+)%[ \t\u3000]*[（(][ \t\u3000]*(\d+)[ \t\u3000]*[➗\/][ \t\u3000]*(\d+)[ \t\u3000]*[）)]/
         );
         if (!mk) continue;
         var kcat = mk[1].trim();
@@ -263,7 +263,7 @@
         if (!mh) continue;
         var hcat = mh[1].trim();
         var desc = mh[2].trim();
-        var key = desc.replace(/个$/, ''); // 去掉末尾“个”
+        var key = desc.replace(/个$/, '');
         var hval = { pct: toNum(mh[3]), num: parseInt(mh[4], 10), den: parseInt(mh[5], 10) };
         var store = isUnique ? res.uniqueHits : res.hits;
         if (!store[key]) store[key] = { all: null, cats: {} };
@@ -330,7 +330,6 @@
 
   /* ================= 各区块生成器 ================= */
 
-  // 奖金类区块（全部 + 各分类）
   function buildBonusBlock(title, getTarget) {
     var allPct = collect(function (g) {
       var t = getTarget(g);
@@ -361,7 +360,6 @@
     return block(title, entries);
   }
 
-  // 后区全中区块（全部 + 各分类）
   function buildBackBlock(title, getTarget) {
     var allPct = collect(function (g) {
       var t = getTarget(g);
@@ -388,7 +386,6 @@
     return block(title, entries);
   }
 
-  // 命中区块（全部 + 各分类）
   function buildHitBlock(title, storeKey, getStore) {
     var has = groups.some(function (g) {
       var store = getStore(g);
@@ -416,7 +413,6 @@
     return block(title, entries);
   }
 
-  // 不重复命中区块（只输出全部 + 单式5个）
   function buildUniqueHitBlock(title, storeKey, getStore) {
     var has = groups.some(function (g) {
       var store = getStore(g);
@@ -434,13 +430,14 @@
       ));
     }
 
-    var singlePct = collect(function (g) {
+    var hasSingle = groups.some(function (g) {
       var s = getStore(g)[storeKey];
-      return s && s.cats['单式5个'] && s.cats['单式5个'].pct;
+      return s && s.cats['单式5个'];
     });
-    if (singlePct.length) {
+    if (hasSingle) {
       entries.push(joinRanges(
-        pctRange('单式5个中' + storeKey + '的行数占比', singlePct),
+        pctRange('单式5个中' + storeKey + '的行数占比',
+          collect(function (g) { var s = getStore(g)[storeKey]; return s && s.cats['单式5个'] && s.cats['单式5个'].pct; })),
         numRange('行数',
           collect(function (g) { var s = getStore(g)[storeKey]; return s && s.cats['单式5个'] && s.cats['单式5个'].num; }))
       ));
@@ -449,7 +446,6 @@
     return block(title, entries);
   }
 
-  // 不重复奖金区块（只输出全部 + 单式5个）
   function buildUniqueBonusBlock(title, getTarget) {
     var allPct = collect(function (g) { var t = getTarget(g); return t.all && t.all.pct; });
     if (!allPct.length) return '';
@@ -463,13 +459,11 @@
         collect(function (g) { var t = getTarget(g); return t.all && t.all.winNum; }))
     ));
 
-    var singlePct = collect(function (g) {
-      var t = getTarget(g);
-      return t.cats['单式5个'] && t.cats['单式5个'].pct;
-    });
-    if (singlePct.length) {
+    var hasSingle = groups.some(function (g) { return !!getTarget(g).cats['单式5个']; });
+    if (hasSingle) {
       entries.push(joinRanges(
-        pctRange('单式5个奖金占比', singlePct),
+        pctRange('单式5个奖金占比',
+          collect(function (g) { var t = getTarget(g); return t.cats['单式5个'] && t.cats['单式5个'].pct; })),
         pctRange('有奖金的行数占比',
           collect(function (g) { var t = getTarget(g); return t.cats['单式5个'] && t.cats['单式5个'].winPct; })),
         numRange('有奖金的行数',
@@ -480,7 +474,6 @@
     return block(title, entries);
   }
 
-  // 不重复后区块（只输出全部 + 单式5个）
   function buildUniqueBackBlock(title, getTarget) {
     var allPct = collect(function (g) { var t = getTarget(g); return t.all && t.all.pct; });
     if (!allPct.length) return '';
@@ -492,13 +485,11 @@
         collect(function (g) { var t = getTarget(g); return t.all && t.all.num; }))
     ));
 
-    var singlePct = collect(function (g) {
-      var t = getTarget(g);
-      return t.cats['单式5个'] && t.cats['单式5个'].pct;
-    });
-    if (singlePct.length) {
+    var hasSingle = groups.some(function (g) { return !!getTarget(g).cats['单式5个']; });
+    if (hasSingle) {
       entries.push(joinRanges(
-        pctRange('单式5个后区全中的行数比例', singlePct),
+        pctRange('单式5个后区全中的行数比例',
+          collect(function (g) { var t = getTarget(g); return t.cats['单式5个'] && t.cats['单式5个'].pct; })),
         numRange('行数',
           collect(function (g) { var t = getTarget(g); return t.cats['单式5个'] && t.cats['单式5个'].num; }))
       ));
@@ -512,76 +503,29 @@
     var out = '';
     out += '一共输入了' + groups.length + '组结果\n\n';
 
-    // 1. 奖金情况
     out += buildBonusBlock('❗️奖金情况', function (g) { return g.bonus; });
-
-    // 2. 不重复的奖金情况
     out += buildUniqueBonusBlock('❗️不重复的奖金情况', function (g) { return g.uniqueBonus; });
-
-    // 3. 后区全中情况
     out += buildBackBlock('❗️后区全中情况', function (g) { return g.back; });
-
-    // 4. 不重复的后区全中情况
     out += buildUniqueBackBlock('❗️不重复的后区全中情况', function (g) { return g.uniqueBack; });
-
-    // 5. 中4个情况
     out += buildHitBlock('❗️中4个情况', '4', function (g) { return g.hits; });
-
-    // 6. 中3个情况
     out += buildHitBlock('❗️中3个情况', '3', function (g) { return g.hits; });
-
-    // 7. 不重复的中3个情况
     out += buildUniqueHitBlock('❗️不重复的中3个情况', '3', function (g) { return g.uniqueHits; });
-
-    // 8. 中2➕2和2➕1的情况
     out += buildHitBlock('❗️中2➕2和2➕1的情况', '2➕2和2➕1', function (g) { return g.hits; });
-
-    // 9. 不重复的中2➕2和2➕1的情况
     out += buildUniqueHitBlock('❗️不重复的中2➕2和2➕1的情况', '2➕2和2➕1', function (g) { return g.uniqueHits; });
-
-    // 10. 中4➕1详情
     out += buildHitBlock('❗️中4➕1详情', '4➕1', function (g) { return g.hits; });
-
-    // 11. 中4➕0详情
     out += buildHitBlock('❗️中4➕0详情', '4➕0', function (g) { return g.hits; });
-
-    // 12. 中3➕2详情
     out += buildHitBlock('❗️中3➕2详情', '3➕2', function (g) { return g.hits; });
-
-    // 13. 中3➕1详情
     out += buildHitBlock('❗️中3➕1详情', '3➕1', function (g) { return g.hits; });
-
-    // 14. 不重复的中3➕1详情
     out += buildUniqueHitBlock('❗️不重复的中3➕1详情', '3➕1', function (g) { return g.uniqueHits; });
-
-    // 15. 中2➕2详情
     out += buildHitBlock('❗️中2➕2详情', '2➕2', function (g) { return g.hits; });
-
-    // 16. 不重复的中2➕2详情
     out += buildUniqueHitBlock('❗️不重复的中2➕2详情', '2➕2', function (g) { return g.uniqueHits; });
-
-    // 17. 中3➕0详情
     out += buildHitBlock('❗️中3➕0详情', '3➕0', function (g) { return g.hits; });
-
-    // 18. 不重复的中3➕0详情
     out += buildUniqueHitBlock('❗️不重复的中3➕0详情', '3➕0', function (g) { return g.uniqueHits; });
-
-    // 19. 中2➕1详情
     out += buildHitBlock('❗️中2➕1详情', '2➕1', function (g) { return g.hits; });
-
-    // 20. 不重复的中2➕1详情
     out += buildUniqueHitBlock('❗️不重复的中2➕1详情', '2➕1', function (g) { return g.uniqueHits; });
-
-    // 21. 中1➕2详情
     out += buildHitBlock('❗️中1➕2详情', '1➕2', function (g) { return g.hits; });
-
-    // 22. 不重复的中1➕2详情
     out += buildUniqueHitBlock('❗️不重复的中1➕2详情', '1➕2', function (g) { return g.uniqueHits; });
-
-    // 23. 中0➕2详情
     out += buildHitBlock('❗️中0➕2详情', '0➕2', function (g) { return g.hits; });
-
-    // 24. 不重复的中0➕2详情
     out += buildUniqueHitBlock('❗️不重复的中0➕2详情', '0➕2', function (g) { return g.uniqueHits; });
 
     return out.replace(/\n{3,}/g, '\n\n').trim();
