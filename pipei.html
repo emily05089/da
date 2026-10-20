@@ -892,6 +892,8 @@
                 let totalCombinations = 0;
                 let totalRows = 0;
                 let invalidList = [];
+                // 记录每个命中等级对应的（前区个数➕后区个数）组合集合
+                let globalComboByLevel = {};
 
                 for (let idx = 0; idx < lines.length; idx++) {
                     let line = lines[idx].trim();
@@ -913,7 +915,6 @@
                             dist5: {}, dist4: {}, dist3: {},
                             back2Dist: {},
                             prizeByLevel: {},
-                            prizeRowsDetail: {},
                             // ===== 不重复统计 =====
                             uniqLines: new Set(),
                             uniqCount: 0,
@@ -950,6 +951,13 @@
 
                     g.totalPrize += linePrize;
                     let maxKey = maxGrade.frontHit + '+' + maxGrade.backHit;
+
+                    // 记录该命中等级对应的前区个数➕后区个数组合
+                    let frontCount = parsed.frontAllNums.length;
+                    let backCount = parsed.backAllNums.length;
+                    let comboStr = frontCount + '➕' + backCount;
+                    if (!globalComboByLevel[maxKey]) globalComboByLevel[maxKey] = new Set();
+                    globalComboByLevel[maxKey].add(comboStr);
 
                     if (compareGrade(maxGrade, g.maxGrade) > 0) g.maxGrade = maxGrade;
                     if (compareGrade(maxGrade, g.minGrade) < 0) g.minGrade = maxGrade;
@@ -1058,6 +1066,8 @@
                 // ===== 顶部结果 =====
                 let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
 
+                const comboLevels = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2'];
+
                 for (let lv of levelsToShow) {
                     let dist = getDistForLevel(lv);
                     let total = sumDict(dist);
@@ -1067,7 +1077,22 @@
                         let cnt = dist[sk] || 0;
                         if (cnt > 0) {
                             let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
-                            resultText += `\n其中${sk.replace('+','➕')}的有${cnt}行，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${totalRows})\n`;
+                            let comboInfo = '';
+                            if (comboLevels.includes(sk)) {
+                                let combos = globalComboByLevel[sk] ? [...globalComboByLevel[sk]] : [];
+                                if (combos.length > 0) {
+                                    combos.sort((a, b) => {
+                                        let [af, ab] = a.split('➕').map(Number);
+                                        let [bf, bb] = b.split('➕').map(Number);
+                                        return af - bf || ab - bb;
+                                    });
+                                    let comboText = combos.length === 1
+                                        ? combos[0]
+                                        : combos.slice(0, -1).join('、') + '和' + combos[combos.length - 1];
+                                    comboInfo = `，组合是${comboText}`;
+                                }
+                            }
+                            resultText += `\n其中${sk.replace('+','➕')}的有${cnt}行${comboInfo}，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${totalRows})\n`;
                         }
                     }
                 }
