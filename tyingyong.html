@@ -360,7 +360,7 @@ body.mode1 .mode2-only{display:none !important;}
 </div>
 <div class="card mode2-only">
     <b>🎰 模式2 专项筛选</b>
-    <div class="tag">不勾选类型=应用所有固定2类型。按行数统计。</div>
+    <div class="tag">不勾选类型=应用所有固定2类型。按行数统计，唯一值分母使用去重前行数。</div>
     <div class="flex-row" style="margin-top:6px;">
         <button class="btn btn-prize-count-ratio btn-sm" id="btnKeepBackAllHit">🎯 保留后区全中行数</button>
         <button class="btn btn-prize-ratio btn-sm" id="btnRatioFilter">💰 奖金比例 / 有奖金行数</button>
@@ -452,7 +452,7 @@ body.mode1 .mode2-only{display:none !important;}
     <div style="font-weight:600;margin-top:6px;">勾选要统计的类型（不勾=全部）：</div>
     <div class="f2-row" id="fix2TypeRow"></div>
     <label style="display:flex;align-items:center;gap:6px;margin:8px 0;font-size:13px;cursor:pointer;">
-      <input type="checkbox" id="fix2OnlyUnique"> 只统计唯一值（重复的组合看作1行）
+      <input type="checkbox" id="fix2OnlyUnique"> 只统计唯一值（命中行数去重，比例分母仍按去重前行数）
     </label>
     <div class="unit-tabs" id="fix2UnitTabs">
       <button data-unit="ratio" class="active">按比例(%)</button>
@@ -557,7 +557,7 @@ body.mode1 .mode2-only{display:none !important;}
     <div style="font-weight:600;margin-top:6px;">勾选要统计的类型（不勾=全部）：</div>
     <div class="f2-row" id="backAllHitTypeRow"></div>
     <label style="display:flex;align-items:center;gap:6px;margin:8px 0;font-size:13px;cursor:pointer;">
-      <input type="checkbox" id="backAllHitOnlyUnique"> 只统计唯一值（重复的组合看作1行）
+      <input type="checkbox" id="backAllHitOnlyUnique"> 只统计唯一值（命中行数去重，比例分母仍按去重前行数）
     </label>
     <div class="unit-tabs" id="backAllHitUnitTabs">
       <button data-unit="ratio" class="active">按比例(%)</button>
@@ -590,7 +590,7 @@ body.mode1 .mode2-only{display:none !important;}
     <div style="font-weight:600;margin-top:6px;">勾选要统计的类型（不勾=全部）：</div>
     <div class="f2-row" id="ratioTypeRow"></div>
     <label style="display:flex;align-items:center;gap:6px;margin:8px 0;font-size:13px;cursor:pointer;">
-      <input type="checkbox" id="ratioOnlyUnique"> 只统计唯一值（重复的组合看作1行）
+      <input type="checkbox" id="ratioOnlyUnique"> 只统计唯一值（命中行数去重，比例分母仍按去重前行数）
     </label>
     <div class="flex-row" style="margin-top:8px;">
       <input type="number" class="modal-input" id="ratioMin" placeholder="最小" style="flex:1;margin-bottom:0;" value="10" step="0.01">
@@ -637,7 +637,7 @@ body.mode1 .mode2-only{display:none !important;}
       <label><input type="checkbox" class="phc-nm" value="0,0">0+0</label>
     </div>
     <label style="display:flex;align-items:center;gap:6px;margin:8px 0;font-size:13px;cursor:pointer;">
-      <input type="checkbox" id="phcOnlyUnique"> 只统计唯一值（重复的组合看作1行）
+      <input type="checkbox" id="phcOnlyUnique"> 只统计唯一值（命中行数去重，比例分母仍按去重前行数）
     </label>
     <div class="unit-tabs" id="phcUnitTabs">
       <button data-unit="ratio" class="active">按比例(%)</button>
@@ -681,8 +681,9 @@ body.mode1 .mode2-only{display:none !important;}
 </div>
 <script>
 (function(){
-/* ===================== 历史数据 ===================== */
+/* ===================== 历史数据（新增 03,06,20,24,32 在最前面） ===================== */
 var HISTORY_LINES = [
+"03,06,20,24,32",
 "02,09,21,26,32","04,13,19,29,31","09,18,22,25,35","12,20,32,33,35","08,12,15,29,30",
 "02,04,06,10,11","01,03,05,10,22","10,11,17,26,29","03,24,25,26,35","12,14,16,27,34",
 "01,05,07,21,35","02,05,07,14,22","14,17,21,25,28","10,14,30,33,34","01,06,14,15,26",
@@ -1304,13 +1305,11 @@ var HISTORY_BACKS=[];
   }
 })();
 
-/* ===================== 模式1状态 ===================== */
+/* ===================== 状态 ===================== */
 var filteredAlive=new Uint8Array(TOTAL);
 var filteredCount=TOTAL;
 var masksLow,masksHigh,maskIndex=new Map();
 var undoStack=[],redoStack=[],MAX_UNDO=20;
-
-/* ===================== 模式2状态 ===================== */
 var back0=new Uint32Array(TOTAL);
 var back1=new Uint32Array(TOTAL);
 var back2=new Uint32Array(TOTAL);
@@ -1318,12 +1317,10 @@ var frontAlive2=new Uint8Array(TOTAL);
 var count2=TOTAL2;
 var undoStack2=[],redoStack2=[],MAX_UNDO2=10;
 
-/* popcount */
 var POP16=(function(){var t=new Uint8Array(65536);for(var i=0;i<65536;i++){var c=0,x=i;while(x){c+=x&1;x>>=1;}t[i]=c;}return t;})();
 function pc32(v){return POP16[v&0xFFFF]+POP16[(v>>>16)&0xFFFF];}
 function backCnt(fi){return pc32(back0[fi])+pc32(back1[fi])+POP16[back2[fi]&0x3];}
 
-/* ===================== UI 状态 ===================== */
 var currentMode=1;
 var busy=false,globalAbortFlag=false;
 var orSel=new Set(),andSel=new Set(),keepDigitsSel=new Set(),matchSel=new Set();
@@ -1367,32 +1364,65 @@ function finishOperation(startTime){
   updateUndoRedoButtons();
 }
 
-/* ===================== 固定2 唯一值统计 ===================== */
+/* ===================== 类型命名与排序（新格式 N+M） ===================== */
+/* 排序键格式：rank_kind_N_BACKN
+   kind 1=单式5个；kind 2=复式；kind 3=胆拖
+   - 单式5个:  1_5_{后区N}
+   - 复式N个:  2_{N}_{后区N}
+   - 胆拖K胆:  3_{K}_{后区N}
+   标签：
+   - 单式5个:  5+{后区N}
+   - 复式N个:  {N}+{后区N}
+   - 胆拖K胆:  胆{K}+{后区N}
+   - 后区N=0 表示未带后区
+*/
+function getTypeInfo(f){
+  var backN = (f.backAll && f.backAll.length >= 2) ? f.backAll.length : 0;
+  var backNStr = String(backN).padStart(2,'0');
+  if(f.isDanTuo){
+    var danN = f.dan.length;
+    return { sortKey: '3_'+String(danN).padStart(2,'0')+'_'+backNStr, label: '胆'+danN+'+'+backN };
+  }
+  if(f.front.length === 5 && !f.isDanTuo && f.type && f.type.indexOf('单式')===0){
+    return { sortKey: '1_05_'+backNStr, label: '5+'+backN };
+  }
+  if(f.front.length === 5 && (!f.type || f.type.indexOf('复式')<0)){
+    return { sortKey: '1_05_'+backNStr, label: '5+'+backN };
+  }
+  return { sortKey: '2_'+String(f.front.length).padStart(2,'0')+'_'+backNStr, label: f.front.length+'+'+backN };
+}
+
+/* 固定2 统计（含唯一值；唯一值分母 = 去重前总行数） */
 function getFix2StatsText(){
-  var countByType={},uniqueByType={};
+  var countByType={}, uniqueByType={};
+  var labelByKey={};
   var seenAll={};
   var uniqueTotal=0;
+  var keysOrdered=[];
   for(var i=0;i<fixed2List.length;i++){
-    var f=fixed2List[i],t=f.type;
-    countByType[t]=(countByType[t]||0)+1;
-    var k=_fix2RowKey(f);
-    if(!seenAll[k]){
-      seenAll[k]=true;uniqueTotal++;
-      uniqueByType[t]=(uniqueByType[t]||0)+1;
-    }
+    var f=fixed2List[i];
+    var ti=getTypeInfo(f);
+    var key=ti.sortKey;
+    if(!(key in countByType)){ countByType[key]=0; uniqueByType[key]=0; labelByKey[key]=ti.label; keysOrdered.push(key); }
+    countByType[key]++;
+    var rk=_fix2RowKey(f);
+    if(!seenAll[rk]){ seenAll[rk]=true; uniqueTotal++; uniqueByType[key]++; }
   }
+  keysOrdered.sort();
   var totalRow=fixed2List.length;
-  var keys=Object.keys(countByType).sort(function(a,b){return countByType[b]-countByType[a];});
   var lines=['<b>固定2：共 '+totalRow+' 行，去重后 '+uniqueTotal+' 行</b>'];
-  for(var i=0;i<keys.length;i++){
-    lines.push(keys[i]+'：'+countByType[keys[i]]+' 行（去重后 '+uniqueByType[keys[i]]+' 行）');
+  for(var i=0;i<keysOrdered.length;i++){
+    var k=keysOrdered[i];
+    lines.push(labelByKey[k]+'：'+countByType[k]+' 行（去重后 '+uniqueByType[k]+' 行）');
   }
   return {
     html:lines.join('<br>'),
     totalRow:totalRow,
     uniqueTotal:uniqueTotal,
     countByType:countByType,
-    uniqueByType:uniqueByType
+    uniqueByType:uniqueByType,
+    labelByKey:labelByKey,
+    orderedKeys:keysOrdered
   };
 }
 
@@ -1414,7 +1444,7 @@ function buildAll(){
   log('📌 历史数据已导入：'+HISTORY_ARRAYS.length+' 条');
 }
 
-/* ===================== 后区（从位掩码实时派生） ===================== */
+/* ===================== 后区派生 ===================== */
 function deriveRemainingBackCombos(){
   var arr=[];
   for(var b=0;b<66;b++){
@@ -1452,16 +1482,11 @@ function updateBackStatus(){
   }
 }
 
-/* ===================== 撤销/重做（双快照：模式1和模式2同时备份/恢复） ===================== */
+/* ===================== 撤销/重做（双快照） ===================== */
 function updateUndoRedoButtons(){
   var u=document.getElementById('btnUndo'),r=document.getElementById('btnRedo');
-  if(currentMode===1){
-    if(u)u.disabled=(undoStack.length===0);
-    if(r)r.disabled=(redoStack.length===0);
-  }else{
-    if(u)u.disabled=(undoStack2.length===0);
-    if(r)r.disabled=(redoStack2.length===0);
-  }
+  if(currentMode===1){if(u)u.disabled=(undoStack.length===0);if(r)r.disabled=(redoStack.length===0);}
+  else{if(u)u.disabled=(undoStack2.length===0);if(r)r.disabled=(redoStack2.length===0);}
 }
 function _snapState(){
   return {
@@ -1522,10 +1547,9 @@ function redo(){
   updateUndoRedoButtons();
 }
 
-/* ===================== 显示更新 ===================== */
+/* ===================== 显示 ===================== */
 function calcMode2Stats(){
-  var fa=0;
-  for(var i=0;i<TOTAL;i++)if(frontAlive2[i])fa++;
+  var fa=0;for(var i=0;i<TOTAL;i++)if(frontAlive2[i])fa++;
   refreshRemainingBackCombosFromMask();
   return {frontAlive:fa,backAlive:remainingBackCombos.length};
 }
@@ -1687,8 +1711,9 @@ function parseLineWithBlue(line){
     var bCombos=bComplete?combos(bTuo,BACK_PICK-bDan.length):null;
     for(var fi=0;fi<fCombos.length;fi++){
       var f=fDan.concat(fCombos[fi]).sort(function(a,b){return a-b;});
-      if(bCombos){for(var bi=0;bi<bCombos.length;bi++)results.push({front:f,back:bDan.concat(bCombos[bi]).sort(function(a,b){return a-b;}),frontAll:f.slice(),backAll:bDan.concat(bTuo).slice(),type:'胆拖'+fDan.length+'胆'});}
-      else results.push({front:f,back:null,frontAll:f.slice(),backAll:[],type:'胆拖'+fDan.length+'胆'});
+      var backAll=(bDan.length+bTuo.length)>=BACK_PICK?bDan.concat(bTuo).sort(function(a,b){return a-b;}):[];
+      if(bCombos){for(var bi=0;bi<bCombos.length;bi++)results.push({front:f,back:bDan.concat(bCombos[bi]).sort(function(a,b){return a-b;}),frontAll:f.slice(),backAll:backAll.slice(),type:'胆拖'});}
+      else results.push({front:f,back:null,frontAll:f.slice(),backAll:backAll,type:'胆拖'});
     }
     return results;
   }
@@ -1698,12 +1723,12 @@ function parseLineWithBlue(line){
   var bNums=parts.length>=2?parseNums(parts[1],BACK_MIN,BACK_MAX):[];
   var fC=combos(fNums,FRONT_PICK);
   var results=[];
-  if(fNums.length===5&&bNums.length<BACK_PICK){results.push({front:fC[0].slice(),back:null,frontAll:fNums.slice(),backAll:[],type:'单式5个'});return results;}
+  if(fNums.length===5&&bNums.length<BACK_PICK){results.push({front:fC[0].slice(),back:null,frontAll:fNums.slice(),backAll:[],type:'单式'});return results;}
   if(bNums.length>=BACK_PICK){
     var bC=combos(bNums,BACK_PICK);
-    for(var fi=0;fi<fC.length;fi++)for(var bi=0;bi<bC.length;bi++)results.push({front:fC[fi].slice(),back:bC[bi].slice(),frontAll:fNums.slice(),backAll:bNums.slice(),type:fNums.length===5?'单式5个':'复式'+fNums.length+'个'});
+    for(var fi=0;fi<fC.length;fi++)for(var bi=0;bi<bC.length;bi++)results.push({front:fC[fi].slice(),back:bC[bi].slice(),frontAll:fNums.slice(),backAll:bNums.slice(),type:fNums.length===5?'单式':'复式'});
   }else{
-    for(var fi=0;fi<fC.length;fi++)results.push({front:fC[fi].slice(),back:null,frontAll:fNums.slice(),backAll:[],type:fNums.length===5?'单式5个':'复式'+fNums.length+'个'});
+    for(var fi=0;fi<fC.length;fi++)results.push({front:fC[fi].slice(),back:null,frontAll:fNums.slice(),backAll:[],type:fNums.length===5?'单式':'复式'});
   }
   return results;
 }
@@ -1742,41 +1767,43 @@ function fixHistory2(){
       var fAll=dt.frontDan.concat(fTuoClean);
       fAll=Array.from(new Set(fAll)).sort(function(a,b){return a-b;});
       if(fAll.length<5)continue;
-      list.push({front:fAll.slice(),type:'胆拖'+dt.frontDan.length+'胆',backAll:dt.backDan.concat(bTuoClean),isDanTuo:true,dan:dt.frontDan.slice(),needFromTuo:5-dt.frontDan.length,frontDan:dt.frontDan.slice(),frontTuo:fTuoClean,backDan:dt.backDan.slice(),backTuo:bTuoClean});
+      list.push({front:fAll.slice(),type:'胆拖',backAll:(dt.backDan.length+bTuoClean.length)>=2?dt.backDan.concat(bTuoClean).sort(function(a,b){return a-b;}):[],isDanTuo:true,dan:dt.frontDan.slice(),needFromTuo:5-dt.frontDan.length,frontDan:dt.frontDan.slice(),frontTuo:fTuoClean,backDan:dt.backDan.slice(),backTuo:bTuoClean});
     }else{
       var parts=line.split('-');
       var fNums=parseNums(parts[0],FRONT_MIN,FRONT_MAX);
       if(fNums.length<5)continue;
-      var t=fNums.length===5?'单式5个':'复式'+fNums.length+'个';
+      var t=fNums.length===5?'单式':'复式';
       list.push({front:fNums.slice(),type:t,backAll:parts.length>=2?parseNums(parts[1],BACK_MIN,BACK_MAX):[],isDanTuo:false,dan:[],needFromTuo:0});
     }
   }
   fixed2List=list;fixed2Stats={};
-  for(var i=0;i<list.length;i++)fixed2Stats[list[i].type]=(fixed2Stats[list[i].type]||0)+1;
+  for(var i=0;i<list.length;i++){
+    var ti=getTypeInfo(list[i]);
+    fixed2Stats[ti.label]=(fixed2Stats[ti.label]||0)+1;
+  }
   updateDisplay();
   var st=getFix2StatsText();
   log('📌 已固定2：共 '+list.length+' 行，去重后 '+st.uniqueTotal+' 行');
 }
 
-/* ===================== 类型筛选 ===================== */
+/* ===================== 类型勾选 ===================== */
 function updateTypeCheckboxRow(){
   var wrap=document.getElementById('typeFilterWrap'),row=document.getElementById('typeCheckboxRow');
   if(!wrap||!row)return;
-  var types={};
-  for(var k in fixed2Stats)types[k]=(types[k]||0)+fixed2Stats[k];
-  var keys=Object.keys(types);
-  if(keys.length===0){wrap.style.display='none';return;}
+  var st=getFix2StatsText();
+  if(st.orderedKeys.length===0){wrap.style.display='none';return;}
   wrap.style.display='block';
   row.innerHTML='';
-  typeFilterSel.forEach(function(t){if(!(t in types))typeFilterSel.delete(t);});
-  for(var i=0;i<keys.length;i++){
+  var validSet=new Set(st.orderedKeys);
+  typeFilterSel.forEach(function(t){if(!validSet.has(t))typeFilterSel.delete(t);});
+  for(var i=0;i<st.orderedKeys.length;i++){
     (function(k){
       var lab=document.createElement('label');
       lab.className=typeFilterSel.has(k)?'checked':'';
-      lab.innerHTML='<input type="checkbox" value="'+k+'"'+(typeFilterSel.has(k)?' checked':'')+'> '+k+'（'+types[k]+'行）';
+      lab.innerHTML='<input type="checkbox" value="'+k+'"'+(typeFilterSel.has(k)?' checked':'')+'> '+st.labelByKey[k]+'（'+st.countByType[k]+'行 / 唯一 '+st.uniqueByType[k]+'行）';
       lab.querySelector('input').onchange=function(){if(this.checked)typeFilterSel.add(k);else typeFilterSel.delete(k);lab.className=this.checked?'checked':'';};
       row.appendChild(lab);
-    })(keys[i]);
+    })(st.orderedKeys[i]);
   }
 }
 function getReferenceCombos(){
@@ -1784,7 +1811,7 @@ function getReferenceCombos(){
   if(typeFilterSel.size>0){
     for(var i=0;i<fixed2List.length;i++){
       var f=fixed2List[i];
-      if(!typeFilterSel.has(f.type))continue;
+      if(!typeFilterSel.has(getTypeInfo(f).sortKey))continue;
       refs.push({front:f.front.slice(),back:(f.backAll&&f.backAll.length>=2)?f.backAll.slice().sort(function(a,b){return a-b;}).slice(0,2):null});
     }
     return refs;
@@ -1851,19 +1878,42 @@ function switchMode(m){
   updateDisplay();
   log('🔄 已切换到模式'+m);
 }
-    /* ===================== 快速预计算 ===================== */
+
+/* ===================== 快速预计算（含胆拖 d/t 修复） ===================== */
 function buildFastPrep(rows){
   var n=rows.length;
-  var out={n:n,fmL:new Int32Array(n),fmH:new Int32Array(n),bMask:new Int32Array(n),F:new Int8Array(n),B:new Int8Array(n),ticket:new Float64Array(n),totalBet:0};
+  var out={n:n,
+    fmL:new Int32Array(n),fmH:new Int32Array(n),
+    bMask:new Int32Array(n),
+    F:new Int8Array(n),B:new Int8Array(n),
+    dArr:new Int8Array(n),tArr:new Int8Array(n),isDan:new Uint8Array(n),
+    ticket:new Float64Array(n),totalBet:0
+  };
   for(var h=0;h<n;h++){
-    var f=rows[h],fm=maskFromFront(f.front);
+    var f=rows[h];
+    var fm=maskFromFront(f.front);
     out.fmL[h]=fm.l;out.fmH[h]=fm.h;
     var bm=0;
     if(f.backAll&&f.backAll.length>=2)for(var k=0;k<f.backAll.length;k++)bm|=(1<<(f.backAll[k]-1));
     out.bMask[h]=bm;
     out.F[h]=f.front.length;
     out.B[h]=(f.backAll&&f.backAll.length>=2)?f.backAll.length:0;
-    var tc=binom(out.F[h],5)*binom(out.B[h],2);
+    if(f.isDanTuo){
+      out.isDan[h]=1;
+      out.dArr[h]=f.dan.length;
+      out.tArr[h]=f.front.length-f.dan.length;
+    }else{
+      out.isDan[h]=0;
+      out.dArr[h]=0;
+      out.tArr[h]=f.front.length;
+    }
+    var tc;
+    if(out.isDan[h]){
+      // 胆拖：真实注数 = C(拖数, 5-胆数) × C(后区数, 2)
+      tc = binom(out.tArr[h], 5-out.dArr[h]) * binom(out.B[h], 2);
+    }else{
+      tc = binom(out.F[h], 5) * binom(out.B[h], 2);
+    }
     out.ticket[h]=tc;out.totalBet+=tc*2;
   }
   out.backMb=new Int8Array(66*n);
@@ -1874,50 +1924,98 @@ function buildFastPrep(rows){
   }
   return out;
 }
+/* buildRowTable：
+   输入 prep + mode（'prize'|'hit'）+ nmSet
+   输出 Float32Array(66*n*6)，[bc][h][mf]
+   胆拖修复：只有当 mf >= 胆数 且 (mf-胆数) <= 拖数命中时，从拖里组合；
+   命中 kf 个（含胆全部命中），从拖里命中 kf-d 个：
+   cF = C(th, kf-d) * C(t-th, 5-kf)
+   其中 th = 与拖重合数，t=拖数，d=胆数
+   若胆没全中（dh<d），cF=0
+*/
 function buildRowTable(prep,mode,nmSet){
   var n=prep.n,out=new Float32Array(66*n*6);
   var cache=new Map();
-  function getPrize(F,B,mf,mb){
-    var k=F+'_'+B+'_'+mf+'_'+mb,v=cache.get(k);if(v!==undefined)return v;
+  function getPrize(F,B,mf,mb,isDan,d,t){
+    var key='P_'+F+'_'+B+'_'+mf+'_'+mb+'_'+isDan+'_'+d+'_'+t;
+    var v=cache.get(key);if(v!==undefined)return v;
     var total=0;
-    var kfMin=Math.max(0,5-(F-mf)),kfMax=Math.min(5,mf);
-    for(var kf=kfMin;kf<=kfMax;kf++){
-      var cF=binom(mf,kf)*binom(F-mf,5-kf);if(!cF)continue;
-      var kbMin=Math.max(0,2-(B-mb)),kbMax=Math.min(2,mb);
-      for(var kb=kbMin;kb<=kbMax;kb++){
-        var cB=binom(mb,kb)*binom(B-mb,2-kb);if(!cB)continue;
-        var amt=prizeAmount(kf,kb);if(amt>0)total+=cF*cB*amt;
+    if(isDan){
+      // 胆拖：必须胆全部命中，mf>=d
+      if(mf<d){cache.set(key,0);return 0;}
+      var kfTuoMin=Math.max(0,(5-d)-(t-(mf-d)));  // 拖里最少命中数（保证能凑满5-d）
+      var kfTuoMax=Math.min(5-d, mf-d);            // 拖里最多命中数
+      if(kfTuoMin>kfTuoMax){cache.set(key,0);return 0;}
+      for(var kfTuo=kfTuoMin;kfTuo<=kfTuoMax;kfTuo++){
+        var cF=binom(mf-d,kfTuo)*binom(t-(mf-d),5-d-kfTuo);
+        if(!cF)continue;
+        var kf=d+kfTuo;
+        var kbMin=Math.max(0,2-(B-mb)),kbMax=Math.min(2,mb);
+        for(var kb=kbMin;kb<=kbMax;kb++){
+          var cB=binom(mb,kb)*binom(B-mb,2-kb);if(!cB)continue;
+          var amt=prizeAmount(kf,kb);if(amt>0)total+=cF*cB*amt;
+        }
+      }
+    }else{
+      // 普通单式/复式
+      var kfMin=Math.max(0,5-(F-mf)),kfMax=Math.min(5,mf);
+      for(var kf=kfMin;kf<=kfMax;kf++){
+        var cF=binom(mf,kf)*binom(F-mf,5-kf);if(!cF)continue;
+        var kbMin=Math.max(0,2-(B-mb)),kbMax=Math.min(2,mb);
+        for(var kb=kbMin;kb<=kbMax;kb++){
+          var cB=binom(mb,kb)*binom(B-mb,2-kb);if(!cB)continue;
+          var amt=prizeAmount(kf,kb);if(amt>0)total+=cF*cB*amt;
+        }
       }
     }
-    cache.set(k,total);return total;
+    cache.set(key,total);return total;
   }
-  function getHitCount(F,B,mf,mb){
-    var k='H'+F+'_'+B+'_'+mf+'_'+mb,v=cache.get(k);if(v!==undefined)return v;
+  function getHitCount(F,B,mf,mb,isDan,d,t){
+    var key='H_'+F+'_'+B+'_'+mf+'_'+mb+'_'+isDan+'_'+d+'_'+t;
+    var v=cache.get(key);if(v!==undefined)return v;
     var total=0;
-    var kfMin=Math.max(0,5-(F-mf)),kfMax=Math.min(5,mf);
-    for(var kf=kfMin;kf<=kfMax;kf++){
-      var cF=binom(mf,kf)*binom(F-mf,5-kf);if(!cF)continue;
-      var kbMin=Math.max(0,2-(B-mb)),kbMax=Math.min(2,mb);
-      for(var kb=kbMin;kb<=kbMax;kb++){
-        var cB=binom(mb,kb)*binom(B-mb,2-kb);if(!cB)continue;
-        if(nmSet&&nmSet.size>0){if(nmSet.has(kf+','+kb))total+=cF*cB;}
-        else{if(prizeAmount(kf,kb)>0)total+=cF*cB;}
+    if(isDan){
+      if(mf<d){cache.set(key,0);return 0;}
+      var kfTuoMin=Math.max(0,(5-d)-(t-(mf-d)));
+      var kfTuoMax=Math.min(5-d, mf-d);
+      if(kfTuoMin>kfTuoMax){cache.set(key,0);return 0;}
+      for(var kfTuo=kfTuoMin;kfTuo<=kfTuoMax;kfTuo++){
+        var cF=binom(mf-d,kfTuo)*binom(t-(mf-d),5-d-kfTuo);
+        if(!cF)continue;
+        var kf=d+kfTuo;
+        var kbMin=Math.max(0,2-(B-mb)),kbMax=Math.min(2,mb);
+        for(var kb=kbMin;kb<=kbMax;kb++){
+          var cB=binom(mb,kb)*binom(B-mb,2-kb);if(!cB)continue;
+          if(nmSet&&nmSet.size>0){if(nmSet.has(kf+','+kb))total+=cF*cB;}
+          else{if(prizeAmount(kf,kb)>0)total+=cF*cB;}
+        }
+      }
+    }else{
+      var kfMin=Math.max(0,5-(F-mf)),kfMax=Math.min(5,mf);
+      for(var kf=kfMin;kf<=kfMax;kf++){
+        var cF=binom(mf,kf)*binom(F-mf,5-kf);if(!cF)continue;
+        var kbMin=Math.max(0,2-(B-mb)),kbMax=Math.min(2,mb);
+        for(var kb=kbMin;kb<=kbMax;kb++){
+          var cB=binom(mb,kb)*binom(B-mb,2-kb);if(!cB)continue;
+          if(nmSet&&nmSet.size>0){if(nmSet.has(kf+','+kb))total+=cF*cB;}
+          else{if(prizeAmount(kf,kb)>0)total+=cF*cB;}
+        }
       }
     }
-    cache.set(k,total);return total;
+    cache.set(key,total);return total;
   }
   for(var bc=0;bc<66;bc++){
     for(var h=0;h<n;h++){
       var F=prep.F[h],B=prep.B[h],mb=prep.backMb[bc*n+h],base=(bc*n+h)*6;
-      if(mode==='prize'){for(var mf=0;mf<=5;mf++)out[base+mf]=getPrize(F,B,mf,mb);}
-      else{for(var mf=0;mf<=5;mf++)out[base+mf]=getHitCount(F,B,mf,mb);}
+      var isDan=prep.isDan[h],d=prep.dArr[h],t=prep.tArr[h];
+      if(mode==='prize'){for(var mf=0;mf<=5;mf++)out[base+mf]=getPrize(F,B,mf,mb,isDan,d,t);}
+      else{for(var mf=0;mf<=5;mf++)out[base+mf]=getHitCount(F,B,mf,mb,isDan,d,t);}
     }
   }
   return out;
 }
 function _fix2RowKey(f){return (f.front.slice().sort(function(a,b){return a-b;}).join(','))+'|'+((f.backAll||[]).slice().sort(function(a,b){return a-b;}).join(','));}
-
-/* ===================== 模式2 核心筛选 ===================== */
+    /* ===================== 模式2 核心筛选 ===================== */
 function mode2ComboFilter(name,matchFn,keepMode){
   var actualKeep=invertMode?!keepMode:keepMode;
   var startTime=Date.now();
@@ -2131,7 +2229,7 @@ function applyFilterCore(mode){
   else mode2FrontFilter(shouldKeep?'保留当前组合':'应用筛选（排除）',matchFn,shouldKeep);
 }
 
-/* ===================== 相邻差/开头 ===================== */
+/* ===================== 相邻差 / 开头 ===================== */
 function openDiffExcludeModal(){document.querySelectorAll('.diff-check').forEach(function(cb){cb.checked=false;});document.getElementById('diffExcludeModalOverlay').style.display='flex';}
 function getSelectedDiffPatterns(){var a=[];document.querySelectorAll('.diff-check:checked').forEach(function(cb){a.push(cb.value);});return a;}
 function confirmDiffExclude(){
@@ -2678,7 +2776,8 @@ function confirmKeepTailCount(){
   tailCountSelSet.clear();document.querySelectorAll('.tail-count-btn').forEach(function(b){b.classList.remove('selected');});
   applyKeepFilter('保留尾数模式'+tp.join('或'),function(arr){return tp.indexOf(getTailPattern(arr))!==-1;});
 }
-    /* ===================== 固定2 中3/中4 ===================== */
+
+/* ===================== 固定2 中3/中4 ===================== */
 var fix2MidNMode=3;
 function _maxHitWithFix2(f,ciL,ciH){
   if(f.isDanTuo){
@@ -2699,11 +2798,11 @@ function openFix2MidNModal(mode,action){
   document.getElementById('fix2MidNTitle').textContent='🎯 固定2：'+(mode===3?'中3':'中4')+'筛选（'+(action==='keep'?'保留':'删除')+'）';
   var st=getFix2StatsText();
   document.getElementById('fix2Info').innerHTML=st.html;
-  var keys=Object.keys(st.countByType).sort(function(a,b){return st.countByType[b]-st.countByType[a];});
   var row=document.getElementById('fix2TypeRow');row.innerHTML='';
-  for(var i=0;i<keys.length;i++){
+  for(var i=0;i<st.orderedKeys.length;i++){
+    var k=st.orderedKeys[i];
     var lab=document.createElement('label');
-    lab.innerHTML='<input type="checkbox" class="f2-type-cb" value="'+keys[i]+'"> '+keys[i]+'（'+st.countByType[keys[i]]+'行 / 唯一 '+st.uniqueByType[keys[i]]+'行）';
+    lab.innerHTML='<input type="checkbox" class="f2-type-cb" value="'+k+'"> '+st.labelByKey[k]+'（'+st.countByType[k]+'行 / 唯一 '+st.uniqueByType[k]+'行）';
     row.appendChild(lab);
   }
   document.getElementById('fix2OnlyUnique').checked=false;
@@ -2726,21 +2825,21 @@ function executeFix2MidN(action){
   var useRows=[];
   for(var j=0;j<fixed2List.length;j++){
     var f=fixed2List[j];
-    if(sel.length&&sel.indexOf(f.type)===-1)continue;
+    if(sel.length&&sel.indexOf(getTypeInfo(f).sortKey)===-1)continue;
     useRows.push(f);
   }
   if(!useRows.length)return alert('无符合行');
+  var originalCount=useRows.length;   // 分母（去重前）
   if(onlyU){
     var seen=new Set(),u=[];
     for(var j=0;j<useRows.length;j++){var k=_fix2RowKey(useRows[j]);if(!seen.has(k)){seen.add(k);u.push(useRows[j]);}}
     useRows=u;
   }
-  var totalRows=useRows.length;
   var minN,maxN;
-  if(unit==='ratio'){minN=totalRows*v1/100;maxN=totalRows*v2/100;}
+  if(unit==='ratio'){minN=originalCount*v1/100;maxN=originalCount*v2/100;}
   else{minN=v1;maxN=v2;}
   var actLabel=(action==='keep'?'保留':'删除');
-  if(!confirm('统计 '+useRows.length+' 行，'+(fix2MidNMode===3?'中3':'中4')+' '+(unit==='ratio'?'比例 ':'行数 ')+v1+'-'+v2+' 【'+actLabel+'】？'))return;
+  if(!confirm('统计 '+useRows.length+' 行（分母 '+(unit==='ratio'?originalCount+'行':'行数')+'），'+(fix2MidNMode===3?'中3':'中4')+' '+(unit==='ratio'?'比例 ':'行数 ')+v1+'-'+v2+' 【'+actLabel+'】？'))return;
   closeFix2MidNModal();
   var fn=function(arr){
     var m=maskFromFront(arr),hitCount=0;
@@ -3164,11 +3263,11 @@ function openBackFilterModal(action){
   var st=getFix2StatsText();
   var info=st.html+'<br>当前后区：'+remainingBackCombos.length+' 组 / 66';
   document.getElementById('backFilterInfo').innerHTML=info;
-  var keys=Object.keys(st.countByType).sort(function(a,b){return st.countByType[b]-st.countByType[a];});
   var row=document.getElementById('backFilterTypeRow');row.innerHTML='';
-  for(var i=0;i<keys.length;i++){
+  for(var i=0;i<st.orderedKeys.length;i++){
+    var k=st.orderedKeys[i];
     var lab=document.createElement('label');
-    lab.innerHTML='<input type="checkbox" class="back-filter-type-cb" value="'+keys[i]+'"> '+keys[i]+'（'+st.countByType[keys[i]]+'行 / 唯一 '+st.uniqueByType[keys[i]]+'行）';
+    lab.innerHTML='<input type="checkbox" class="back-filter-type-cb" value="'+k+'"> '+st.labelByKey[k]+'（'+st.countByType[k]+'行 / 唯一 '+st.uniqueByType[k]+'行）';
     row.appendChild(lab);
   }
   document.getElementById('backFilterMin').value=1;document.getElementById('backFilterMax').value=99999;
@@ -3189,7 +3288,7 @@ function executeBackFilter(action){
   var counts=new Array(13);for(var i=0;i<13;i++)counts[i]=new Array(13).fill(0);
   for(var j=0;j<fixed2List.length;j++){
     var f=fixed2List[j];
-    if(sel.length&&sel.indexOf(f.type)===-1)continue;
+    if(sel.length&&sel.indexOf(getTypeInfo(f).sortKey)===-1)continue;
     if(!f.backAll||f.backAll.length<2)continue;
     var bl=f.backAll;
     for(var a=0;a<bl.length;a++)for(var b=a+1;b<bl.length;b++){var x=Math.min(bl[a],bl[b]),y=Math.max(bl[a],bl[b]);counts[x][y]++;}
@@ -3405,17 +3504,16 @@ function confirmViewPrize(){
   }
   setTimeout(processBatch,0);
 }
-
-/* ===================== 模式2 专项：后区全中行数 ===================== */
+    /* ===================== 模式2 专项：后区全中行数（唯一值分母 = 去重前） ===================== */
 function openBackAllHitModal(){
   if(!fixed2List.length){alert('请先固定2');return;}
   var st=getFix2StatsText();
-  document.getElementById('backAllHitInfo').innerHTML=st.html+'<br>不勾选类型=全部。<br><span style="color:#e74c3c;">※ 按「行数」统计，每行按 1 算。</span>';
-  var keys=Object.keys(st.countByType).sort(function(a,b){return st.countByType[b]-st.countByType[a];});
+  document.getElementById('backAllHitInfo').innerHTML=st.html+'<br>不勾选类型=全部。<br><span style="color:#e74c3c;">※ 按「行数」统计，每行按 1 算。勾选唯一值时：分子用去重后命中行数，分母用去重前行数。</span>';
   var row=document.getElementById('backAllHitTypeRow');row.innerHTML='';
-  for(var i=0;i<keys.length;i++){
+  for(var i=0;i<st.orderedKeys.length;i++){
+    var k=st.orderedKeys[i];
     var lab=document.createElement('label');
-    lab.innerHTML='<input type="checkbox" class="bah-type-cb" value="'+keys[i]+'"> '+keys[i]+'（'+st.countByType[keys[i]]+'行 / 唯一 '+st.uniqueByType[keys[i]]+'行）';
+    lab.innerHTML='<input type="checkbox" class="bah-type-cb" value="'+k+'"> '+st.labelByKey[k]+'（'+st.countByType[k]+'行 / 唯一 '+st.uniqueByType[k]+'行）';
     row.appendChild(lab);
   }
   document.getElementById('backAllHitOnlyUnique').checked=false;
@@ -3437,17 +3535,18 @@ function executeBackAllHit(action){
   document.getElementById('backAllHitModalOverlay').style.display='none';
   var useRows=[];
   for(var i=0;i<fixed2List.length;i++){
-    if(ts.size>0&&!ts.has(fixed2List[i].type))continue;
+    if(ts.size>0&&!ts.has(getTypeInfo(fixed2List[i]).sortKey))continue;
     useRows.push(fixed2List[i]);
   }
   if(!useRows.length)return alert('无符合行');
+  var originalCount=useRows.length;              // ★ 分母 = 去重前行数
   if(onlyU){
     var seen=new Set(),u=[];
     for(var i=0;i<useRows.length;i++){var k=_fix2RowKey(useRows[i]);if(!seen.has(k)){seen.add(k);u.push(useRows[i]);}}
     useRows=u;
   }
   var prep=buildFastPrep(useRows);
-  var totalRows=prep.n;
+  var totalRows=originalCount;
   var minN,maxN;
   if(unit==='ratio'){minN=totalRows*v1/100;maxN=totalRows*v2/100;}
   else{minN=v1;maxN=v2;}
@@ -3457,7 +3556,8 @@ function executeBackAllHit(action){
   var fmL=prep.fmL,fmH=prep.fmH,mfArr=new Uint8Array(n);
   var shouldKeep=(action==='keep');if(invertMode)shouldKeep=!shouldKeep;
   var actLabel=(action==='keep'?'保留':'删除');
-  if(!confirm('后区全中行数'+(unit==='ratio'?'比例 ':' 行数 ')+v1+'-'+v2+' 【'+actLabel+'】？'))return;
+  var denomInfo='（分母='+totalRows+'行'+(onlyU?'，去重后 '+prep.n+' 行':'')+'）';
+  if(!confirm('后区全中行数'+(unit==='ratio'?'比例 ':' 行数 ')+v1+'-'+v2+denomInfo+' 【'+actLabel+'】？'))return;
   var startTime=Date.now();
   saveUndoState();
   busy=true;setStatus('后区全中行数筛选...');showProgress(0);showGlobalCancel();globalAbortFlag=false;
@@ -3491,16 +3591,16 @@ function executeBackAllHit(action){
   step();
 }
 
-/* ===================== 模式2 专项：奖金比例/有奖金行数 ===================== */
+/* ===================== 模式2 专项：奖金比例 / 有奖金行数（唯一值分母 = 去重前） ===================== */
 function openRatioModal(){
   if(!fixed2List.length){alert('请先固定2');return;}
   var st=getFix2StatsText();
   document.getElementById('ratioInfo').innerHTML=st.html+'<br>不勾选类型=全部。';
-  var keys=Object.keys(st.countByType).sort(function(a,b){return st.countByType[b]-st.countByType[a];});
   var row=document.getElementById('ratioTypeRow');row.innerHTML='';
-  for(var i=0;i<keys.length;i++){
+  for(var i=0;i<st.orderedKeys.length;i++){
+    var k=st.orderedKeys[i];
     var lab=document.createElement('label');
-    lab.innerHTML='<input type="checkbox" class="ratio-type-cb" value="'+keys[i]+'"> '+keys[i]+'（'+st.countByType[keys[i]]+'行 / 唯一 '+st.uniqueByType[keys[i]]+'行）';
+    lab.innerHTML='<input type="checkbox" class="ratio-type-cb" value="'+k+'"> '+st.labelByKey[k]+'（'+st.countByType[k]+'行 / 唯一 '+st.uniqueByType[k]+'行）';
     row.appendChild(lab);
   }
   document.getElementById('ratioOnlyUnique').checked=false;
@@ -3509,7 +3609,7 @@ function openRatioModal(){
   document.getElementById('ratioMax').value=30;
   document.getElementById('ratioUnitLabel1').textContent='% ～';
   document.getElementById('ratioUnitLabel2').textContent='%';
-  document.getElementById('ratioNote').innerHTML='奖金比例 = 中奖金额 ÷ 总投注金额（2元/注，复式按实际注数展开）。';
+  document.getElementById('ratioNote').innerHTML='💰 奖金比例 = 中奖金额 ÷ 总投注金额（2元/注，复式按实际注数展开）。';
   document.getElementById('ratioModalOverlay').style.display='flex';
 }
 function executeRatio(action){
@@ -3523,10 +3623,11 @@ function executeRatio(action){
   document.getElementById('ratioModalOverlay').style.display='none';
   var useRows=[];
   for(var i=0;i<fixed2List.length;i++){
-    if(ts.size>0&&!ts.has(fixed2List[i].type))continue;
+    if(ts.size>0&&!ts.has(getTypeInfo(fixed2List[i]).sortKey))continue;
     useRows.push(fixed2List[i]);
   }
   if(!useRows.length)return alert('无符合行');
+  var originalCount=useRows.length;              // ★ 去重前行数
   if(onlyU){
     var seen=new Set(),u=[];
     for(var i=0;i<useRows.length;i++){var k=_fix2RowKey(useRows[i]);if(!seen.has(k)){seen.add(k);u.push(useRows[i]);}}
@@ -3534,8 +3635,8 @@ function executeRatio(action){
   }
   var prep=buildFastPrep(useRows);
   var baseVal=0;
-  if(mode==='prize')baseVal=prep.totalBet;
-  else baseVal=prep.n;
+  if(mode==='prize')baseVal=prep.totalBet;       // 金额模式：分母=总投注金额
+  else baseVal=originalCount;                     // 行数模式：分母=去重前行数
   var minN,maxN;
   if(mode==='countabs'){minN=v1;maxN=v2;}
   else{minN=baseVal*v1/100;maxN=baseVal*v2/100;}
@@ -3545,7 +3646,9 @@ function executeRatio(action){
   var shouldKeep=(action==='keep');if(invertMode)shouldKeep=!shouldKeep;
   var actLabel=(action==='keep'?'保留':'删除');
   var modeLabel=mode==='prize'?'奖金比例':(mode==='count'?'有奖金行数比例':'有奖金行数范围');
-  if(!confirm(modeLabel+' '+v1+(mode==='countabs'?' ~ ':'%~')+v2+(mode==='countabs'?' 行':'%')+' 【'+actLabel+'】？'))return;
+  var denomInfo='';
+  if(mode!=='countabs')denomInfo='（分母='+(mode==='prize'?baseVal+'元':originalCount+'行'+(onlyU?'，去重后 '+prep.n+' 行':''))+'）';
+  if(!confirm(modeLabel+' '+v1+(mode==='countabs'?' ~ ':'%~')+v2+(mode==='countabs'?' 行':'%')+denomInfo+' 【'+actLabel+'】？'))return;
   var startTime=Date.now();
   saveUndoState();
   busy=true;setStatus(modeLabel+'筛选...');showProgress(0);showGlobalCancel();globalAbortFlag=false;
@@ -3583,16 +3686,16 @@ function executeRatio(action){
   step();
 }
 
-/* ===================== 模式2 专项：中奖行数 ===================== */
+/* ===================== 模式2 专项：中奖行数（唯一值分母 = 去重前） ===================== */
 function openPrizeHitCountModal(){
   if(!fixed2List.length){alert('请先固定2');return;}
   var st=getFix2StatsText();
   document.getElementById('prizeHitCountInfo').innerHTML=st.html+'<br>不勾选类型=所有；不勾选中奖模式=全部。';
-  var keys=Object.keys(st.countByType).sort(function(a,b){return st.countByType[b]-st.countByType[a];});
   var row=document.getElementById('prizeHitCountTypeRow');row.innerHTML='';
-  for(var i=0;i<keys.length;i++){
+  for(var i=0;i<st.orderedKeys.length;i++){
+    var k=st.orderedKeys[i];
     var lab=document.createElement('label');
-    lab.innerHTML='<input type="checkbox" class="phc-type-cb" value="'+keys[i]+'"> '+keys[i]+'（'+st.countByType[keys[i]]+'行 / 唯一 '+st.uniqueByType[keys[i]]+'行）';
+    lab.innerHTML='<input type="checkbox" class="phc-type-cb" value="'+k+'"> '+st.labelByKey[k]+'（'+st.countByType[k]+'行 / 唯一 '+st.uniqueByType[k]+'行）';
     row.appendChild(lab);
   }
   document.querySelectorAll('.phc-nm').forEach(function(cb){cb.checked=false;});
@@ -3616,17 +3719,18 @@ function executePrizeHitCount(action){
   document.getElementById('prizeHitCountModalOverlay').style.display='none';
   var useRows=[];
   for(var i=0;i<fixed2List.length;i++){
-    if(ts.size>0&&!ts.has(fixed2List[i].type))continue;
+    if(ts.size>0&&!ts.has(getTypeInfo(fixed2List[i]).sortKey))continue;
     useRows.push(fixed2List[i]);
   }
   if(!useRows.length)return alert('无符合行');
+  var originalCount=useRows.length;              // ★ 去重前行数
   if(uniq){
     var seen=new Set(),u=[];
     for(var i=0;i<useRows.length;i++){var k=_fix2RowKey(useRows[i]);if(!seen.has(k)){seen.add(k);u.push(useRows[i]);}}
     useRows=u;
   }
   var prep=buildFastPrep(useRows);
-  var baseVal=prep.n;
+  var baseVal=originalCount;
   var minN,maxN;
   if(unit==='ratio'){minN=baseVal*v1/100;maxN=baseVal*v2/100;}
   else{minN=v1;maxN=v2;}
@@ -3636,7 +3740,8 @@ function executePrizeHitCount(action){
   var fmL=prep.fmL,fmH=prep.fmH,mfArr=new Uint8Array(n);
   var shouldKeep=(action==='keep');if(invertMode)shouldKeep=!shouldKeep;
   var actLabel=(action==='keep'?'保留':'删除');
-  if(!confirm('中奖行数'+(unit==='ratio'?'比例 ':' ')+v1+'-'+v2+' 【'+actLabel+'】？'))return;
+  var denomInfo=(unit==='ratio')?'（分母='+baseVal+'行'+(uniq?'，去重后 '+prep.n+' 行':'')+'）':'';
+  if(!confirm('中奖行数'+(unit==='ratio'?'比例 ':' ')+v1+'-'+v2+denomInfo+' 【'+actLabel+'】？'))return;
   var startTime=Date.now();
   saveUndoState();
   busy=true;setStatus('中奖行数筛选...');showProgress(0);showGlobalCancel();globalAbortFlag=false;
