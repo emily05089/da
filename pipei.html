@@ -905,8 +905,8 @@
                 let totalCombinations = 0;
                 let totalRows = 0;
                 let invalidList = [];
-                // 记录每个命中等级对应的组合描述集合
-                let globalComboByLevel = {};
+                // 记录每个命中等级对应的组合出现行数
+                let globalComboCountByLevel = {};
 
                 for (let idx = 0; idx < lines.length; idx++) {
                     let line = lines[idx].trim();
@@ -979,8 +979,8 @@
                         let backCount = parsed.backAllNums.length;
                         comboStr = frontCount + '➕' + backCount;
                     }
-                    if (!globalComboByLevel[maxKey]) globalComboByLevel[maxKey] = new Set();
-                    globalComboByLevel[maxKey].add(comboStr);
+                    if (!globalComboCountByLevel[maxKey]) globalComboCountByLevel[maxKey] = {};
+                    globalComboCountByLevel[maxKey][comboStr] = (globalComboCountByLevel[maxKey][comboStr] || 0) + 1;
 
                     if (compareGrade(maxGrade, g.maxGrade) > 0) g.maxGrade = maxGrade;
                     if (compareGrade(maxGrade, g.minGrade) < 0) g.minGrade = maxGrade;
@@ -1086,6 +1086,16 @@
                     return cnt;
                 }
 
+                // 生成某等级的组合行数描述，如 "5➕2有3行、6➕3有2行"
+                function getComboCountText(sk) {
+                    let map = globalComboCountByLevel[sk];
+                    if (!map) return '';
+                    let entries = Object.entries(map).filter(([k, v]) => v > 0);
+                    if (entries.length === 0) return '';
+                    entries.sort((a, b) => comboSorter(a[0], b[0]));
+                    return entries.map(([k, v]) => `${k}有${v}行`).join('、');
+                }
+
                 // ===== 顶部结果 =====
                 let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
 
@@ -1099,16 +1109,7 @@
                     global02 += g.dist['0+2'] || 0;
                 }
 
-                const comboLevels = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','3+0','2+2','2+1','1+2','0+2'];
-
-                function getComboText(sk) {
-                    let combos = globalComboByLevel[sk] ? [...globalComboByLevel[sk]] : [];
-                    if (combos.length === 0) return '';
-                    combos.sort(comboSorter);
-                    return combos.length === 1 ? combos[0] : combos.slice(0, -1).join('、') + '和' + combos[combos.length - 1];
-                }
-
-                // 5/4/3 等级区块
+                // 5/4/3 等级区块：即使为0也显示，子等级全部显示
                 for (let lv of levelsToShow) {
                     let dist = getDistForLevel(lv);
                     let total = sumDict(dist);
@@ -1116,51 +1117,72 @@
                     resultText += `\n✅中${lv}个的有${total}行，中${lv}个的行数占比是${pct}%(${total}/${totalRows})\n`;
                     for (let sk of subKeysForLevel(lv)) {
                         let cnt = dist[sk] || 0;
-                        if (cnt > 0) {
-                            let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
-                            let comboInfo = '';
-                            if (comboLevels.includes(sk)) {
-                                let comboText = getComboText(sk);
-                                if (comboText) comboInfo = `，组合是${comboText}`;
-                            }
+                        let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
+                        if (cnt === 0) {
+                            resultText += `\n其中${sk.replace('+','➕')}的有0行。\n`;
+                        } else {
+                            let comboText = getComboCountText(sk);
+                            let comboInfo = comboText ? `，${comboText}` : '';
                             resultText += `\n其中${sk.replace('+','➕')}的有${cnt}行${comboInfo}，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${totalRows})\n`;
                         }
                     }
                 }
 
-                // 2+2 和 2+1 区块
-                if (global22 + global21 > 0) {
+                // 2+2 和 2+1 区块（始终显示）
+                {
                     let total2321 = global22 + global21;
                     let pct2321 = totalRows > 0 ? (total2321 / totalRows * 100).toFixed(2) : '0.00';
                     resultText += `\n✅中2➕2和2➕1的有${total2321}行，中2➕2和2➕1的行数占比是${pct2321}%(${total2321}/${totalRows})\n`;
-                    if (global22 > 0) {
-                        let pct22 = totalRows > 0 ? (global22 / totalRows * 100).toFixed(2) : '0.00';
-                        let comboText = getComboText('2+2');
-                        let comboInfo = comboText ? `，组合是${comboText}` : '';
-                        resultText += `\n其中2➕2的有${global22}行${comboInfo}。中2➕2的行数占比是${pct22}%(${global22}/${totalRows})\n`;
+                    // 2+2
+                    {
+                        let cnt = global22;
+                        let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
+                        if (cnt === 0) {
+                            resultText += `\n其中2➕2的有0行。\n`;
+                        } else {
+                            let comboText = getComboCountText('2+2');
+                            let comboInfo = comboText ? `，${comboText}` : '';
+                            resultText += `\n其中2➕2的有${cnt}行${comboInfo}，中2➕2的行数占比是${spct}%(${cnt}/${totalRows})\n`;
+                        }
                     }
-                    if (global21 > 0) {
-                        let pct21 = totalRows > 0 ? (global21 / totalRows * 100).toFixed(2) : '0.00';
-                        let comboText = getComboText('2+1');
-                        let comboInfo = comboText ? `，组合是${comboText}` : '';
-                        resultText += `\n其中2➕1的有${global21}行${comboInfo}。中2➕1的行数占比是${pct21}%(${global21}/${totalRows})\n`;
+                    // 2+1
+                    {
+                        let cnt = global21;
+                        let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
+                        if (cnt === 0) {
+                            resultText += `\n其中2➕1的有0行。\n`;
+                        } else {
+                            let comboText = getComboCountText('2+1');
+                            let comboInfo = comboText ? `，${comboText}` : '';
+                            resultText += `\n其中2➕1的有${cnt}行${comboInfo}，中2➕1的行数占比是${spct}%(${cnt}/${totalRows})\n`;
+                        }
                     }
                 }
 
-                // 1+2 区块
-                if (global12 > 0) {
-                    let pct12 = totalRows > 0 ? (global12 / totalRows * 100).toFixed(2) : '0.00';
-                    let comboText = getComboText('1+2');
-                    let comboInfo = comboText ? `，组合是${comboText}` : '';
-                    resultText += `\n✅中1➕2的有${global12}行${comboInfo}。行数占比是${pct12}%(${global12}/${totalRows})\n`;
+                // 1+2 区块（始终显示）
+                {
+                    let cnt = global12;
+                    let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
+                    if (cnt === 0) {
+                        resultText += `\n✅中1➕2的有0行。\n`;
+                    } else {
+                        let comboText = getComboCountText('1+2');
+                        let comboInfo = comboText ? `，${comboText}` : '';
+                        resultText += `\n✅中1➕2的有${cnt}行${comboInfo}，行数占比是${spct}%(${cnt}/${totalRows})\n`;
+                    }
                 }
 
-                // 0+2 区块
-                if (global02 > 0) {
-                    let pct02 = totalRows > 0 ? (global02 / totalRows * 100).toFixed(2) : '0.00';
-                    let comboText = getComboText('0+2');
-                    let comboInfo = comboText ? `，组合是${comboText}` : '';
-                    resultText += `\n✅中0➕2的有${global02}行${comboInfo}。行数占比是${pct02}%(${global02}/${totalRows})\n`;
+                // 0+2 区块（始终显示）
+                {
+                    let cnt = global02;
+                    let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
+                    if (cnt === 0) {
+                        resultText += `\n✅中0➕2的有0行。\n`;
+                    } else {
+                        let comboText = getComboCountText('0+2');
+                        let comboInfo = comboText ? `，${comboText}` : '';
+                        resultText += `\n✅中0➕2的有${cnt}行${comboInfo}，行数占比是${spct}%(${cnt}/${totalRows})\n`;
+                    }
                 }
 
                 // ===== 全部总计 =====
