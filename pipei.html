@@ -1089,8 +1089,26 @@
                 // ===== 顶部结果 =====
                 let resultText = `🎯 全部最多中 ${globalMaxGrade.frontHit}+${globalMaxGrade.backHit}\n`;
 
-                const comboLevels = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2'];
+                // 计算 2+2,2+1,1+2,0+2 的全局计数
+                let global22 = 0, global21 = 0, global12 = 0, global02 = 0;
+                for (let gkey in groupStats) {
+                    let g = groupStats[gkey];
+                    global22 += g.dist['2+2'] || 0;
+                    global21 += g.dist['2+1'] || 0;
+                    global12 += g.dist['1+2'] || 0;
+                    global02 += g.dist['0+2'] || 0;
+                }
 
+                const comboLevels = ['5+2','5+1','5+0','4+2','4+1','4+0','3+2','3+1','3+0','2+2','2+1','1+2','0+2'];
+
+                function getComboText(sk) {
+                    let combos = globalComboByLevel[sk] ? [...globalComboByLevel[sk]] : [];
+                    if (combos.length === 0) return '';
+                    combos.sort(comboSorter);
+                    return combos.length === 1 ? combos[0] : combos.slice(0, -1).join('、') + '和' + combos[combos.length - 1];
+                }
+
+                // 5/4/3 等级区块
                 for (let lv of levelsToShow) {
                     let dist = getDistForLevel(lv);
                     let total = sumDict(dist);
@@ -1102,18 +1120,47 @@
                             let spct = totalRows > 0 ? (cnt / totalRows * 100).toFixed(2) : '0.00';
                             let comboInfo = '';
                             if (comboLevels.includes(sk)) {
-                                let combos = globalComboByLevel[sk] ? [...globalComboByLevel[sk]] : [];
-                                if (combos.length > 0) {
-                                    combos.sort(comboSorter);
-                                    let comboText = combos.length === 1
-                                        ? combos[0]
-                                        : combos.slice(0, -1).join('、') + '和' + combos[combos.length - 1];
-                                    comboInfo = `，组合是${comboText}`;
-                                }
+                                let comboText = getComboText(sk);
+                                if (comboText) comboInfo = `，组合是${comboText}`;
                             }
                             resultText += `\n其中${sk.replace('+','➕')}的有${cnt}行${comboInfo}，中${sk.replace('+','➕')}的行数占比是${spct}%(${cnt}/${totalRows})\n`;
                         }
                     }
+                }
+
+                // 2+2 和 2+1 区块
+                if (global22 + global21 > 0) {
+                    let total2321 = global22 + global21;
+                    let pct2321 = totalRows > 0 ? (total2321 / totalRows * 100).toFixed(2) : '0.00';
+                    resultText += `\n✅中2➕2和2➕1的有${total2321}行，中2➕2和2➕1的行数占比是${pct2321}%(${total2321}/${totalRows})\n`;
+                    if (global22 > 0) {
+                        let pct22 = totalRows > 0 ? (global22 / totalRows * 100).toFixed(2) : '0.00';
+                        let comboText = getComboText('2+2');
+                        let comboInfo = comboText ? `，组合是${comboText}` : '';
+                        resultText += `\n其中2➕2的有${global22}行${comboInfo}。中2➕2的行数占比是${pct22}%(${global22}/${totalRows})\n`;
+                    }
+                    if (global21 > 0) {
+                        let pct21 = totalRows > 0 ? (global21 / totalRows * 100).toFixed(2) : '0.00';
+                        let comboText = getComboText('2+1');
+                        let comboInfo = comboText ? `，组合是${comboText}` : '';
+                        resultText += `\n其中2➕1的有${global21}行${comboInfo}。中2➕1的行数占比是${pct21}%(${global21}/${totalRows})\n`;
+                    }
+                }
+
+                // 1+2 区块
+                if (global12 > 0) {
+                    let pct12 = totalRows > 0 ? (global12 / totalRows * 100).toFixed(2) : '0.00';
+                    let comboText = getComboText('1+2');
+                    let comboInfo = comboText ? `，组合是${comboText}` : '';
+                    resultText += `\n✅中1➕2的有${global12}行${comboInfo}。行数占比是${pct12}%(${global12}/${totalRows})\n`;
+                }
+
+                // 0+2 区块
+                if (global02 > 0) {
+                    let pct02 = totalRows > 0 ? (global02 / totalRows * 100).toFixed(2) : '0.00';
+                    let comboText = getComboText('0+2');
+                    let comboInfo = comboText ? `，组合是${comboText}` : '';
+                    resultText += `\n✅中0➕2的有${global02}行${comboInfo}。行数占比是${pct02}%(${global02}/${totalRows})\n`;
                 }
 
                 // ===== 全部总计 =====
