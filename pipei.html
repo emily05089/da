@@ -362,13 +362,13 @@
                 <button class="btn btn-outline btn-sm" id="btnReset" style="display:none;" onclick="resetAll()">🔄 重新开始</button>
             </div>
             <div class="results-container" id="resultsContainer">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                    <button class="btn btn-outline btn-sm" onclick="copyMode1Result()">📋 一键复制结果</button>
+                </div>
                 <div id="globalMaxHitMatch" style="font-size:1.2rem;font-weight:700;margin-bottom:12px;color:var(--primary);"></div>
                 <div id="resultsSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
                 <div id="groupMatchArea"></div>
                 <div id="invalidAreaMatch"></div>
-                <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-outline btn-sm" onclick="copyMode1Result()">📋 一键复制结果</button>
-                </div>
             </div>
         </div>
 
@@ -387,11 +387,11 @@
                 <button class="btn btn-outline" id="btnTogglePool" onclick="togglePool()">奖池：低于8亿</button>
             </div>
             <div class="results-container" id="resultsContainerSSQ">
-                <div id="ssqResultContent" style="background:#fafbfd;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:'SF Mono','Monaco','Consolas',monospace;white-space:pre-wrap;line-height:1.8;font-size:0.85rem;overflow-x:auto;"></div>
-                <div id="invalidAreaSSQ" style="margin-top:12px;"></div>
-                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
                     <button class="btn btn-outline btn-sm" onclick="copySSQResult()">📋 一键复制结果</button>
                 </div>
+                <div id="ssqResultContent" style="background:#fafbfd;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:'SF Mono','Monaco','Consolas',monospace;white-space:pre-wrap;line-height:1.8;font-size:0.85rem;overflow-x:auto;"></div>
+                <div id="invalidAreaSSQ" style="margin-top:12px;"></div>
             </div>
         </div>
 
